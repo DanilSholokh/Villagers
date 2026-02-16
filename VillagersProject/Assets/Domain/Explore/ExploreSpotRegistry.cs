@@ -48,7 +48,54 @@ public class ExploreSpotRegistry
 
         return Spots[Spots.Count - 1];
     }
+
+
+
+    public ExploreSpotAuthoring PickGatherSpotWeighted(string resourceId)
+    {
+        if (Spots == null || Spots.Count == 0) return null;
+        if (string.IsNullOrWhiteSpace(resourceId)) return null;
+
+        // відфільтрувати споти, де є цей ресурс
+        var candidates = new List<ExploreSpotAuthoring>();
+        for (int i = 0; i < Spots.Count; i++)
+        {
+            var s = Spots[i];
+            if (s == null) continue;
+            if (string.Equals(s.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                candidates.Add(s);
+        }
+
+        if (candidates.Count == 0) return null;
+
+        // weighted pick по weight
+        float total = 0f;
+        for (int i = 0; i < candidates.Count; i++)
+            total += Mathf.Max(0f, candidates[i].weight);
+
+        if (total <= 0.0001f)
+            return candidates[Random.Range(0, candidates.Count)];
+
+        float roll = Random.Range(0f, total);
+        float acc = 0f;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            acc += Mathf.Max(0f, candidates[i].weight);
+            if (roll <= acc) return candidates[i];
+        }
+
+        return candidates[candidates.Count - 1];
+    }
+
+
+
+
+
+
 }
+
+
 
 
 
