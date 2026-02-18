@@ -1,0 +1,1711 @@
+﻿=== UNITY PROJECT SCRIPTS DUMP ===
+Time: 2026-02-18 05:23:05
+Unity: 6000.3.8f1
+ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
+IncludePackages: False
+IncludeMeta: False
+
+FilesCount: 20
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
+SIZE: 1918 bytes
+SHA256: e4069cb013f3ffc92447ef9a326723f5f8755143cb9454e4d0d78f5e0dbfcb10
+CONTENT:
+using UnityEngine;
+
+public enum ExploreOutcomeType
+{
+    Nothing = 0,
+    Reward = 1,
+    Danger = 2
+}
+
+public struct ExploreOutcome
+{
+    public ExploreOutcomeType type;
+
+    // Reward
+    public string resourceId;
+    public int amount;
+
+    // Danger
+    public float returnDelaySec;
+}
+
+public class ExploreOutcomeService
+{
+    // Outcome weights (можеш крутити під UX)
+    private const float W_NOTHING = 0.45f;
+    private const float W_REWARD = 0.40f;
+    private const float W_DANGER = 0.15f;
+
+    // Reward weights
+    private const float W_WOOD = 0.45f;
+    private const float W_STONE = 0.35f;
+    private const float W_FISH = 0.20f;
+
+    public ExploreOutcome Roll()
+    {
+        var o = new ExploreOutcome();
+
+        float total = W_NOTHING + W_REWARD + W_DANGER;
+        float r = Random.Range(0f, total);
+
+        if (r < W_NOTHING)
+        {
+            o.type = ExploreOutcomeType.Nothing;
+            return o;
+        }
+
+        r -= W_NOTHING;
+        if (r < W_REWARD)
+        {
+            o.type = ExploreOutcomeType.Reward;
+            RollReward(ref o);
+            return o;
+        }
+
+        o.type = ExploreOutcomeType.Danger;
+        o.returnDelaySec = Random.Range(3f, 8f); // м'який штраф
+        return o;
+    }
+
+    private void RollReward(ref ExploreOutcome o)
+    {
+        float total = W_WOOD + W_STONE + W_FISH;
+        float r = Random.Range(0f, total);
+
+        if (r < W_WOOD)
+        {
+            o.resourceId = "Wood";
+            o.amount = Random.Range(2, 6); // 2..5
+            return;
+        }
+
+        r -= W_WOOD;
+        if (r < W_STONE)
+        {
+            o.resourceId = "Stone";
+            o.amount = Random.Range(1, 5); // 1..4
+            return;
+        }
+
+        o.resourceId = "Fish";
+        o.amount = Random.Range(1, 4); // 1..3
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExploreSpotAuthoring.cs
+SIZE: 214 bytes
+SHA256: 0cb67f2db54d3c912a53184636517142bb2b509f2a777474bfdc1e4449a44e1e
+CONTENT:
+using UnityEngine;
+
+public class ExploreSpotAuthoring : MonoBehaviour
+{
+    public string spotId;
+    public float weight = 1f;
+    public string displayName;
+
+
+    public string gatherResourceId;
+
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExploreSpotRegistry.cs
+SIZE: 2636 bytes
+SHA256: 86eb5907aeea7a3d860363af3c6308d642c027371c853867ffad4ab907a36d25
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ExploreSpotRegistry
+{
+    public List<ExploreSpotAuthoring> Spots { get; private set; }
+
+    public void Initialize()
+    {
+        Spots = new List<ExploreSpotAuthoring>(
+            Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None)
+        );
+
+        Debug.Log($"[ExploreSpotRegistry] Found {Spots.Count} spots");
+
+        foreach (var s in Spots)
+        {
+            Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");
+        }
+    }
+
+
+    public ExploreSpotAuthoring GetRandomSpotWeighted()
+    {
+        if (Spots == null || Spots.Count == 0)
+            return null;
+
+        float total = 0f;
+        for (int i = 0; i < Spots.Count; i++)
+        {
+            float w = Mathf.Max(0f, Spots[i].weight);
+            total += w;
+        }
+
+        // ���� �� ���� 0 � fallback: ������ random ����-����
+        if (total <= 0.0001f)
+            return Spots[Random.Range(0, Spots.Count)];
+
+        float roll = Random.Range(0f, total);
+        float acc = 0f;
+
+        for (int i = 0; i < Spots.Count; i++)
+        {
+            acc += Mathf.Max(0f, Spots[i].weight);
+            if (roll <= acc)
+                return Spots[i];
+        }
+
+        return Spots[Spots.Count - 1];
+    }
+
+
+
+    public ExploreSpotAuthoring PickGatherSpotWeighted(string resourceId)
+    {
+        if (Spots == null || Spots.Count == 0) return null;
+        if (string.IsNullOrWhiteSpace(resourceId)) return null;
+
+        // ������������ �����, �� � ��� ������
+        var candidates = new List<ExploreSpotAuthoring>();
+        for (int i = 0; i < Spots.Count; i++)
+        {
+            var s = Spots[i];
+            if (s == null) continue;
+            if (string.Equals(s.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                candidates.Add(s);
+        }
+
+        if (candidates.Count == 0) return null;
+
+        // weighted pick �� weight
+        float total = 0f;
+        for (int i = 0; i < candidates.Count; i++)
+            total += Mathf.Max(0f, candidates[i].weight);
+
+        if (total <= 0.0001f)
+            return candidates[Random.Range(0, candidates.Count)];
+
+        float roll = Random.Range(0f, total);
+        float acc = 0f;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            acc += Mathf.Max(0f, candidates[i].weight);
+            if (roll <= acc) return candidates[i];
+        }
+
+        return candidates[candidates.Count - 1];
+    }
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
+SIZE: 1264 bytes
+SHA256: ec320516e5012a8999a0a194fb7e0ea84d2bc3714d66abff84164b95b20d9635
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class TaskBoardAuthoring : MonoBehaviour
+{
+    [Serializable]
+    public class TaskDef
+    {
+        public string taskId;
+        public TaskType type;
+        public string displayName;
+
+        public bool active = true;
+        [Range(0, 5)] public int priority = 3;
+        [Min(1)] public int maxTakers = 1;
+        [Min(0.1f)] public float durationSec = 10f;
+
+        // Gather (���. ��� ����� �����)
+        public string resourceId;
+        public int baseAmount = 3;
+    }
+
+    public List<TaskDef> tasks = new();
+
+    public List<TaskInstance> BuildRuntimeTasks()
+    {
+        var list = new List<TaskInstance>(tasks.Count);
+        foreach (var t in tasks)
+        {
+            list.Add(new TaskInstance
+            {
+                taskId = t.taskId,
+                type = t.type,
+                displayName = t.displayName,
+                active = t.active,
+                priority = t.priority,
+                maxTakers = t.maxTakers,
+                durationSec = t.durationSec,
+                resourceId = t.resourceId,
+                baseAmount = t.baseAmount
+            });
+        }
+        return list;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/TaskBoard/TaskBoardModels.cs
+SIZE: 544 bytes
+SHA256: 83f07a946bb3f1162e62d24296aa6a02a2453156b22498c5497264c910d56ffc
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public enum TaskType
+{
+    Gather = 0,
+    Explore = 1
+}
+
+public class TaskInstance
+{
+    public string taskId;
+    public TaskType type;
+    public string displayName;
+
+    public bool active;
+    public int priority;      // 0..5
+    public int maxTakers;     // N
+    public float durationSec;
+
+    // ��� Gather (���� �����������)
+    public string resourceId;
+    public int baseAmount;
+
+    // ��� Explore: ������������� ExploreSpotRegistry + OutcomeService
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/TaskBoard/TaskBoardService.cs
+SIZE: 2018 bytes
+SHA256: 99b85129e58683c32f3bd4068cccc19084866da27016068b316c80a8f5a68cc3
+CONTENT:
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class TaskBoardService
+{
+    private readonly List<TaskInstance> tasks = new();
+    private readonly Dictionary<string, HashSet<string>> reservations = new(); // taskId -> agentIds
+
+    public void SetTasks(List<TaskInstance> newTasks)
+    {
+        tasks.Clear();
+        tasks.AddRange(newTasks);
+
+        reservations.Clear();
+        foreach (var t in tasks)
+            reservations[t.taskId] = new HashSet<string>();
+
+        Debug.Log($"[TaskBoard] Loaded tasks={tasks.Count}");
+    }
+
+    public IReadOnlyList<TaskInstance> GetAllTasks() => tasks;
+
+    public bool IsAvailable(TaskInstance t)
+    {
+        if (!t.active) return false;
+        if (!reservations.TryGetValue(t.taskId, out var set)) return false;
+        return set.Count < Mathf.Max(1, t.maxTakers);
+    }
+
+    public int SlotsTaken(string taskId)
+        => reservations.TryGetValue(taskId, out var set) ? set.Count : 0;
+
+    public int SlotsFree(string taskId, int maxTakers)
+        => Mathf.Max(0, Mathf.Max(1, maxTakers) - SlotsTaken(taskId));
+
+    public bool TryReserve(string taskId, string agentId)
+    {
+        if (!reservations.TryGetValue(taskId, out var set))
+            return false;
+
+        var t = tasks.FirstOrDefault(x => x.taskId == taskId);
+        if (t == null || !t.active)
+            return false;
+
+        if (set.Count >= Mathf.Max(1, t.maxTakers))
+            return false;
+
+        if (set.Add(agentId))
+        {
+            Debug.Log($"[TaskBoard] Reserve task={taskId} agent={agentId} slots={set.Count}/{t.maxTakers}");
+            return true;
+        }
+
+        return false;
+    }
+
+    public void Release(string taskId, string agentId)
+    {
+        if (!reservations.TryGetValue(taskId, out var set))
+            return;
+
+        if (set.Remove(agentId))
+            Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/TaskBoard/TaskSelectionLogic.cs
+SIZE: 547 bytes
+SHA256: 8794cc1d2a34d755d2a56d9197c8c32f04fa228d5d3e9569a4ce831ca2797f20
+CONTENT:
+using System.Collections.Generic;
+using System.Linq;
+
+public static class TaskSelectionLogic
+{
+    public static TaskInstance PickBest(TaskBoardService board)
+    {
+        var tasks = board.GetAllTasks();
+
+        var available = tasks
+            .Where(board.IsAvailable)
+            .OrderByDescending(t => t.priority)
+            .ThenByDescending(t => board.SlotsFree(t.taskId, t.maxTakers))
+            .ThenBy(t => t.durationSec)
+            .ToList();
+
+        return available.Count > 0 ? available[0] : null;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Editor/ProjectScriptsDumper.cs
+SIZE: 6085 bytes
+SHA256: 55187a5eda3b62ab6a889a546f4d080ed0dcd16f61f48b176d8e87d6ddaf7dfe
+CONTENT:
+using System;
+using System.IO;
+using System.Text;
+using System.Linq;
+using System.Security.Cryptography;
+using UnityEditor;
+using UnityEngine;
+
+public static class ProjectScriptsDumper
+{
+    // ✅ Налаштування
+    private const bool INCLUDE_PACKAGES = false;   // true якщо хочеш включати Packages/*.cs
+    private const bool INCLUDE_META = false;       // true якщо хочеш ще й *.meta (зазвичай не треба)
+    private const int MAX_FILE_SIZE_KB = 512;     // захист від випадкових гігантських файлів (можеш збільшити)
+
+    [MenuItem("Tools/Dump Project Scripts")]
+    public static void DumpAllScripts()
+    {
+        try
+        {
+            // Куди зберігаємо
+            var outDir = Path.Combine(Application.dataPath, "../Dumps");
+            Directory.CreateDirectory(outDir);
+
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var outPath = Path.Combine(outDir, $"project_scripts_dump_{timestamp}.txt");
+
+            var sb = new StringBuilder(2_000_000);
+
+            // Заголовок
+            sb.AppendLine("=== UNITY PROJECT SCRIPTS DUMP ===");
+            sb.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Unity: {Application.unityVersion}");
+            sb.AppendLine($"ProjectPath: {Directory.GetParent(Application.dataPath)?.FullName}");
+            sb.AppendLine($"IncludePackages: {INCLUDE_PACKAGES}");
+            sb.AppendLine($"IncludeMeta: {INCLUDE_META}");
+            sb.AppendLine();
+
+            // Джерела
+            var rootProject = Directory.GetParent(Application.dataPath)?.FullName;
+            if (string.IsNullOrEmpty(rootProject))
+            {
+                Debug.LogError("[Dump] Cannot resolve project root.");
+                return;
+            }
+
+            // Основний список файлів
+            var assetRoot = Application.dataPath; // .../Project/Assets
+            var files = Directory.GetFiles(assetRoot, "*.cs", SearchOption.AllDirectories).ToList();
+
+            if (INCLUDE_META)
+                files.AddRange(Directory.GetFiles(assetRoot, "*.meta", SearchOption.AllDirectories));
+
+            if (INCLUDE_PACKAGES)
+            {
+                var packagesDir = Path.Combine(rootProject, "Packages");
+                if (Directory.Exists(packagesDir))
+                {
+                    files.AddRange(Directory.GetFiles(packagesDir, "*.cs", SearchOption.AllDirectories));
+                    if (INCLUDE_META)
+                        files.AddRange(Directory.GetFiles(packagesDir, "*.meta", SearchOption.AllDirectories));
+                }
+            }
+
+            // Сортування стабільне
+            files = files
+                .Distinct()
+                .OrderBy(f => f.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            sb.AppendLine($"FilesCount: {files.Count}");
+            sb.AppendLine();
+
+            int written = 0;
+            int skippedLarge = 0;
+            int skippedReadErr = 0;
+
+            foreach (var absPath in files)
+            {
+                // Захист від дуже великих файлів
+                var fi = new FileInfo(absPath);
+                if (fi.Exists && fi.Length > MAX_FILE_SIZE_KB * 1024L)
+                {
+                    skippedLarge++;
+                    continue;
+                }
+
+                string content;
+                try
+                {
+                    // UTF8 із нормальним читанням
+                    content = File.ReadAllText(absPath, Encoding.UTF8);
+                }
+                catch
+                {
+                    skippedReadErr++;
+                    continue;
+                }
+
+                var relPath = MakeRelative(absPath, rootProject);
+                var hash = Sha256Hex(content);
+
+                sb.AppendLine("----- FILE BEGIN -----");
+                sb.AppendLine($"PATH: {relPath.Replace('\\', '/')}");
+                sb.AppendLine($"SIZE: {fi.Length} bytes");
+                sb.AppendLine($"SHA256: {hash}");
+                sb.AppendLine("CONTENT:");
+                sb.AppendLine(content);
+                if (!content.EndsWith("\n")) sb.AppendLine();
+                sb.AppendLine("----- FILE END -----");
+                sb.AppendLine();
+
+                written++;
+            }
+
+            sb.AppendLine("=== DUMP SUMMARY ===");
+            sb.AppendLine($"Written: {written}");
+            sb.AppendLine($"SkippedLarge(>{MAX_FILE_SIZE_KB}KB): {skippedLarge}");
+            sb.AppendLine($"SkippedReadErrors: {skippedReadErr}");
+            sb.AppendLine("====================");
+
+            File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
+
+            Debug.Log($"[Dump] Saved: {outPath}");
+            EditorUtility.RevealInFinder(outPath);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[Dump] Exception: {e}");
+        }
+    }
+
+    private static string MakeRelative(string fullPath, string rootPath)
+    {
+        fullPath = Path.GetFullPath(fullPath);
+        rootPath = Path.GetFullPath(rootPath);
+
+        if (!rootPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+            rootPath += Path.DirectorySeparatorChar;
+
+        if (fullPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            return fullPath.Substring(rootPath.Length);
+
+        return fullPath;
+    }
+
+    private static string Sha256Hex(string text)
+    {
+        using var sha = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(text);
+        var hash = sha.ComputeHash(bytes);
+        var sb = new StringBuilder(hash.Length * 2);
+        for (int i = 0; i < hash.Length; i++)
+            sb.Append(hash[i].ToString("x2"));
+        return sb.ToString();
+    }
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/EventLogPanelView.cs
+SIZE: 968 bytes
+SHA256: f1c92900b16e182c8b2bf4c748ac1ce98e210abaca3f487380611f98757d5d71
+CONTENT:
+using System.Text;
+using TMPro;
+using UnityEngine;
+
+public class EventLogPanelView : MonoBehaviour
+{
+    public TextMeshProUGUI logText;
+
+    private EventLogService _log;
+
+    public void Bind(EventLogService log)
+    {
+        if (_log != null)
+            _log.OnPushed -= HandlePushed;
+
+        _log = log;
+
+        if (_log != null)
+            _log.OnPushed += HandlePushed;
+
+        Rebuild();
+    }
+
+    private void OnDisable()
+    {
+        if (_log != null)
+            _log.OnPushed -= HandlePushed;
+    }
+
+    private void HandlePushed(string _)
+    {
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        if (logText == null) return;
+        if (_log == null)
+        {
+            logText.text = "";
+            return;
+        }
+
+        var sb = new StringBuilder(256);
+        foreach (var l in _log.Lines)
+            sb.AppendLine(l);
+
+        logText.text = sb.ToString();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/EventLogService.cs
+SIZE: 537 bytes
+SHA256: 632477726f5ff4f5d42d7f988f9eaa5d6d74afc4fe412128bc317f0e1739fcd6
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public class EventLogService
+{
+    public event Action<string> OnPushed;
+
+    private readonly Queue<string> _lines = new();
+    private readonly int _cap;
+
+    public EventLogService(int cap = 10)
+    {
+        _cap = cap;
+    }
+
+    public IReadOnlyCollection<string> Lines => _lines;
+
+    public void Push(string msg)
+    {
+        _lines.Enqueue(msg);
+        while (_lines.Count > _cap)
+            _lines.Dequeue();
+
+        OnPushed?.Invoke(msg);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
+SIZE: 1394 bytes
+SHA256: a8e7cdf8a0332fadeeacd7605c10192f5f32b37d288f4b2063c6f00d877004d6
+CONTENT:
+using TMPro;
+using UnityEngine;
+
+public class TreasuryPanelView : MonoBehaviour
+{
+    [Header("Values")]
+    public TextMeshProUGUI woodValue;
+    public TextMeshProUGUI stoneValue;
+    public TextMeshProUGUI fishValue;
+
+    private TreasuryService _treasury;
+
+    public void Bind(TreasuryService treasury)
+    {
+        if (_treasury != null)
+            _treasury.OnChanged -= HandleChanged;
+
+        _treasury = treasury;
+
+        if (_treasury != null)
+            _treasury.OnChanged += HandleChanged;
+
+        RefreshAll();
+    }
+
+    private void OnDisable()
+    {
+        if (_treasury != null)
+            _treasury.OnChanged -= HandleChanged;
+    }
+
+    private void HandleChanged(string resId, int newTotal)
+    {
+        switch (resId)
+        {
+            case "wood": if (woodValue) woodValue.text = newTotal.ToString(); break;
+            case "stone": if (stoneValue) stoneValue.text = newTotal.ToString(); break;
+            case "fish": if (fishValue) fishValue.text = newTotal.ToString(); break;
+        }
+    }
+
+    private void RefreshAll()
+    {
+        if (_treasury == null) return;
+        if (woodValue) woodValue.text = _treasury.Get("wood").ToString();
+        if (stoneValue) stoneValue.text = _treasury.Get("stone").ToString();
+        if (fishValue) fishValue.text = _treasury.Get("fish").ToString();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/TreasurySystem/TreasuryService.cs
+SIZE: 975 bytes
+SHA256: 36e90510c4f7725b36d29ab08c16de89f285e382bf3fe01b0e754742fbd4284c
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class TreasuryService
+{
+    private readonly Dictionary<string, int> storage = new();
+
+
+    public event Action<string, int> OnChanged;
+
+    private readonly Dictionary<string, int> _map = new();
+
+
+
+    public int GetAmount(string resourceId)
+        => storage.TryGetValue(resourceId, out var v) ? v : 0;
+
+
+    public void Add(string resourceId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+            return;
+
+        storage.TryGetValue(resourceId, out var cur);
+        storage[resourceId] = cur + amount;
+
+        OnChanged?.Invoke(resourceId, storage[resourceId]);
+        Debug.Log($"[Treasury] +{amount} {resourceId} (total={storage[resourceId]})");
+    }
+
+
+    public int Get(string resId)
+    {
+        resId = resId.ToLowerInvariant();
+        return _map.TryGetValue(resId, out var v) ? v : 0;
+    }
+
+
+
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Presentation/GatherLocationAuthoring.cs
+SIZE: 246 bytes
+SHA256: bc4d7540784071e2787e5fedef80c6469749d22bb7426e3839072e8538bc5891
+CONTENT:
+using UnityEngine;
+
+public class GatherLocationAuthoring : MonoBehaviour
+{
+    public string locationId;
+    public string resourceId;   // "Fish", "Wood", "Stone"
+    [Min(0f)] public float weight = 1f;
+    public string displayName;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Presentation/VillagerAgentBrain.cs
+SIZE: 9760 bytes
+SHA256: 2b9f00395526f8e4c5fb7ab9f45f8436a3b00012953906f98f5a4b5a7c9e02d4
+CONTENT:
+using System.Collections;
+using UnityEngine;
+using UnityEngine.AI;
+
+public class VillagerAgentBrain : MonoBehaviour
+{
+    [SerializeField] private string agentId = "A";
+    [SerializeField] private Transform homePoint;
+
+    [Header("Brain tuning")]
+    [SerializeField] private float noTaskDelay = 0.5f;
+    [SerializeField] private float afterCycleDelay = 0.25f;
+    [SerializeField] private float gatherNoSpotDelay = 0.25f;
+
+    [Header("NavMesh safety")]
+    [SerializeField] private float arriveTimeoutSec = 20f; // щоб не зависати назавжди
+    [SerializeField] private float minVelocitySqr = 0.01f; // стабілізація "приїхав"
+
+    [SerializeField] private float arriveDistance = 0.6f;
+
+
+    private NavMeshAgent agent;
+    private Coroutine loop;
+    private bool started;
+
+    private TaskBoardService _board;
+    private ExploreSpotRegistry _spots;
+    private TreasuryService _treasury;
+    private EventLogService _log;
+
+    private void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+    }
+
+    // ❗ ВАЖЛИВО: OnEnable/Start НЕ запускають логіку
+
+    public void Begin(TaskBoardService board, ExploreSpotRegistry spots, TreasuryService treasury, EventLogService log)
+    {
+        _board = board;
+        _spots = spots;
+        _treasury = treasury;
+        _log = log;
+
+        if (started) return;
+        started = true;
+
+        if (homePoint == null)
+        {
+            Debug.LogError($"[VillagerAgentBrain] homePoint is not set! agent={agentId}");
+            started = false;
+            return;
+        }
+
+        if (_board == null)
+        {
+            Debug.LogError($"[VillagerAgentBrain] TaskBoard is null at Begin! agent={agentId}");
+            started = false;
+            return;
+        }
+
+        if (_spots == null)
+        {
+            Debug.LogError($"[VillagerAgentBrain] ExploreSpotRegistry is null at Begin! agent={agentId}");
+            started = false;
+            return;
+        }
+
+        if (agent == null)
+        {
+            Debug.LogError($"[VillagerAgentBrain] NavMeshAgent missing! agent={agentId}");
+            started = false;
+            return;
+        }
+
+        loop = StartCoroutine(Run());
+    }
+
+    public void StopBrain()
+    {
+        if (loop != null)
+            StopCoroutine(loop);
+
+        loop = null;
+        started = false;
+    }
+
+    private IEnumerator Run()
+    {
+        while (true)
+        {
+            // 1) Pick
+            var task = TaskSelectionLogic.PickBest(_board);
+            if (task == null)
+            {
+                yield return new WaitForSeconds(noTaskDelay);
+                continue;
+            }
+
+            // 2) Reserve
+            if (!_board.TryReserve(task.taskId, agentId))
+            {
+                yield return null;
+                continue;
+            }
+
+            Log($"Picked task={task.taskId} ({task.displayName})");
+
+            // 3) Execute
+            if (task.type == TaskType.Explore)
+                yield return DoExplore(task);
+            else
+                yield return DoGather(task);
+
+            // 4) Return home
+            yield return DoGoHome();
+
+            // 5) Release (після повернення)
+            _board.Release(task.taskId, agentId);
+
+            yield return new WaitForSeconds(afterCycleDelay);
+        }
+    }
+
+    // -------------------- ACTIONS --------------------
+
+    private IEnumerator DoExplore(TaskInstance task)
+    {
+        var spot = _spots.GetRandomSpotWeighted();
+        if (spot == null)
+        {
+            Log($"Explore failed: no spot (registry empty?)");
+            // release одразу, щоб слот не висів
+            _board.Release(task.taskId, agentId);
+            yield return new WaitForSeconds(afterCycleDelay);
+            yield break;
+        }
+
+        Log($"Explore to spot={spot.spotId}");
+
+        if (!TrySetDestination(spot.transform.position))
+        {
+            Log($"Explore refused: invalid destination spot={spot.spotId}");
+            _board.Release(task.taskId, agentId);
+            yield return new WaitForSeconds(afterCycleDelay);
+            yield break;
+        }
+
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        yield return new WaitForSeconds(task.durationSec);
+
+        if (GameInstaller.ExploreOutcome == null)
+        {
+            Log("ExploreOutcome is null (installer not initialized?)");
+            yield break;
+        }
+
+        var outcome = GameInstaller.ExploreOutcome.Roll();
+
+        if (outcome.type == ExploreOutcomeType.Nothing)
+        {
+            Log($"Explore outcome: Nothing");
+        }
+        else if (outcome.type == ExploreOutcomeType.Reward)
+        {
+            Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
+            if (_treasury != null)
+                _treasury.Add(outcome.resourceId, outcome.amount);
+        }
+        else
+        {
+            Log($"Explore outcome: Danger (+{outcome.returnDelaySec:0.0}s)");
+            yield return new WaitForSeconds(outcome.returnDelaySec);
+        }
+    }
+
+    private IEnumerator DoGather(TaskInstance task)
+    {
+        var spot = _spots.PickGatherSpotWeighted(task.resourceId);
+
+        if (spot == null)
+        {
+            Log($"Gather refused: no spot for resource={task.resourceId} task={task.taskId}");
+            _board.Release(task.taskId, agentId);
+            yield return new WaitForSeconds(gatherNoSpotDelay);
+            yield break;
+        }
+
+        Log($"Gather -> spot={spot.spotId} res={task.resourceId}");
+
+        if (!TrySetDestination(spot.transform.position))
+        {
+            Log($"Gather refused: invalid destination spot={spot.spotId}");
+            _board.Release(task.taskId, agentId);
+            yield return new WaitForSeconds(gatherNoSpotDelay);
+            yield break;
+        }
+
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        Log($"Gather working {task.durationSec:0.0}s");
+        yield return new WaitForSeconds(task.durationSec);
+
+        if (!string.IsNullOrEmpty(task.resourceId) && task.baseAmount > 0)
+        {
+            Log($"Gather result: +{task.baseAmount} {task.resourceId}");
+            if (_treasury != null)
+                _treasury.Add(task.resourceId, task.baseAmount);
+        }
+    }
+
+    private IEnumerator DoGoHome()
+    {
+        if (homePoint == null) yield break;
+
+        if (!TrySetDestination(homePoint.position))
+        {
+            Log($"Return home refused: invalid home destination");
+            yield break;
+        }
+
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+    }
+
+    // -------------------- NAVMESH SAFETY --------------------
+
+    private bool TrySetDestination(Vector3 pos)
+    {
+        if (agent == null) return false;
+
+        // якщо агент не на навмеші — SetDestination може поводитись дивно
+        if (!agent.isOnNavMesh)
+        {
+            Log($"NavMesh warning: agent is not on NavMesh");
+            return false;
+        }
+
+        // перевірка, що точка достижима
+        var path = new NavMeshPath();
+        if (!agent.CalculatePath(pos, path))
+            return false;
+
+        if (path.status != NavMeshPathStatus.PathComplete)
+            return false;
+
+        agent.isStopped = false;
+        agent.SetDestination(pos);
+        return true;
+    }
+
+    private IEnumerator WaitUntilArrivedSafe(float timeoutSec)
+    {
+        float t = 0f;
+
+        // очікуємо, поки порахує шлях
+        while (agent.pathPending)
+        {
+            t += Time.deltaTime;
+            if (t >= timeoutSec) { Log($"Arrive timeout (pathPending)"); yield break; }
+            yield return null;
+        }
+
+        // якщо раптом шлях невалідний
+        if (agent.pathStatus != NavMeshPathStatus.PathComplete)
+        {
+            Log($"Arrive aborted: pathStatus={agent.pathStatus}");
+            yield break;
+        }
+
+        // чекаємо дистанцію
+        var dest = agent.destination;
+
+        while (true)
+        {
+            t += Time.deltaTime;
+            if (t >= timeoutSec)
+            {
+                Log($"Arrive timeout (distance) rem={agent.remainingDistance:0.00} stop={agent.stoppingDistance:0.00} dist={Vector3.Distance(transform.position, dest):0.00}");
+                yield break;
+            }
+
+            // 1) Якщо remainingDistance норм — використовуємо його
+            if (!agent.pathPending && agent.remainingDistance <= Mathf.Max(agent.stoppingDistance, arriveDistance))
+                break;
+
+            // 2) Fallback: фактична дистанція до destination
+            if (Vector3.Distance(transform.position, dest) <= arriveDistance)
+                break;
+
+            yield return null;
+        }
+
+
+        // дочекатися “зупинки”
+        while (agent.velocity.sqrMagnitude > minVelocitySqr)
+        {
+            t += Time.deltaTime;
+            if (t >= timeoutSec)
+                break; // не yield break, бо ми вже фактично "прибули"
+            yield return null;
+        }
+
+    }
+
+    // -------------------- LOGGING --------------------
+
+    private void Log(string msg)
+    {
+        Debug.Log($"[Agent {agentId}] {msg}");
+        _log?.Push($"[Agent {agentId}] {msg}");
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Scripts/ExploreWalker.cs
+SIZE: 3056 bytes
+SHA256: 46b2084e0771b93c5e7ef91f118f6e9324c07fef9a3371961db6ecc39760d7d9
+CONTENT:
+using System.Collections;
+using UnityEngine;
+using UnityEngine.AI;
+
+public class ExploreWalker : MonoBehaviour
+{
+    [Header("Refs")]
+    [SerializeField] private Transform homePoint;
+
+    [Header("Timings")]
+    [SerializeField] private float workDurationSec = 3f;
+    [SerializeField] private float idleBetweenTripsSec = 1f;
+
+    private NavMeshAgent agent;
+
+    private void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+    }
+
+    private void Start()
+    {
+        if (homePoint == null)
+        {
+            Debug.LogError("[ExploreWalker] homePoint is not set!");
+            enabled = false;
+            return;
+        }
+
+        StartCoroutine(RunLoop());
+    }
+
+    private IEnumerator RunLoop()
+    {
+        while (true)
+        {
+            // 1) Pick random spot
+            var spot = GameInstaller.ExploreRegistry.GetRandomSpotWeighted();
+            if (spot == null)
+            {
+                Debug.LogError("[ExploreWalker] No explore spots in registry.");
+                yield break;
+            }
+
+            Debug.Log($"[ExploreWalker] Going to spot={spot.spotId}");
+
+            // 2) Go to spot
+            agent.SetDestination(spot.transform.position);
+            yield return WaitUntilArrived();
+
+            Debug.Log($"[ExploreWalker] Arrived spot={spot.spotId}, working {workDurationSec:0.0}s");
+            yield return new WaitForSeconds(workDurationSec);
+
+
+            var outcome = GameInstaller.ExploreOutcome.Roll();
+
+            if (outcome.type == ExploreOutcomeType.Nothing)
+            {
+                Debug.Log("[ExploreWalker] Outcome: Nothing");
+            }
+            else if (outcome.type == ExploreOutcomeType.Reward)
+            {
+                Debug.Log($"[ExploreWalker] Outcome: Reward +{outcome.amount} {outcome.resourceId}");
+                GameInstaller.Treasury.Add(outcome.resourceId, outcome.amount);
+            }
+            else // Danger
+            {
+                Debug.Log($"[ExploreWalker] Outcome: Danger, return delayed +{outcome.returnDelaySec:0.0}s");
+                yield return new WaitForSeconds(outcome.returnDelaySec);
+            }
+
+
+
+            // 3) Return home
+            Debug.Log("[ExploreWalker] Returning home");
+            agent.SetDestination(homePoint.position);
+            yield return WaitUntilArrived();
+
+            Debug.Log($"[ExploreWalker] Home. Next trip in {idleBetweenTripsSec:0.0}s");
+            yield return new WaitForSeconds(idleBetweenTripsSec);
+        }
+    }
+
+    private IEnumerator WaitUntilArrived()
+    {
+        // ������ ���� ����� ������� ������ ����
+        while (agent.pathPending)
+            yield return null;
+
+        // ������ ���� ����
+        while (agent.remainingDistance > agent.stoppingDistance)
+            yield return null;
+
+        // ������ ����� ��� ��������� ����� ���� ��������� ��������
+        while (agent.velocity.sqrMagnitude > 0.01f)
+            yield return null;
+    }
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Scripts/GameInstaller.cs
+SIZE: 2103 bytes
+SHA256: 8390566e775d87a7396826f2b295aada8901d67659b3ce45e5c75571e2e30072
+CONTENT:
+using UnityEngine;
+
+
+public class GameInstaller : MonoBehaviour
+{
+
+    public static TreasuryService Treasury { get; private set; }
+    public static ExploreOutcomeService ExploreOutcome { get; private set; }
+    public static TaskBoardService TaskBoard { get; private set; }
+
+
+
+    public static ExploreSpotRegistry ExploreRegistry { get; private set; }
+
+
+
+    [SerializeField] private TreasuryPanelView treasuryPanel;
+    [SerializeField] private EventLogPanelView eventLogPanel;
+
+
+    private EventLogService _log;
+
+    private void Awake()
+    {
+        Debug.Log("[Installer] Boot");
+
+        ExploreRegistry = new ExploreSpotRegistry();
+        ExploreRegistry.Initialize();
+
+        for (int i = 0; i < 10; i++)
+        {
+            var s = ExploreRegistry.GetRandomSpotWeighted();
+            Debug.Log($"[TEST] Picked spot={s.spotId} w={s.weight}");
+        }
+
+
+        ExploreOutcome = new ExploreOutcomeService();
+
+        // TaskBoard 
+        TaskBoard = new TaskBoardService();
+
+        // Treasury
+        Treasury = new TreasuryService();
+
+        var treasuryPanel = FindFirstObjectByType<TreasuryPanelView>();
+        if (treasuryPanel != null)
+        {
+            treasuryPanel.Bind(Treasury);
+        }
+
+
+        // Debug log
+        _log = new EventLogService(10);
+        if (eventLogPanel) eventLogPanel.Bind(_log);
+
+        _log.Push("[Installer] Ready");
+
+
+
+        var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
+        if (authoring == null)
+        {
+            Debug.LogError("[Installer] TaskBoardAuthoring not found in scene!");
+        }
+        else
+        {
+            TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
+
+
+            var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
+            Debug.Log($"[Installer] Starting agents={brains.Length}");
+
+            foreach (var b in brains)
+                b.Begin(TaskBoard, ExploreRegistry, Treasury, _log);
+
+            Debug.Log("[Installer] Ready");
+
+
+        }
+
+
+
+
+
+    }
+}
+
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Scripts/ToolsDebuger/SceneFullDump.cs
+SIZE: 8112 bytes
+SHA256: 69ee5e2f38039693a7987c0137bce6a5127ccad1c7b76c37ad59e2bd4b508f70
+CONTENT:
+using System;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public static class SceneFullDump
+{
+    [MenuItem("Tools/Scene Debug/Dump Full Scene (to file)")]
+    public static void DumpFullSceneToFile()
+    {
+        var scene = EditorSceneManager.GetActiveScene();
+        if (!scene.IsValid())
+        {
+            Debug.LogWarning("[SceneDump] Active scene is not valid.");
+            return;
+        }
+
+        var sb = new StringBuilder(1024 * 256);
+        sb.AppendLine("=== FULL SCENE DUMP ===");
+        sb.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"Scene: {scene.name}");
+        sb.AppendLine($"Path: {scene.path}");
+        sb.AppendLine($"Loaded: {scene.isLoaded}");
+        sb.AppendLine();
+
+        var roots = scene.GetRootGameObjects();
+        sb.AppendLine($"Root objects: {roots.Length}");
+        sb.AppendLine();
+
+        for (int i = 0; i < roots.Length; i++)
+        {
+            DumpTransformRecursive(roots[i].transform, sb, 0);
+            sb.AppendLine();
+        }
+
+        WriteToFile(sb.ToString(), $"scene_dump_{scene.name}");
+    }
+
+    private static void DumpTransformRecursive(Transform t, StringBuilder sb, int indent)
+    {
+        var pad = new string(' ', indent * 2);
+        var go = t.gameObject;
+
+        sb.Append(pad).Append("- ").Append(go.name)
+          .Append($" (activeSelf={go.activeSelf}, activeInHierarchy={go.activeInHierarchy})");
+
+        // Tag/Layer
+        sb.Append($" [tag={go.tag}, layer={LayerMask.LayerToName(go.layer)}]");
+
+        // Transform �����
+        sb.AppendLine();
+        sb.AppendLine($"{pad}  Transform: pos={t.localPosition} rot={t.localRotation.eulerAngles} scale={t.localScale}");
+
+        // RectTransform (���� �)
+        if (t is RectTransform rt)
+        {
+            sb.AppendLine($"{pad}  RectTransform: anchMin={rt.anchorMin} anchMax={rt.anchorMax} pivot={rt.pivot}");
+            sb.AppendLine($"{pad}               anchoredPos={rt.anchoredPosition} sizeDelta={rt.sizeDelta} offsetMin={rt.offsetMin} offsetMax={rt.offsetMax}");
+
+            // Runtime rect size ���� ���� 0 � Edit, ��� � Play �������� �������
+            sb.AppendLine($"{pad}               rect(w,h)=({rt.rect.width:0.###},{rt.rect.height:0.###})");
+        }
+
+        // ������ ���������� + ������ ���������
+        DumpComponents(go, sb, indent);
+
+        // �������
+        for (int i = 0; i < t.childCount; i++)
+            DumpTransformRecursive(t.GetChild(i), sb, indent + 1);
+    }
+
+    private static void DumpComponents(GameObject go, StringBuilder sb, int indent)
+    {
+        var pad = new string(' ', (indent * 2) + 2);
+        var comps = go.GetComponents<Component>();
+
+        sb.AppendLine($"{pad}Components ({comps.Length}):");
+
+        foreach (var c in comps)
+        {
+            if (c == null)
+            {
+                sb.AppendLine($"{pad}- <Missing Script>");
+                continue;
+            }
+
+            var type = c.GetType();
+            sb.Append($"{pad}- {type.Name}");
+
+            // ����������� ����-������
+            if (c is Canvas canvas)
+            {
+                sb.Append($" (enabled={canvas.enabled}, renderMode={canvas.renderMode}, sortOrder={canvas.sortingOrder}, overrideSort={canvas.overrideSorting})");
+            }
+            else if (c is CanvasScaler scaler)
+            {
+                sb.Append($" (mode={scaler.uiScaleMode}, refRes={scaler.referenceResolution}, match={scaler.matchWidthOrHeight:0.##})");
+            }
+            else if (c is GraphicRaycaster gr)
+            {
+                sb.Append($" (enabled={gr.enabled}, ignoreReversed={gr.ignoreReversedGraphics})");
+            }
+            else if (c is ScrollRect sr)
+            {
+                sb.Append($" (H={sr.horizontal}, V={sr.vertical}, move={sr.movementType}, inertia={sr.inertia}, sens={sr.scrollSensitivity:0.##})");
+                sb.Append($" viewport={(sr.viewport ? GetPath(sr.viewport) : "null")}");
+                sb.Append($" content={(sr.content ? GetPath(sr.content) : "null")}");
+            }
+            else if (c is RectMask2D rm)
+            {
+                sb.Append($" (padding={rm.padding}, softness={rm.softness})");
+            }
+            else if (c is Mask mask)
+            {
+                sb.Append($" (showMaskGraphic={mask.showMaskGraphic})");
+            }
+            else if (c is VerticalLayoutGroup vlg)
+            {
+                sb.Append($" (pad=({vlg.padding.left},{vlg.padding.right},{vlg.padding.top},{vlg.padding.bottom})");
+                sb.Append($" spacing={vlg.spacing:0.##} align={vlg.childAlignment}");
+                sb.Append($" ctrlW={vlg.childControlWidth} ctrlH={vlg.childControlHeight}");
+                sb.Append($" expW={vlg.childForceExpandWidth} expH={vlg.childForceExpandHeight})");
+            }
+            else if (c is HorizontalLayoutGroup hlg)
+            {
+                sb.Append($" (pad=({hlg.padding.left},{hlg.padding.right},{hlg.padding.top},{hlg.padding.bottom})");
+                sb.Append($" spacing={hlg.spacing:0.##} align={hlg.childAlignment}");
+                sb.Append($" ctrlW={hlg.childControlWidth} ctrlH={hlg.childControlHeight}");
+                sb.Append($" expW={hlg.childForceExpandWidth} expH={hlg.childForceExpandHeight})");
+            }
+            else if (c is ContentSizeFitter csf)
+            {
+                sb.Append($" (horiz={csf.horizontalFit}, vert={csf.verticalFit})");
+            }
+            else if (c is LayoutElement le)
+            {
+                sb.Append($" (min=({le.minWidth:0.##},{le.minHeight:0.##}) pref=({le.preferredWidth:0.##},{le.preferredHeight:0.##}) flex=({le.flexibleWidth:0.##},{le.flexibleHeight:0.##}))");
+            }
+            else if (c is Image img)
+            {
+                sb.Append($" (raycast={img.raycastTarget}, type={img.type}, color={img.color})");
+            }
+            else if (c is Button btn)
+            {
+                sb.Append($" (interactable={btn.interactable}, transition={btn.transition})");
+            }
+            else if (c is Toggle tog)
+            {
+                sb.Append($" (isOn={tog.isOn}, interactable={tog.interactable})");
+            }
+            else if (c is TextMeshProUGUI tmpui)
+            {
+                sb.Append($" (TMP_UI size={tmpui.fontSize:0.##} autoSize={tmpui.enableAutoSizing} wrap={tmpui.enableWordWrapping} raycast={tmpui.raycastTarget})");
+                sb.Append($" text=\"{Trim(tmpui.text)}\"");
+                sb.Append($" pref(w,h)=({tmpui.preferredWidth:0.##},{tmpui.preferredHeight:0.##})");
+            }
+            else if (c is TextMeshPro tmp3d)
+            {
+                sb.Append($" (TMP_3D size={tmp3d.fontSize:0.##}) text=\"{Trim(tmp3d.text)}\"");
+            }
+
+            sb.AppendLine();
+        }
+    }
+
+    private static void WriteToFile(string text, string prefix)
+    {
+        var folder = Path.Combine(Application.dataPath, "../_SceneDumps");
+        Directory.CreateDirectory(folder);
+
+        var file = Path.Combine(folder, $"{prefix}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+        File.WriteAllText(file, text, Encoding.UTF8);
+
+        Debug.Log($"[SceneDump] Saved: {file}");
+        EditorUtility.RevealInFinder(file);
+    }
+
+    private static string GetPath(Transform t)
+    {
+        if (t == null) return "null";
+        var sb = new StringBuilder();
+        while (t != null)
+        {
+            if (sb.Length == 0) sb.Insert(0, t.name);
+            else sb.Insert(0, t.name + "/");
+            t = t.parent;
+        }
+        return sb.ToString();
+    }
+
+    private static string Trim(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        s = s.Replace("\n", "\\n").Replace("\r", "");
+        return s.Length > 60 ? s.Substring(0, 60) + "..." : s;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/TaskBoardUI.cs
+SIZE: 1153 bytes
+SHA256: 9fb6d31af6d5c5ac99785b197562e23108a18a798e6c486194580f35dcba0286
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public class TaskBoardUI : MonoBehaviour
+{
+    [SerializeField] private Transform rowsRoot;
+    [SerializeField] private TaskRowUI rowPrefab;
+
+    private readonly List<TaskRowUI> rows = new();
+
+    private void Start()
+    {
+        Rebuild();
+    }
+
+    private void OnEnable()
+    {
+        Rebuild();
+    }
+
+    public void Rebuild()
+    {
+        if (rowsRoot == null || rowPrefab == null) return;
+        if (GameInstaller.TaskBoard == null) return;
+
+        // clear
+        for (int i = 0; i < rows.Count; i++)
+            if (rows[i] != null) Destroy(rows[i].gameObject);
+        rows.Clear();
+
+        var tasks = GameInstaller.TaskBoard.GetAllTasks();
+        for (int i = 0; i < tasks.Count; i++)
+        {
+            var t = tasks[i];
+            var row = Instantiate(rowPrefab, rowsRoot);
+            row.Bind(t.taskId);
+            rows.Add(row);
+        }
+    }
+
+    private void Update()
+    {
+        if (GameInstaller.TaskBoard == null) return;
+
+        for (int i = 0; i < rows.Count; i++)
+            rows[i].Refresh();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/TaskRowUI.cs
+SIZE: 2223 bytes
+SHA256: 80743effda19bc3efd73f340faa82f8285781ea1dcd2b68cd8bc188ce610b897
+CONTENT:
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class TaskRowUI : MonoBehaviour
+{
+    [Header("UI")]
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text slotsText;
+    [SerializeField] private TMP_Text prioText;
+    [SerializeField] private Toggle activeToggle;
+    [SerializeField] private Button prioPlusBtn;
+    [SerializeField] private Button prioMinusBtn;
+
+    private string taskId;
+
+    public void Bind(string id)
+    {
+        taskId = id;
+
+        if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
+        if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
+        if (activeToggle != null) activeToggle.onValueChanged.AddListener(OnToggle);
+
+        Refresh(true);
+    }
+
+    public void Refresh(bool force = false)
+    {
+        var board = GameInstaller.TaskBoard;
+        if (board == null) return;
+
+        var t = FindTask(taskId);
+        if (t == null) return;
+
+        if (titleText != null)
+            titleText.text = $"{t.displayName}";
+
+        if (prioText != null)
+            prioText.text = $"{t.priority}";
+
+        if (slotsText != null)
+            slotsText.text = $"{board.SlotsTaken(t.taskId)}/{t.maxTakers}";
+
+        if (activeToggle != null && (force || activeToggle.isOn != t.active))
+            activeToggle.SetIsOnWithoutNotify(t.active);
+    }
+
+    private TaskInstance FindTask(string id)
+    {
+        var tasks = GameInstaller.TaskBoard.GetAllTasks();
+        for (int i = 0; i < tasks.Count; i++)
+            if (tasks[i].taskId == id) return tasks[i];
+        return null;
+    }
+
+    private void OnPlus()
+    {
+        var t = FindTask(taskId);
+        if (t == null) return;
+        t.priority = Mathf.Clamp(t.priority + 1, 0, 5);
+        Refresh(true);
+    }
+
+    private void OnMinus()
+    {
+        var t = FindTask(taskId);
+        if (t == null) return;
+        t.priority = Mathf.Clamp(t.priority - 1, 0, 5);
+        Refresh(true);
+    }
+
+    private void OnToggle(bool value)
+    {
+        var t = FindTask(taskId);
+        if (t == null) return;
+        t.active = value;
+        Refresh(true);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/TreasuryUI.cs
+SIZE: 540 bytes
+SHA256: 653b973c9707b9fb20b82f4215f6f44c2d68b19e69111ae9742eb9c91324135a
+CONTENT:
+using TMPro;
+using UnityEngine;
+
+public class TreasuryUI : MonoBehaviour
+{
+    [SerializeField] private TMP_Text text;
+
+    private void Update()
+    {
+        if (text == null || GameInstaller.Treasury == null) return;
+
+        // ���� ������ 3 ������� (MVP)
+        int wood = GameInstaller.Treasury.GetAmount("wood");
+        int fish = GameInstaller.Treasury.GetAmount("fish");
+        int stone = GameInstaller.Treasury.GetAmount("stone");
+
+        text.text = $"WOOD: {wood}\nFISH: {fish}\nSTONE: {stone}";
+    }
+}
+
+----- FILE END -----
+
+=== DUMP SUMMARY ===
+Written: 20
+SkippedLarge(>512KB): 0
+SkippedReadErrors: 0
+====================
