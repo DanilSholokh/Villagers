@@ -20,7 +20,7 @@ public class GameInstaller : MonoBehaviour
 
     private EventLogService _log;
 
-    private void Awake()
+    private void Start()
     {
         Debug.Log("[Installer] Boot");
 
@@ -41,12 +41,7 @@ public class GameInstaller : MonoBehaviour
 
         // Treasury
         Treasury = new TreasuryService();
-
-        var treasuryPanel = FindFirstObjectByType<TreasuryPanelView>();
-        if (treasuryPanel != null)
-        {
-            treasuryPanel.Bind(Treasury);
-        }
+        if (treasuryPanel) treasuryPanel.Bind(Treasury);
 
 
         // Debug log

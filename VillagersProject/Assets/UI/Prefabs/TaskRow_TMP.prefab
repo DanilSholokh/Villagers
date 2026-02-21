@@ -466,6 +466,7 @@ GameObject:
   - component: {fileID: 2869927135059614148}
   - component: {fileID: 4132351386435351533}
   - component: {fileID: 3898331803488782589}
+  - component: {fileID: 3212278481590804579}
   m_Layer: 0
   m_Name: TaskRow_TMP
   m_TagString: Untagged
@@ -580,6 +581,24 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
+--- !u!114 &3212278481590804579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5528544656104731119}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8768540f71bcd794e9e98e1392e78fa1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TaskRowUI
+  titleText: {fileID: 3372998031272305545}
+  slotsText: {fileID: 7778094555148101798}
+  prioText: {fileID: 5628272621569825183}
+  activeToggle: {fileID: 1354465051586342929}
+  prioPlusBtn: {fileID: 4544908738048703732}
+  prioMinusBtn: {fileID: 2961514628441953349}
 --- !u!1 &5770829313353409204
 GameObject:
   m_ObjectHideFlags: 0

@@ -64,7 +64,7 @@ public class ExploreOutcomeService
 
         if (r < W_WOOD)
         {
-            o.resourceId = "Wood";
+            o.resourceId = "wood";
             o.amount = Random.Range(2, 6); // 2..5
             return;
         }
@@ -72,12 +72,12 @@ public class ExploreOutcomeService
         r -= W_WOOD;
         if (r < W_STONE)
         {
-            o.resourceId = "Stone";
+            o.resourceId = "stone";
             o.amount = Random.Range(1, 5); // 1..4
             return;
         }
 
-        o.resourceId = "Fish";
+        o.resourceId = "fish";
         o.amount = Random.Range(1, 4); // 1..3
     }
 }

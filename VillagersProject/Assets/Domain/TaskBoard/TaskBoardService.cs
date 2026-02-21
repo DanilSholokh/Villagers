@@ -63,4 +63,55 @@ public class TaskBoardService
         if (set.Remove(agentId))
             Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
     }
+
+
+
+    public void AddTaskRuntime(TaskInstance task)
+    {
+        if (task == null) return;
+        if (string.IsNullOrWhiteSpace(task.taskId)) return;
+
+        // не плодимо дубл≥кати: €кщо taskId вже Ї Ч просто оновлюЇмо пол€
+        var existing = tasks.FirstOrDefault(x => x.taskId == task.taskId);
+        if (existing != null)
+        {
+            existing.type = task.type;
+            existing.displayName = task.displayName;
+            existing.active = task.active;
+            existing.priority = task.priority;
+            existing.maxTakers = task.maxTakers;
+            existing.durationSec = task.durationSec;
+            existing.resourceId = task.resourceId;
+            existing.baseAmount = task.baseAmount;
+            return;
+        }
+
+        tasks.Add(task);
+
+        if (!reservations.ContainsKey(task.taskId))
+            reservations[task.taskId] = new HashSet<string>();
+
+        Debug.Log($"[TaskBoard] Added runtime task={task.taskId}");
+    }
+
+    public bool RemoveTaskRuntime(string taskId)
+    {
+        if (string.IsNullOrWhiteSpace(taskId)) return false;
+
+        var t = tasks.FirstOrDefault(x => x.taskId == taskId);
+        if (t == null) return false;
+
+        // не видал€Їмо, €кщо хтось уже зарезервував
+        if (reservations.TryGetValue(taskId, out var set) && set.Count > 0)
+            return false;
+
+        tasks.Remove(t);
+        reservations.Remove(taskId);
+
+        Debug.Log($"[TaskBoard] Removed runtime task={taskId}");
+        return true;
+    }
+
+
+
 }

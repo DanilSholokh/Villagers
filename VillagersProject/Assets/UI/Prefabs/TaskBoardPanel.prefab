@@ -603,6 +603,7 @@ GameObject:
   - component: {fileID: 1237082768230793689}
   - component: {fileID: 5045355454619558176}
   - component: {fileID: 7661980242693784091}
+  - component: {fileID: 5538643513842693471}
   m_Layer: 0
   m_Name: TaskBoardPanel
   m_TagString: Untagged
@@ -696,3 +697,17 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &5538643513842693471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6509300603132495909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a17c81bd7b8beb42983ac0a5b687b8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TaskBoardUI
+  rowsRoot: {fileID: 3170295431573537544}
+  rowPrefab: {fileID: 3212278481590804579, guid: da059aabe8c689a489d5e50c13fd8cd9, type: 3}

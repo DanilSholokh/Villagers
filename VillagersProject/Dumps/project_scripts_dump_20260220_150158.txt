@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-02-18 05:23:05
+Time: 2026-02-20 15:01:58
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -10,7 +10,7 @@ FilesCount: 20
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
 SIZE: 1918 bytes
-SHA256: e4069cb013f3ffc92447ef9a326723f5f8755143cb9454e4d0d78f5e0dbfcb10
+SHA256: 36095835f17ac99fa54e984e64a96a9c6f499b6de180e9341dc4849730335d07
 CONTENT:
 using UnityEngine;
 
@@ -78,7 +78,7 @@ public class ExploreOutcomeService
 
         if (r < W_WOOD)
         {
-            o.resourceId = "Wood";
+            o.resourceId = "wood";
             o.amount = Random.Range(2, 6); // 2..5
             return;
         }
@@ -86,12 +86,12 @@ public class ExploreOutcomeService
         r -= W_WOOD;
         if (r < W_STONE)
         {
-            o.resourceId = "Stone";
+            o.resourceId = "stone";
             o.amount = Random.Range(1, 5); // 1..4
             return;
         }
 
-        o.resourceId = "Fish";
+        o.resourceId = "fish";
         o.amount = Random.Range(1, 4); // 1..3
     }
 }
@@ -1231,8 +1231,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 2103 bytes
-SHA256: 8390566e775d87a7396826f2b295aada8901d67659b3ce45e5c75571e2e30072
+SIZE: 1985 bytes
+SHA256: b5fae628610f2d81c667142ea8861c4aef97668ab0717f87084859adadd92926
 CONTENT:
 using UnityEngine;
 
@@ -1256,7 +1256,7 @@ public class GameInstaller : MonoBehaviour
 
     private EventLogService _log;
 
-    private void Awake()
+    private void Start()
     {
         Debug.Log("[Installer] Boot");
 
@@ -1277,12 +1277,7 @@ public class GameInstaller : MonoBehaviour
 
         // Treasury
         Treasury = new TreasuryService();
-
-        var treasuryPanel = FindFirstObjectByType<TreasuryPanelView>();
-        if (treasuryPanel != null)
-        {
-            treasuryPanel.Bind(Treasury);
-        }
+        if (treasuryPanel) treasuryPanel.Bind(Treasury);
 
 
         // Debug log
