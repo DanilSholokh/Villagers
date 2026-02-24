@@ -8,27 +8,51 @@ public class TaskBoardUI : MonoBehaviour
 
     private readonly List<TaskRowUI> rows = new();
 
-    private void Start()
-    {
-        Rebuild();
-    }
+    private TaskBoardService Board => GameInstaller.TaskBoard;
 
     private void OnEnable()
     {
+        if (Board != null)
+        {
+            Board.OnTasksChanged += HandleTasksChanged;
+            Board.OnReservationsChanged += HandleReservationsChanged;
+        }
+
         Rebuild();
+        RefreshAll();
+    }
+
+    private void OnDisable()
+    {
+        if (Board != null)
+        {
+            Board.OnTasksChanged -= HandleTasksChanged;
+            Board.OnReservationsChanged -= HandleReservationsChanged;
+        }
+    }
+
+    private void HandleTasksChanged()
+    {
+        Rebuild();
+        RefreshAll();
+    }
+
+    private void HandleReservationsChanged()
+    {
+        RefreshAll();
     }
 
     public void Rebuild()
     {
         if (rowsRoot == null || rowPrefab == null) return;
-        if (GameInstaller.TaskBoard == null) return;
+        if (Board == null) return;
 
         // clear
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) Destroy(rows[i].gameObject);
         rows.Clear();
 
-        var tasks = GameInstaller.TaskBoard.GetAllTasks();
+        var tasks = Board.GetAllTasks();
         for (int i = 0; i < tasks.Count; i++)
         {
             var t = tasks[i];
@@ -38,11 +62,11 @@ public class TaskBoardUI : MonoBehaviour
         }
     }
 
-    private void Update()
+    private void RefreshAll()
     {
-        if (GameInstaller.TaskBoard == null) return;
+        if (Board == null) return;
 
         for (int i = 0; i < rows.Count; i++)
-            rows[i].Refresh();
+            if (rows[i] != null) rows[i].Refresh();
     }
 }

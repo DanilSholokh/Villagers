@@ -1,3 +1,4 @@
+Ôªøusing System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,6 +7,12 @@ public class TaskBoardService
 {
     private readonly List<TaskInstance> tasks = new();
     private readonly Dictionary<string, HashSet<string>> reservations = new(); // taskId -> agentIds
+
+    // üîî UI/—ñ–Ω—à–∏–º —Å–∏—Å—Ç–µ–º–∞–º: —Å—Ç—Ä—É–∫—Ç—É—Ä–∞ –¥–æ—à–∫–∏ (—Å–ø–∏—Å–æ–∫ —Ç–∞—Å–∫—ñ–≤) –∑–º—ñ–Ω–∏–ª–∞—Å—å
+    public event Action OnTasksChanged;
+
+    // üîî UI/—ñ–Ω—à–∏–º —Å–∏—Å—Ç–µ–º–∞–º: –∑–º—ñ–Ω–∏–ª–∏—Å—å —Å–ª–æ—Ç–∏ (reserve/release)
+    public event Action OnReservationsChanged;
 
     public void SetTasks(List<TaskInstance> newTasks)
     {
@@ -17,6 +24,9 @@ public class TaskBoardService
             reservations[t.taskId] = new HashSet<string>();
 
         Debug.Log($"[TaskBoard] Loaded tasks={tasks.Count}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
     }
 
     public IReadOnlyList<TaskInstance> GetAllTasks() => tasks;
@@ -49,6 +59,7 @@ public class TaskBoardService
         if (set.Add(agentId))
         {
             Debug.Log($"[TaskBoard] Reserve task={taskId} agent={agentId} slots={set.Count}/{t.maxTakers}");
+            OnReservationsChanged?.Invoke();
             return true;
         }
 
@@ -61,17 +72,18 @@ public class TaskBoardService
             return;
 
         if (set.Remove(agentId))
+        {
             Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
+            OnReservationsChanged?.Invoke();
+        }
     }
-
-
 
     public void AddTaskRuntime(TaskInstance task)
     {
         if (task == null) return;
         if (string.IsNullOrWhiteSpace(task.taskId)) return;
 
-        // ÌÂ ÔÎÓ‰ËÏÓ ‰Û·Î≥Í‡ÚË: ˇÍ˘Ó taskId ‚ÊÂ ∫ ó ÔÓÒÚÓ ÓÌÓ‚Î˛∫ÏÓ ÔÓÎˇ
+        // —è–∫—â–æ taskId —ñ—Å–Ω—É—î ‚Äî –æ–Ω–æ–≤–ª—é—î–º–æ –¥–∞–Ω—ñ
         var existing = tasks.FirstOrDefault(x => x.taskId == task.taskId);
         if (existing != null)
         {
@@ -83,6 +95,9 @@ public class TaskBoardService
             existing.durationSec = task.durationSec;
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
+
+            OnTasksChanged?.Invoke();
+            OnReservationsChanged?.Invoke();
             return;
         }
 
@@ -92,6 +107,9 @@ public class TaskBoardService
             reservations[task.taskId] = new HashSet<string>();
 
         Debug.Log($"[TaskBoard] Added runtime task={task.taskId}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
     }
 
     public bool RemoveTaskRuntime(string taskId)
@@ -101,7 +119,7 @@ public class TaskBoardService
         var t = tasks.FirstOrDefault(x => x.taskId == taskId);
         if (t == null) return false;
 
-        // ÌÂ ‚Ë‰‡Îˇ∫ÏÓ, ˇÍ˘Ó ıÚÓÒ¸ ÛÊÂ Á‡ÂÁÂ‚Û‚‡‚
+        // –Ω–µ –≤–∏–¥–∞–ª—è—î–º–æ, —è–∫—â–æ —Ö—Ç–æ—Å—å —â–µ –∑–∞—Ä–µ–∑–µ—Ä–≤–∏–≤
         if (reservations.TryGetValue(taskId, out var set) && set.Count > 0)
             return false;
 
@@ -109,9 +127,10 @@ public class TaskBoardService
         reservations.Remove(taskId);
 
         Debug.Log($"[TaskBoard] Removed runtime task={taskId}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
         return true;
     }
-
-
 
 }

@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-02-20 15:01:58
+Time: 2026-02-24 13:49:39
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 20
+FilesCount: 26
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -320,9 +320,10 @@ public class TaskInstance
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardService.cs
-SIZE: 2018 bytes
-SHA256: 99b85129e58683c32f3bd4068cccc19084866da27016068b316c80a8f5a68cc3
+SIZE: 4357 bytes
+SHA256: 821b039c2f80e76e5596d696e1be4345ae7952a1d87bd9ec3f9f932a1d93e93b
 CONTENT:
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -331,6 +332,12 @@ public class TaskBoardService
 {
     private readonly List<TaskInstance> tasks = new();
     private readonly Dictionary<string, HashSet<string>> reservations = new(); // taskId -> agentIds
+
+    // 🔔 UI/іншим системам: структура дошки (список тасків) змінилась
+    public event Action OnTasksChanged;
+
+    // 🔔 UI/іншим системам: змінились слоти (reserve/release)
+    public event Action OnReservationsChanged;
 
     public void SetTasks(List<TaskInstance> newTasks)
     {
@@ -342,6 +349,9 @@ public class TaskBoardService
             reservations[t.taskId] = new HashSet<string>();
 
         Debug.Log($"[TaskBoard] Loaded tasks={tasks.Count}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
     }
 
     public IReadOnlyList<TaskInstance> GetAllTasks() => tasks;
@@ -374,6 +384,7 @@ public class TaskBoardService
         if (set.Add(agentId))
         {
             Debug.Log($"[TaskBoard] Reserve task={taskId} agent={agentId} slots={set.Count}/{t.maxTakers}");
+            OnReservationsChanged?.Invoke();
             return true;
         }
 
@@ -386,8 +397,67 @@ public class TaskBoardService
             return;
 
         if (set.Remove(agentId))
+        {
             Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
+            OnReservationsChanged?.Invoke();
+        }
     }
+
+    public void AddTaskRuntime(TaskInstance task)
+    {
+        if (task == null) return;
+        if (string.IsNullOrWhiteSpace(task.taskId)) return;
+
+        // якщо taskId існує — оновлюємо дані
+        var existing = tasks.FirstOrDefault(x => x.taskId == task.taskId);
+        if (existing != null)
+        {
+            existing.type = task.type;
+            existing.displayName = task.displayName;
+            existing.active = task.active;
+            existing.priority = task.priority;
+            existing.maxTakers = task.maxTakers;
+            existing.durationSec = task.durationSec;
+            existing.resourceId = task.resourceId;
+            existing.baseAmount = task.baseAmount;
+
+            OnTasksChanged?.Invoke();
+            OnReservationsChanged?.Invoke();
+            return;
+        }
+
+        tasks.Add(task);
+
+        if (!reservations.ContainsKey(task.taskId))
+            reservations[task.taskId] = new HashSet<string>();
+
+        Debug.Log($"[TaskBoard] Added runtime task={task.taskId}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
+    }
+
+    public bool RemoveTaskRuntime(string taskId)
+    {
+        if (string.IsNullOrWhiteSpace(taskId)) return false;
+
+        var t = tasks.FirstOrDefault(x => x.taskId == taskId);
+        if (t == null) return false;
+
+        // не видаляємо, якщо хтось ще зарезервив
+        if (reservations.TryGetValue(taskId, out var set) && set.Count > 0)
+            return false;
+
+        tasks.Remove(t);
+        reservations.Remove(taskId);
+
+        Debug.Log($"[TaskBoard] Removed runtime task={taskId}");
+
+        OnTasksChanged?.Invoke();
+        OnReservationsChanged?.Invoke();
+        return true;
+    }
+
 }
 
 ----- FILE END -----
@@ -587,8 +657,8 @@ public static class ProjectScriptsDumper
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/DebugerSystem/EventLogPanelView.cs
-SIZE: 968 bytes
-SHA256: f1c92900b16e182c8b2bf4c748ac1ce98e210abaca3f487380611f98757d5d71
+SIZE: 1202 bytes
+SHA256: c2a47b192567d3ee9c04df4d0d7366ceff95362b2eb068aaa1102c3de8f86ad2
 CONTENT:
 using System.Text;
 using TMPro;
@@ -609,6 +679,18 @@ public class EventLogPanelView : MonoBehaviour
 
         if (_log != null)
             _log.OnPushed += HandlePushed;
+
+        Rebuild();
+    }
+
+
+    private void OnEnable()
+    {
+        if (_log != null)
+        {
+            _log.OnPushed -= HandlePushed; // safety від дублю
+            _log.OnPushed += HandlePushed;
+        }
 
         Rebuild();
     }
@@ -679,11 +761,13 @@ public class EventLogService
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
-SIZE: 1394 bytes
-SHA256: a8e7cdf8a0332fadeeacd7605c10192f5f32b37d288f4b2063c6f00d877004d6
+SIZE: 3043 bytes
+SHA256: fbdbf454d12137fef2b7a4ba4dbd4583131d501fa3276e5a59473e53cc28edaf
 CONTENT:
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class TreasuryPanelView : MonoBehaviour
 {
@@ -691,8 +775,24 @@ public class TreasuryPanelView : MonoBehaviour
     public TextMeshProUGUI woodValue;
     public TextMeshProUGUI stoneValue;
     public TextMeshProUGUI fishValue;
+    public TextMeshProUGUI goldValue;
+
+
+    [Header("Buttons")]
+    public Button sellAllButton;
+
 
     private TreasuryService _treasury;
+
+
+    // v0.01 фіксовані ціни (MVP)
+    private static readonly Dictionary<string, int> PRICE = new()
+    {
+        { "wood", 1 },
+        { "stone", 2 },
+        { "fish", 3 }
+    };
+
 
     public void Bind(TreasuryService treasury)
     {
@@ -704,6 +804,30 @@ public class TreasuryPanelView : MonoBehaviour
         if (_treasury != null)
             _treasury.OnChanged += HandleChanged;
 
+        if (sellAllButton != null)
+        {
+            sellAllButton.onClick.RemoveListener(OnSellAllClicked);
+            sellAllButton.onClick.AddListener(OnSellAllClicked);
+        }
+
+        RefreshAll();
+    }
+
+    private void OnEnable()
+    {
+        // якщо панель вимикали/вмикали — треба перепідписатись назад
+        if (_treasury != null)
+        {
+            _treasury.OnChanged -= HandleChanged; // safety від дублю
+            _treasury.OnChanged += HandleChanged;
+        }
+
+        if (sellAllButton != null)
+        {
+            sellAllButton.onClick.RemoveListener(OnSellAllClicked);
+            sellAllButton.onClick.AddListener(OnSellAllClicked);
+        }
+
         RefreshAll();
     }
 
@@ -711,33 +835,52 @@ public class TreasuryPanelView : MonoBehaviour
     {
         if (_treasury != null)
             _treasury.OnChanged -= HandleChanged;
+
+        if (sellAllButton != null)
+            sellAllButton.onClick.RemoveListener(OnSellAllClicked);
     }
 
     private void HandleChanged(string resId, int newTotal)
     {
+        resId = (resId ?? "").ToLowerInvariant();
+
         switch (resId)
         {
             case "wood": if (woodValue) woodValue.text = newTotal.ToString(); break;
             case "stone": if (stoneValue) stoneValue.text = newTotal.ToString(); break;
             case "fish": if (fishValue) fishValue.text = newTotal.ToString(); break;
+            case "gold": if (goldValue) goldValue.text = newTotal.ToString(); break;
         }
     }
 
     private void RefreshAll()
     {
         if (_treasury == null) return;
-        if (woodValue) woodValue.text = _treasury.Get("wood").ToString();
-        if (stoneValue) stoneValue.text = _treasury.Get("stone").ToString();
-        if (fishValue) fishValue.text = _treasury.Get("fish").ToString();
+
+        if (woodValue) woodValue.text = _treasury.GetAmount("wood").ToString();
+        if (stoneValue) stoneValue.text = _treasury.GetAmount("stone").ToString();
+        if (fishValue) fishValue.text = _treasury.GetAmount("fish").ToString();
+        if (goldValue) goldValue.text = _treasury.GetAmount("gold").ToString();
     }
+
+    private void OnSellAllClicked()
+    {
+        if (_treasury == null) return;
+
+        _treasury.SellAllToGold(PRICE);
+        RefreshAll();
+    }
+
+
+
 }
 
 ----- FILE END -----
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryService.cs
-SIZE: 975 bytes
-SHA256: 36e90510c4f7725b36d29ab08c16de89f285e382bf3fe01b0e754742fbd4284c
+SIZE: 2731 bytes
+SHA256: fa3c70a1bc1088f1814ae07b68500ea848cc6773af8f3988ac16bbd853928ca1
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -745,23 +888,28 @@ using UnityEngine;
 
 public class TreasuryService
 {
+    // ����� ������� ������
     private readonly Dictionary<string, int> storage = new();
-
 
     public event Action<string, int> OnChanged;
 
-    private readonly Dictionary<string, int> _map = new();
-
-
-
     public int GetAmount(string resourceId)
-        => storage.TryGetValue(resourceId, out var v) ? v : 0;
+    {
+        if (string.IsNullOrWhiteSpace(resourceId)) return 0;
+        resourceId = resourceId.ToLowerInvariant();
 
+        return storage.TryGetValue(resourceId, out var v) ? v : 0;
+    }
+
+    // Back-compat: ��� �������� UI/���, ���� ������� Get("wood"), ��������
+    public int Get(string resId) => GetAmount(resId);
 
     public void Add(string resourceId, int amount)
     {
         if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
             return;
+
+        resourceId = resourceId.ToLowerInvariant();
 
         storage.TryGetValue(resourceId, out var cur);
         storage[resourceId] = cur + amount;
@@ -770,41 +918,307 @@ public class TreasuryService
         Debug.Log($"[Treasury] +{amount} {resourceId} (total={storage[resourceId]})");
     }
 
-
-    public int Get(string resId)
+    public bool TrySpend(string resourceId, int amount)
     {
-        resId = resId.ToLowerInvariant();
-        return _map.TryGetValue(resId, out var v) ? v : 0;
+        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+            return false;
+
+        resourceId = resourceId.ToLowerInvariant();
+        int cur = GetAmount(resourceId);
+
+        if (cur < amount) return false;
+
+        storage[resourceId] = cur - amount;
+        OnChanged?.Invoke(resourceId, storage[resourceId]);
+        return true;
+    }
+
+    public void SetAmount(string resourceId, int newAmount)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId)) return;
+
+        resourceId = resourceId.ToLowerInvariant();
+        newAmount = Mathf.Max(0, newAmount);
+
+        storage[resourceId] = newAmount;
+        OnChanged?.Invoke(resourceId, newAmount);
     }
 
 
 
+
+    public int SellAllToGold(Dictionary<string, int> priceByResId)
+    {
+        if (priceByResId == null) return 0;
+
+        int gainedGold = 0;
+
+        foreach (var kv in priceByResId)
+        {
+            var resId = kv.Key?.ToLowerInvariant();
+            int price = kv.Value;
+
+            if (string.IsNullOrWhiteSpace(resId)) continue;
+            if (price <= 0) continue;
+
+            int amount = GetAmount(resId);
+            if (amount <= 0) continue;
+
+            gainedGold += amount * price;
+
+            // ��������� ������
+            storage[resId] = 0;
+            OnChanged?.Invoke(resId, 0);
+        }
+
+        if (gainedGold > 0)
+        {
+            Add("gold", gainedGold);
+            Debug.Log($"[Treasury] SellAll -> +{gainedGold} gold");
+        }
+
+        return gainedGold;
+    }
+
+
+
+
+
 }
 
 
 ----- FILE END -----
 
 ----- FILE BEGIN -----
-PATH: Assets/Presentation/GatherLocationAuthoring.cs
-SIZE: 246 bytes
-SHA256: bc4d7540784071e2787e5fedef80c6469749d22bb7426e3839072e8538bc5891
+PATH: Assets/Entety/Villagers/Progression/ProgressionService.cs
+SIZE: 3574 bytes
+SHA256: 87655cd749e67f2bbd0695f9ba3dd7ec1602b4be75b6a35a50d3da3610d216cd
 CONTENT:
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-public class GatherLocationAuthoring : MonoBehaviour
+public class ProgressionService
 {
-    public string locationId;
-    public string resourceId;   // "Fish", "Wood", "Stone"
-    [Min(0f)] public float weight = 1f;
-    public string displayName;
+    [Serializable]
+    public class VillagerProgress
+    {
+        public int achievementPoints;
+        public int level = 1;
+
+        // ����� ����� v0.01
+        public int strength = 1;
+        public int speed = 1;
+        public int ingenuity = 1;
+
+        // ����� ����� �� string id
+        public List<string> perks = new();
+    }
+
+    public event Action<string, int> OnLevelUp;            // (agentId, newLevel)
+    public event Action<string> OnProgressChanged;         // (agentId)
+
+    private readonly Dictionary<string, VillagerProgress> _prog = new();
+
+    private static readonly string[] PERK_POOL =
+    {
+        "StrongGrip",
+        "FastLearner",
+        "HardWorker",
+        "Lucky",
+        "Stubborn"
+    };
+
+    public VillagerProgress Get(string agentId)
+    {
+        if (string.IsNullOrWhiteSpace(agentId)) agentId = "unknown";
+
+        if (!_prog.TryGetValue(agentId, out var p))
+        {
+            p = new VillagerProgress();
+            _prog[agentId] = p;
+        }
+
+        return p;
+    }
+
+    public void EnsureInitialized(string agentId, int baseStr = 1, int baseSpd = 1, int baseIng = 1)
+    {
+        var p = Get(agentId);
+        p.strength = Mathf.Max(1, baseStr);
+        p.speed = Mathf.Max(1, baseSpd);
+        p.ingenuity = Mathf.Max(1, baseIng);
+
+        if (p.perks == null) p.perks = new List<string>();
+        OnProgressChanged?.Invoke(agentId);
+    }
+
+    public void AddAchievement(string agentId, int points)
+    {
+        if (points <= 0) return;
+
+        var p = Get(agentId);
+        p.achievementPoints += points;
+
+        // v0.01: 10 points = +1 level
+        int targetLevel = 1 + (p.achievementPoints / 10);
+
+        while (p.level < targetLevel)
+        {
+            p.level++;
+
+            // v0.01: �� ����� ����� ������ ��� �����
+            p.strength += 1;
+            p.speed += 1;
+            p.ingenuity += 1;
+
+            // v0.01: ���� 2 ������ � ����
+            if (p.level % 2 == 0)
+            {
+                TryAddRandomPerk(agentId);
+            }
+
+            OnLevelUp?.Invoke(agentId, p.level);
+            Debug.Log($"[Progression] agent={agentId} LEVEL UP -> {p.level} (ap={p.achievementPoints})");
+        }
+
+        OnProgressChanged?.Invoke(agentId);
+    }
+
+    public bool HasPerk(string agentId, string perkId)
+    {
+        var p = Get(agentId);
+        if (p.perks == null) return false;
+        return p.perks.Contains(perkId);
+    }
+
+    public bool AddPerk(string agentId, string perkId)
+    {
+        if (string.IsNullOrWhiteSpace(perkId)) return false;
+
+        var p = Get(agentId);
+        if (p.perks == null) p.perks = new List<string>();
+
+        if (p.perks.Contains(perkId)) return false;
+        p.perks.Add(perkId);
+
+        OnProgressChanged?.Invoke(agentId);
+        return true;
+    }
+
+    private void TryAddRandomPerk(string agentId)
+    {
+        var p = Get(agentId);
+        if (p.perks == null) p.perks = new List<string>();
+
+        // ������� ��� ��� ����������
+        for (int i = 0; i < 8; i++)
+        {
+            var perk = PERK_POOL[UnityEngine.Random.Range(0, PERK_POOL.Length)];
+            if (!p.perks.Contains(perk))
+            {
+                p.perks.Add(perk);
+                Debug.Log($"[Progression] agent={agentId} gained perk={perk}");
+                return;
+            }
+        }
+    }
 }
 
 ----- FILE END -----
 
 ----- FILE BEGIN -----
-PATH: Assets/Presentation/VillagerAgentBrain.cs
-SIZE: 9760 bytes
-SHA256: 2b9f00395526f8e4c5fb7ab9f45f8436a3b00012953906f98f5a4b5a7c9e02d4
+PATH: Assets/Entety/Villagers/Progression/VillagerRosterService.cs
+SIZE: 1520 bytes
+SHA256: 928e38d32e0198dd869a5a0687a088517c784a83215abbdadd4eb70244446191
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public class VillagerRosterService
+{
+    public event Action<string> OnVillagerChanged; // agentId
+    public event Action OnRosterChanged;
+
+    private readonly Dictionary<string, VillagerState> _states = new();
+
+    public IReadOnlyDictionary<string, VillagerState> GetAll() => _states;
+
+    public VillagerState GetOrCreate(string agentId, string displayName = null)
+    {
+        if (string.IsNullOrWhiteSpace(agentId)) agentId = "unknown";
+
+        if (!_states.TryGetValue(agentId, out var s))
+        {
+            s = new VillagerState
+            {
+                agentId = agentId,
+                displayName = string.IsNullOrWhiteSpace(displayName) ? agentId : displayName,
+                status = VillagerStatus.Idle,
+                lastChangeUtc = DateTime.UtcNow
+            };
+            _states[agentId] = s;
+            OnRosterChanged?.Invoke();
+            OnVillagerChanged?.Invoke(agentId);
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(displayName))
+                s.displayName = displayName;
+        }
+
+        return s;
+    }
+
+    public void SetStatus(string agentId, VillagerStatus status, string taskId = null, string taskName = null)
+    {
+        var s = GetOrCreate(agentId);
+        s.status = status;
+        s.taskId = taskId;
+        s.taskName = taskName;
+        s.lastChangeUtc = DateTime.UtcNow;
+
+        OnVillagerChanged?.Invoke(agentId);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/Villagers/Progression/VillagerState.cs
+SIZE: 406 bytes
+SHA256: 0ab780e8945b4cb98eb9d4e20d095ffa49bcc798cdfe81d38fd3499bb6eaa775
+CONTENT:
+using System;
+
+public enum VillagerStatus
+{
+    Idle = 0,
+    LookingForTask = 1,
+    ReservedTask = 2,
+    MovingToTarget = 3,
+    Working = 4,
+    ReturningHome = 5,
+}
+
+public class VillagerState
+{
+    public string agentId;
+    public string displayName;
+
+    public VillagerStatus status;
+    public string taskId;
+    public string taskName;
+
+    public DateTime lastChangeUtc;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
+SIZE: 12084 bytes
+SHA256: 44c0604ebc674aef3ce581d93d4c034f1ed3d26e4cd7610b8287cc81d167cffb
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -829,12 +1243,19 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private NavMeshAgent agent;
     private Coroutine loop;
+
     private bool started;
+    private bool _completedThisCycle;
+
 
     private TaskBoardService _board;
     private ExploreSpotRegistry _spots;
     private TreasuryService _treasury;
     private EventLogService _log;
+
+
+    private VillagerRosterService _roster;
+
 
     private void Awake()
     {
@@ -843,15 +1264,22 @@ public class VillagerAgentBrain : MonoBehaviour
 
     // ❗ ВАЖЛИВО: OnEnable/Start НЕ запускають логіку
 
-    public void Begin(TaskBoardService board, ExploreSpotRegistry spots, TreasuryService treasury, EventLogService log)
+    public void Begin(TaskBoardService board, ExploreSpotRegistry spots, TreasuryService treasury, EventLogService log, VillagerRosterService roster)
     {
         _board = board;
         _spots = spots;
         _treasury = treasury;
         _log = log;
+        _roster = roster;
+
+        _roster?.GetOrCreate(agentId, displayName: agentId);
+        _roster?.SetStatus(agentId, VillagerStatus.Idle);
+
+        GameInstaller.Progression?.EnsureInitialized(agentId, 1, 1, 1);
 
         if (started) return;
         started = true;
+
 
         if (homePoint == null)
         {
@@ -897,6 +1325,8 @@ public class VillagerAgentBrain : MonoBehaviour
     {
         while (true)
         {
+            _roster?.SetStatus(agentId, VillagerStatus.LookingForTask);
+
             // 1) Pick
             var task = TaskSelectionLogic.PickBest(_board);
             if (task == null)
@@ -913,21 +1343,47 @@ public class VillagerAgentBrain : MonoBehaviour
             }
 
             Log($"Picked task={task.taskId} ({task.displayName})");
+            _roster?.SetStatus(agentId, VillagerStatus.ReservedTask, task.taskId, task.displayName);
 
             // 3) Execute
+            _completedThisCycle = false;
+            _roster?.SetStatus(agentId, VillagerStatus.MovingToTarget, task.taskId, task.displayName);
+
             if (task.type == TaskType.Explore)
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
                 yield return DoExplore(task);
+            }
             else
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
                 yield return DoGather(task);
+            }
+
+
+
 
             // 4) Return home
+            _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
+
+            
 
             // 5) Release (після повернення)
             _board.Release(task.taskId, agentId);
 
+            // VARIANT 1: runtime таски одноразові — після успіху видаляємо з борди
+            if (_completedThisCycle && task.taskId != null && task.taskId.StartsWith("rt_"))
+            {
+                _board.RemoveTaskRuntime(task.taskId);
+            }
+
+            _roster?.SetStatus(agentId, VillagerStatus.Idle);
+
             yield return new WaitForSeconds(afterCycleDelay);
+
         }
+
     }
 
     // -------------------- ACTIONS --------------------
@@ -969,18 +1425,23 @@ public class VillagerAgentBrain : MonoBehaviour
         if (outcome.type == ExploreOutcomeType.Nothing)
         {
             Log($"Explore outcome: Nothing");
+            GameInstaller.Progression?.AddAchievement(agentId, 1);
         }
         else if (outcome.type == ExploreOutcomeType.Reward)
         {
             Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
             if (_treasury != null)
                 _treasury.Add(outcome.resourceId, outcome.amount);
+            GameInstaller.Progression?.AddAchievement(agentId, 3);
         }
         else
         {
             Log($"Explore outcome: Danger (+{outcome.returnDelaySec:0.0}s)");
             yield return new WaitForSeconds(outcome.returnDelaySec);
         }
+
+        _completedThisCycle = true;
+
     }
 
     private IEnumerator DoGather(TaskInstance task)
@@ -1015,7 +1476,12 @@ public class VillagerAgentBrain : MonoBehaviour
             Log($"Gather result: +{task.baseAmount} {task.resourceId}");
             if (_treasury != null)
                 _treasury.Add(task.resourceId, task.baseAmount);
+
+            GameInstaller.Progression?.AddAchievement(agentId, 2);
         }
+
+        _completedThisCycle = true;
+
     }
 
     private IEnumerator DoGoHome()
@@ -1044,16 +1510,28 @@ public class VillagerAgentBrain : MonoBehaviour
             return false;
         }
 
-        // перевірка, що точка достижима
-        var path = new NavMeshPath();
-        if (!agent.CalculatePath(pos, path))
+        // ✅ 1) Спробувати "приклеїти" ціль до NavMesh (інакше CalculatePath часто дає PathPartial/Invalid)
+        Vector3 target = pos;
+        if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var hit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            target = hit.position;
+        }
+        else
+        {
+            // якщо навіть SamplePosition не знайшов NavMesh поруч — ціль реально невалідна
+            return false;
+        }
+
+        // ✅ 2) Перевірка, що точка достижима
+        var path = new UnityEngine.AI.NavMeshPath();
+        if (!agent.CalculatePath(target, path))
             return false;
 
-        if (path.status != NavMeshPathStatus.PathComplete)
+        if (path.status != UnityEngine.AI.NavMeshPathStatus.PathComplete)
             return false;
 
         agent.isStopped = false;
-        agent.SetDestination(pos);
+        agent.SetDestination(target);
         return true;
     }
 
@@ -1118,6 +1596,23 @@ public class VillagerAgentBrain : MonoBehaviour
         Debug.Log($"[Agent {agentId}] {msg}");
         _log?.Push($"[Agent {agentId}] {msg}");
     }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Presentation/GatherLocationAuthoring.cs
+SIZE: 246 bytes
+SHA256: bc4d7540784071e2787e5fedef80c6469749d22bb7426e3839072e8538bc5891
+CONTENT:
+using UnityEngine;
+
+public class GatherLocationAuthoring : MonoBehaviour
+{
+    public string locationId;
+    public string resourceId;   // "Fish", "Wood", "Stone"
+    [Min(0f)] public float weight = 1f;
+    public string displayName;
 }
 
 ----- FILE END -----
@@ -1231,8 +1726,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 1985 bytes
-SHA256: b5fae628610f2d81c667142ea8861c4aef97668ab0717f87084859adadd92926
+SIZE: 2572 bytes
+SHA256: e59c2d104074ab40f3d926bf4925b7cfe918ab4a8e891345a68c6e227bd48a80
 CONTENT:
 using UnityEngine;
 
@@ -1243,16 +1738,14 @@ public class GameInstaller : MonoBehaviour
     public static TreasuryService Treasury { get; private set; }
     public static ExploreOutcomeService ExploreOutcome { get; private set; }
     public static TaskBoardService TaskBoard { get; private set; }
-
-
-
+    public static ProgressionService Progression { get; private set; }
     public static ExploreSpotRegistry ExploreRegistry { get; private set; }
-
+    public static VillagerRosterService Villagers { get; private set; }
 
 
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
-
+    [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
 
     private EventLogService _log;
 
@@ -1269,15 +1762,21 @@ public class GameInstaller : MonoBehaviour
             Debug.Log($"[TEST] Picked spot={s.spotId} w={s.weight}");
         }
 
+        // UI 
+        Villagers = new VillagerRosterService();
+        if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
 
+
+
+        // Service 
         ExploreOutcome = new ExploreOutcomeService();
-
-        // TaskBoard 
         TaskBoard = new TaskBoardService();
-
-        // Treasury
+        
         Treasury = new TreasuryService();
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
+
+
+
 
 
         // Debug log
@@ -1285,6 +1784,14 @@ public class GameInstaller : MonoBehaviour
         if (eventLogPanel) eventLogPanel.Bind(_log);
 
         _log.Push("[Installer] Ready");
+
+        // Progression
+        Progression = new ProgressionService();
+
+        Progression.OnLevelUp += (agentId, newLevel) =>
+        {
+            _log?.Push($"[LevelUp] {agentId} -> Lv.{newLevel}");
+        };
 
 
 
@@ -1302,7 +1809,7 @@ public class GameInstaller : MonoBehaviour
             Debug.Log($"[Installer] Starting agents={brains.Length}");
 
             foreach (var b in brains)
-                b.Begin(TaskBoard, ExploreRegistry, Treasury, _log);
+                b.Begin(TaskBoard, ExploreRegistry, Treasury, _log, Villagers);
 
             Debug.Log("[Installer] Ready");
 
@@ -1530,8 +2037,8 @@ public static class SceneFullDump
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskBoardUI.cs
-SIZE: 1153 bytes
-SHA256: 9fb6d31af6d5c5ac99785b197562e23108a18a798e6c486194580f35dcba0286
+SIZE: 1736 bytes
+SHA256: d664e98609d1260cffe6275502796ecc98fe7649076bcdbe6d89b54c88e8d36b
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -1543,27 +2050,51 @@ public class TaskBoardUI : MonoBehaviour
 
     private readonly List<TaskRowUI> rows = new();
 
-    private void Start()
-    {
-        Rebuild();
-    }
+    private TaskBoardService Board => GameInstaller.TaskBoard;
 
     private void OnEnable()
     {
+        if (Board != null)
+        {
+            Board.OnTasksChanged += HandleTasksChanged;
+            Board.OnReservationsChanged += HandleReservationsChanged;
+        }
+
         Rebuild();
+        RefreshAll();
+    }
+
+    private void OnDisable()
+    {
+        if (Board != null)
+        {
+            Board.OnTasksChanged -= HandleTasksChanged;
+            Board.OnReservationsChanged -= HandleReservationsChanged;
+        }
+    }
+
+    private void HandleTasksChanged()
+    {
+        Rebuild();
+        RefreshAll();
+    }
+
+    private void HandleReservationsChanged()
+    {
+        RefreshAll();
     }
 
     public void Rebuild()
     {
         if (rowsRoot == null || rowPrefab == null) return;
-        if (GameInstaller.TaskBoard == null) return;
+        if (Board == null) return;
 
         // clear
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) Destroy(rows[i].gameObject);
         rows.Clear();
 
-        var tasks = GameInstaller.TaskBoard.GetAllTasks();
+        var tasks = Board.GetAllTasks();
         for (int i = 0; i < tasks.Count; i++)
         {
             var t = tasks[i];
@@ -1573,12 +2104,79 @@ public class TaskBoardUI : MonoBehaviour
         }
     }
 
-    private void Update()
+    private void RefreshAll()
     {
-        if (GameInstaller.TaskBoard == null) return;
+        if (Board == null) return;
 
         for (int i = 0; i < rows.Count; i++)
-            rows[i].Refresh();
+            if (rows[i] != null) rows[i].Refresh();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/TaskPublisherPanel.cs
+SIZE: 1775 bytes
+SHA256: 9d886a28c8f2e3765b93d29251f65764d1ac09314bbe8992db1aec69d630bf1f
+CONTENT:
+using UnityEngine;
+
+public class TaskPublisherPanel : MonoBehaviour
+{
+
+    private int _seq = 0;
+
+    public void PublishGatherWood() => PublishGather("wood", "Gather Wood", priority: 3, maxTakers: 1, durationSec: 8f, baseAmount: 3);
+    public void PublishGatherStone() => PublishGather("stone", "Gather Stone", priority: 5, maxTakers: 1, durationSec: 30f, baseAmount: 10);
+    public void PublishGatherFish() => PublishGather("fish", "Gather Fish", priority: 3, maxTakers: 1, durationSec: 7f, baseAmount: 2);
+
+    public void PublishExplore()
+    {
+        var board = GameInstaller.TaskBoard;
+        if (board == null) return;
+
+        _seq++;
+
+        var task = new TaskInstance
+        {
+            taskId = $"rt_explore_{_seq}",
+            type = TaskType.Explore,
+            displayName = $"Explore #{_seq}",
+            active = true,
+            priority = 2,
+            maxTakers = 1,
+            durationSec = 6f,
+            resourceId = null,
+            baseAmount = 0
+        };
+
+        board.AddTaskRuntime(task);
+        
+    }
+
+    private void PublishGather(string resId, string name, int priority, int maxTakers, float durationSec, int baseAmount)
+    {
+        var board = GameInstaller.TaskBoard;
+        if (board == null) return;
+
+        _seq++;
+
+        var task = new TaskInstance
+        {
+            taskId = $"rt_gather_{resId}_{_seq}",
+            type = TaskType.Gather,
+            displayName = $"{name} #{_seq}",
+            active = true,
+            priority = priority,
+            maxTakers = maxTakers,
+            durationSec = durationSec,
+            resourceId = resId,
+            baseAmount = baseAmount
+        };
+
+        board.AddTaskRuntime(task);
+
     }
 }
 
@@ -1699,8 +2297,175 @@ public class TreasuryUI : MonoBehaviour
 
 ----- FILE END -----
 
+----- FILE BEGIN -----
+PATH: Assets/UI/VillagerRosterPanelView.cs
+SIZE: 2513 bytes
+SHA256: 58698ffd07fafac67013f6e9c9744be2fa31500a016a70c1d6bd0959b6467637
+CONTENT:
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class VillagerRosterPanelView : MonoBehaviour
+{
+    [SerializeField] private Transform rowsRoot;
+    [SerializeField] private VillagerRowUI rowPrefab;
+
+    private VillagerRosterService _roster;
+    private ProgressionService _prog;
+
+    private readonly List<VillagerRowUI> _rows = new();
+
+    public void Bind(VillagerRosterService roster, ProgressionService prog)
+    {
+        _roster = roster;
+        _prog = prog;
+        Rebuild();
+        RefreshAll();
+    }
+
+    private void OnEnable()
+    {
+        if (_roster != null)
+        {
+            _roster.OnRosterChanged += HandleRosterChanged;
+            _roster.OnVillagerChanged += HandleVillagerChanged;
+        }
+
+        if (_prog != null)
+        {
+            _prog.OnProgressChanged += HandleProgressChanged;
+        }
+
+        Rebuild();
+        RefreshAll();
+    }
+
+    private void OnDisable()
+    {
+        if (_roster != null)
+        {
+            _roster.OnRosterChanged -= HandleRosterChanged;
+            _roster.OnVillagerChanged -= HandleVillagerChanged;
+        }
+
+        if (_prog != null)
+        {
+            _prog.OnProgressChanged -= HandleProgressChanged;
+        }
+    }
+
+    private void HandleRosterChanged()
+    {
+        Rebuild();
+        RefreshAll();
+    }
+
+    private void HandleVillagerChanged(string agentId)
+    {
+        for (int i = 0; i < _rows.Count; i++)
+            if (_rows[i] != null && _rows[i].AgentId == agentId)
+                _rows[i].Refresh(_roster, _prog);
+    }
+
+    private void HandleProgressChanged(string agentId)
+    {
+        HandleVillagerChanged(agentId);
+    }
+
+    private void Rebuild()
+    {
+        if (rowsRoot == null || rowPrefab == null) return;
+        if (_roster == null) return;
+
+        for (int i = 0; i < _rows.Count; i++)
+            if (_rows[i] != null) Destroy(_rows[i].gameObject);
+        _rows.Clear();
+
+        var ordered = _roster.GetAll().Values.OrderBy(v => v.displayName).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var row = Instantiate(rowPrefab, rowsRoot);
+            row.Bind(ordered[i].agentId);
+            _rows.Add(row);
+        }
+    }
+
+    private void RefreshAll()
+    {
+        if (_roster == null) return;
+
+        for (int i = 0; i < _rows.Count; i++)
+            if (_rows[i] != null) _rows[i].Refresh(_roster, _prog);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/VillagerRowUI.cs
+SIZE: 1782 bytes
+SHA256: 63e1b5f1511618e4f494eec6a4aca1a748342cefd15f939855c67ad7457496db
+CONTENT:
+using TMPro;
+using UnityEngine;
+
+public class VillagerRowUI : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI nameText;
+    [SerializeField] private TextMeshProUGUI statusText;
+    [SerializeField] private TextMeshProUGUI taskText;
+    [SerializeField] private TextMeshProUGUI levelText;
+    [SerializeField] private TextMeshProUGUI statsText;
+    [SerializeField] private TextMeshProUGUI perksText;
+
+    public string AgentId { get; private set; }
+
+    public void Bind(string agentId)
+    {
+        AgentId = agentId;
+        Refresh(GameInstaller.Villagers, GameInstaller.Progression);
+    }
+
+    public void Refresh(VillagerRosterService roster, ProgressionService prog)
+    {
+        if (string.IsNullOrWhiteSpace(AgentId)) return;
+
+        var s = roster?.GetOrCreate(AgentId);
+        var p = prog?.Get(AgentId);
+
+        if (nameText) nameText.text = s != null ? s.displayName : AgentId;
+
+        if (statusText) statusText.text = s != null ? s.status.ToString() : "Unknown";
+
+        if (taskText)
+        {
+            if (s == null || string.IsNullOrWhiteSpace(s.taskName))
+                taskText.text = "-";
+            else
+                taskText.text = $"{s.taskName}";
+        }
+
+        if (levelText) levelText.text = p != null ? $"Lv.{p.level} (AP:{p.achievementPoints})" : "Lv.?";
+
+        if (statsText)
+        {
+            if (p == null) statsText.text = "STR- SPD- ING-";
+            else statsText.text = $"STR {p.strength} | SPD {p.speed} | ING {p.ingenuity}";
+        }
+
+        if (perksText)
+        {
+            if (p == null || p.perks == null || p.perks.Count == 0) perksText.text = "(no perks)";
+            else perksText.text = string.Join(", ", p.perks);
+        }
+    }
+}
+
+----- FILE END -----
+
 === DUMP SUMMARY ===
-Written: 20
+Written: 26
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

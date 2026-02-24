@@ -47,10 +47,31 @@ public class TreasuryPanelView : MonoBehaviour
         RefreshAll();
     }
 
+    private void OnEnable()
+    {
+        // якщо панель вимикали/вмикали — треба перепідписатись назад
+        if (_treasury != null)
+        {
+            _treasury.OnChanged -= HandleChanged; // safety від дублю
+            _treasury.OnChanged += HandleChanged;
+        }
+
+        if (sellAllButton != null)
+        {
+            sellAllButton.onClick.RemoveListener(OnSellAllClicked);
+            sellAllButton.onClick.AddListener(OnSellAllClicked);
+        }
+
+        RefreshAll();
+    }
+
     private void OnDisable()
     {
         if (_treasury != null)
             _treasury.OnChanged -= HandleChanged;
+
+        if (sellAllButton != null)
+            sellAllButton.onClick.RemoveListener(OnSellAllClicked);
     }
 
     private void HandleChanged(string resId, int newTotal)

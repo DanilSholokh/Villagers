@@ -21,6 +21,18 @@ public class EventLogPanelView : MonoBehaviour
         Rebuild();
     }
 
+
+    private void OnEnable()
+    {
+        if (_log != null)
+        {
+            _log.OnPushed -= HandlePushed; // safety від дублю
+            _log.OnPushed += HandlePushed;
+        }
+
+        Rebuild();
+    }
+
     private void OnDisable()
     {
         if (_log != null)
