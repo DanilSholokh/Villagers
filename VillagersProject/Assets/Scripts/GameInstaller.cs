@@ -10,11 +10,13 @@ public class GameInstaller : MonoBehaviour
     public static ProgressionService Progression { get; private set; }
     public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
+    public static VillagerInventoryService Inventory { get; private set; }
 
 
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
+    [SerializeField] private TaskBoardUI taskBoardUI;
 
     private EventLogService _log;
 
@@ -28,6 +30,7 @@ public class GameInstaller : MonoBehaviour
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
         _log = new EventLogService(10);
+        Inventory = new VillagerInventoryService();
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
@@ -44,6 +47,7 @@ public class GameInstaller : MonoBehaviour
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
+        if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
 
         // 4) Завантаження тасків
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();

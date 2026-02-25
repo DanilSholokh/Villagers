@@ -8,14 +8,43 @@ public class TaskBoardUI : MonoBehaviour
 
     private readonly List<TaskRowUI> rows = new();
 
-    private TaskBoardService Board => GameInstaller.TaskBoard;
+    private TaskBoardService _board;
+
+    public void Bind(TaskBoardService board)
+    {
+        // відписка від старого board
+        if (_board != null)
+        {
+            _board.OnTasksChanged -= HandleTasksChanged;
+            _board.OnReservationsChanged -= HandleReservationsChanged;
+        }
+
+        _board = board;
+
+        // підписка на новий board
+        if (_board != null)
+        {
+            _board.OnTasksChanged -= HandleTasksChanged;               // safety від дублю
+            _board.OnTasksChanged += HandleTasksChanged;
+
+            _board.OnReservationsChanged -= HandleReservationsChanged; // safety від дублю
+            _board.OnReservationsChanged += HandleReservationsChanged;
+        }
+
+        Rebuild();
+        RefreshAll();
+    }
 
     private void OnEnable()
     {
-        if (Board != null)
+        // якщо панель вимикали/вмикали — перепідписатись
+        if (_board != null)
         {
-            Board.OnTasksChanged += HandleTasksChanged;
-            Board.OnReservationsChanged += HandleReservationsChanged;
+            _board.OnTasksChanged -= HandleTasksChanged;               // safety
+            _board.OnTasksChanged += HandleTasksChanged;
+
+            _board.OnReservationsChanged -= HandleReservationsChanged; // safety
+            _board.OnReservationsChanged += HandleReservationsChanged;
         }
 
         Rebuild();
@@ -24,10 +53,10 @@ public class TaskBoardUI : MonoBehaviour
 
     private void OnDisable()
     {
-        if (Board != null)
+        if (_board != null)
         {
-            Board.OnTasksChanged -= HandleTasksChanged;
-            Board.OnReservationsChanged -= HandleReservationsChanged;
+            _board.OnTasksChanged -= HandleTasksChanged;
+            _board.OnReservationsChanged -= HandleReservationsChanged;
         }
     }
 
@@ -44,15 +73,17 @@ public class TaskBoardUI : MonoBehaviour
 
     public void Rebuild()
     {
+        Debug.Log($"[TaskBoardUI] Rebuild board={(_board == null ? "NULL" : "OK")} root={(rowsRoot ? rowsRoot.name : "NULL")} prefab={(rowPrefab ? rowPrefab.name : "NULL")}");
+
         if (rowsRoot == null || rowPrefab == null) return;
-        if (Board == null) return;
+        if (_board == null) return;
 
         // clear
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) Destroy(rows[i].gameObject);
         rows.Clear();
 
-        var tasks = Board.GetAllTasks();
+        var tasks = _board.GetAllTasks();
         for (int i = 0; i < tasks.Count; i++)
         {
             var t = tasks[i];
@@ -64,7 +95,7 @@ public class TaskBoardUI : MonoBehaviour
 
     private void RefreshAll()
     {
-        if (Board == null) return;
+        if (_board == null) return;
 
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) rows[i].Refresh();

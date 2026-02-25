@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-02-24 13:49:39
+Time: 2026-02-24 19:51:27
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -1726,8 +1726,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 2572 bytes
-SHA256: e59c2d104074ab40f3d926bf4925b7cfe918ab4a8e891345a68c6e227bd48a80
+SIZE: 2490 bytes
+SHA256: 2d1d609041d121f6d256df2ef93ee3c700ed5d89fa4ace37fede5398f0ec3611
 CONTENT:
 using UnityEngine;
 
@@ -1746,82 +1746,61 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
+    [SerializeField] private TaskBoardUI taskBoardUI;
 
     private EventLogService _log;
 
-    private void Start()
+    private void Awake()
     {
-        Debug.Log("[Installer] Boot");
+        Debug.Log("[Installer] Awake INIT");
 
+        // 1) ������ (���/���������) � ��� UI � OnEnable ��� �� �����
+        TaskBoard = new TaskBoardService();
+        Treasury = new TreasuryService();
+        Progression = new ProgressionService();
+        Villagers = new VillagerRosterService();
+        _log = new EventLogService(10);
+
+        // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
         ExploreRegistry.Initialize();
 
-        for (int i = 0; i < 10; i++)
-        {
-            var s = ExploreRegistry.GetRandomSpotWeighted();
-            Debug.Log($"[TEST] Picked spot={s.spotId} w={s.weight}");
-        }
+        // �������: ��� �� �������� ������ � �� SetTasks
+    }
 
-        // UI 
-        Villagers = new VillagerRosterService();
-        if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
+    private void Start()
+    {
+        Debug.Log("[Installer] Start TRIGGERS");
 
-
-
-        // Service 
-        ExploreOutcome = new ExploreOutcomeService();
-        TaskBoard = new TaskBoardService();
-        
-        Treasury = new TreasuryService();
+        // 3) Bind UI (���� Awake, ��� ����������� ���� ���)
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
-
-
-
-
-
-        // Debug log
-        _log = new EventLogService(10);
         if (eventLogPanel) eventLogPanel.Bind(_log);
+        if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
+        if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
 
-        _log.Push("[Installer] Ready");
-
-        // Progression
-        Progression = new ProgressionService();
-
-        Progression.OnLevelUp += (agentId, newLevel) =>
-        {
-            _log?.Push($"[LevelUp] {agentId} -> Lv.{newLevel}");
-        };
-
-
-
+        // 4) ������������ �����
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
         if (authoring == null)
         {
             Debug.LogError("[Installer] TaskBoardAuthoring not found in scene!");
+            return;
         }
-        else
-        {
-            TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
+        TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
+        // 5) ������ ������ (���� ���)
+        var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
+        Debug.Log($"[Installer] Starting agents={brains.Length}");
 
-            var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-            Debug.Log($"[Installer] Starting agents={brains.Length}");
+        foreach (var b in brains)
+            b.Begin(TaskBoard, ExploreRegistry, Treasury, _log, Villagers);
 
-            foreach (var b in brains)
-                b.Begin(TaskBoard, ExploreRegistry, Treasury, _log, Villagers);
-
-            Debug.Log("[Installer] Ready");
-
-
-        }
-
-
-
-
-
+        Debug.Log("[Installer] Ready");
     }
+
+
+
 }
+
 
 
 ----- FILE END -----
@@ -2037,8 +2016,8 @@ public static class SceneFullDump
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskBoardUI.cs
-SIZE: 1736 bytes
-SHA256: d664e98609d1260cffe6275502796ecc98fe7649076bcdbe6d89b54c88e8d36b
+SIZE: 2882 bytes
+SHA256: 09a454eab23604e17c4f098c128c79c9e5db29823b005c2843abcf4be9e08966
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -2050,14 +2029,43 @@ public class TaskBoardUI : MonoBehaviour
 
     private readonly List<TaskRowUI> rows = new();
 
-    private TaskBoardService Board => GameInstaller.TaskBoard;
+    private TaskBoardService _board;
+
+    public void Bind(TaskBoardService board)
+    {
+        // ������� �� ������� board
+        if (_board != null)
+        {
+            _board.OnTasksChanged -= HandleTasksChanged;
+            _board.OnReservationsChanged -= HandleReservationsChanged;
+        }
+
+        _board = board;
+
+        // ������� �� ����� board
+        if (_board != null)
+        {
+            _board.OnTasksChanged -= HandleTasksChanged;               // safety �� �����
+            _board.OnTasksChanged += HandleTasksChanged;
+
+            _board.OnReservationsChanged -= HandleReservationsChanged; // safety �� �����
+            _board.OnReservationsChanged += HandleReservationsChanged;
+        }
+
+        Rebuild();
+        RefreshAll();
+    }
 
     private void OnEnable()
     {
-        if (Board != null)
+        // ���� ������ ��������/������� � ��������������
+        if (_board != null)
         {
-            Board.OnTasksChanged += HandleTasksChanged;
-            Board.OnReservationsChanged += HandleReservationsChanged;
+            _board.OnTasksChanged -= HandleTasksChanged;               // safety
+            _board.OnTasksChanged += HandleTasksChanged;
+
+            _board.OnReservationsChanged -= HandleReservationsChanged; // safety
+            _board.OnReservationsChanged += HandleReservationsChanged;
         }
 
         Rebuild();
@@ -2066,10 +2074,10 @@ public class TaskBoardUI : MonoBehaviour
 
     private void OnDisable()
     {
-        if (Board != null)
+        if (_board != null)
         {
-            Board.OnTasksChanged -= HandleTasksChanged;
-            Board.OnReservationsChanged -= HandleReservationsChanged;
+            _board.OnTasksChanged -= HandleTasksChanged;
+            _board.OnReservationsChanged -= HandleReservationsChanged;
         }
     }
 
@@ -2086,15 +2094,17 @@ public class TaskBoardUI : MonoBehaviour
 
     public void Rebuild()
     {
+        Debug.Log($"[TaskBoardUI] Rebuild board={(_board == null ? "NULL" : "OK")} root={(rowsRoot ? rowsRoot.name : "NULL")} prefab={(rowPrefab ? rowPrefab.name : "NULL")}");
+
         if (rowsRoot == null || rowPrefab == null) return;
-        if (Board == null) return;
+        if (_board == null) return;
 
         // clear
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) Destroy(rows[i].gameObject);
         rows.Clear();
 
-        var tasks = Board.GetAllTasks();
+        var tasks = _board.GetAllTasks();
         for (int i = 0; i < tasks.Count; i++)
         {
             var t = tasks[i];
@@ -2106,7 +2116,7 @@ public class TaskBoardUI : MonoBehaviour
 
     private void RefreshAll()
     {
-        if (Board == null) return;
+        if (_board == null) return;
 
         for (int i = 0; i < rows.Count; i++)
             if (rows[i] != null) rows[i].Refresh();
@@ -2299,8 +2309,8 @@ public class TreasuryUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/VillagerRosterPanelView.cs
-SIZE: 2513 bytes
-SHA256: 58698ffd07fafac67013f6e9c9744be2fa31500a016a70c1d6bd0959b6467637
+SIZE: 3159 bytes
+SHA256: 2f7a2db680c23883655fe58bb71cef93df5f0406bdd1fdaebcaa2f044bc1338b
 CONTENT:
 using System.Collections.Generic;
 using System.Linq;
@@ -2318,8 +2328,31 @@ public class VillagerRosterPanelView : MonoBehaviour
 
     public void Bind(VillagerRosterService roster, ProgressionService prog)
     {
+        // відписка
+        if (_roster != null)
+        {
+            _roster.OnRosterChanged -= HandleRosterChanged;
+            _roster.OnVillagerChanged -= HandleVillagerChanged;
+        }
+        if (_prog != null)
+        {
+            _prog.OnProgressChanged -= HandleProgressChanged;
+        }
+
         _roster = roster;
         _prog = prog;
+
+        // підписка
+        if (_roster != null)
+        {
+            _roster.OnRosterChanged += HandleRosterChanged;
+            _roster.OnVillagerChanged += HandleVillagerChanged;
+        }
+        if (_prog != null)
+        {
+            _prog.OnProgressChanged += HandleProgressChanged;
+        }
+
         Rebuild();
         RefreshAll();
     }
@@ -2404,8 +2437,8 @@ public class VillagerRosterPanelView : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/VillagerRowUI.cs
-SIZE: 1782 bytes
-SHA256: 63e1b5f1511618e4f494eec6a4aca1a748342cefd15f939855c67ad7457496db
+SIZE: 1784 bytes
+SHA256: 58c9840d36861fd4dddbf2205f7608aa0ce7df23af7c2633fa493d1d4aef5422
 CONTENT:
 using TMPro;
 using UnityEngine;
@@ -2430,6 +2463,7 @@ public class VillagerRowUI : MonoBehaviour
     public void Refresh(VillagerRosterService roster, ProgressionService prog)
     {
         if (string.IsNullOrWhiteSpace(AgentId)) return;
+
 
         var s = roster?.GetOrCreate(AgentId);
         var p = prog?.Get(AgentId);

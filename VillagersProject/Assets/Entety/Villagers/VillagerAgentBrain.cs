@@ -34,6 +34,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private VillagerRosterService _roster;
 
+    public string AgentId => agentId;
 
     private void Awake()
     {
