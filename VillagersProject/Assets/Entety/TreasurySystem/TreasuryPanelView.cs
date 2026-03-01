@@ -83,7 +83,9 @@ public class TreasuryPanelView : MonoBehaviour
             case "wood": if (woodValue) woodValue.text = newTotal.ToString(); break;
             case "stone": if (stoneValue) stoneValue.text = newTotal.ToString(); break;
             case "fish": if (fishValue) fishValue.text = newTotal.ToString(); break;
-            case "gold": if (goldValue) goldValue.text = newTotal.ToString(); break;
+            case "gold":
+                if (goldValue) goldValue.text = _treasury.GetGoldUi();
+                break;
         }
     }
 
@@ -94,7 +96,7 @@ public class TreasuryPanelView : MonoBehaviour
         if (woodValue) woodValue.text = _treasury.GetAmount("wood").ToString();
         if (stoneValue) stoneValue.text = _treasury.GetAmount("stone").ToString();
         if (fishValue) fishValue.text = _treasury.GetAmount("fish").ToString();
-        if (goldValue) goldValue.text = _treasury.GetAmount("gold").ToString();
+        if (goldValue) goldValue.text = _treasury.GetGoldUi();
     }
 
     private void OnSellAllClicked()

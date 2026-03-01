@@ -16,6 +16,8 @@ public class TaskBoardAuthoring : MonoBehaviour
         [Min(1)] public int maxTakers = 1;
         [Min(0.1f)] public float durationSec = 10f;
 
+        [Min(0)] public int wageGold = 5;
+
         // Gather (опц. для цього кроку)
         public string resourceId;
         public int baseAmount = 3;

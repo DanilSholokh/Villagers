@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-02-24 19:51:27
+Time: 2026-02-26 13:34:19
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 26
+FilesCount: 29
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -1217,8 +1217,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 12084 bytes
-SHA256: 44c0604ebc674aef3ce581d93d4c034f1ed3d26e4cd7610b8287cc81d167cffb
+SIZE: 12123 bytes
+SHA256: ad90d47ed026f0650610aac72f4b78dffd72ff793a51db52211170f8f8e9d598
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1256,6 +1256,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private VillagerRosterService _roster;
 
+    public string AgentId => agentId;
 
     private void Awake()
     {
@@ -1601,6 +1602,59 @@ public class VillagerAgentBrain : MonoBehaviour
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Entety/Villagers/VillagerInventory/VillagerInventoryService.cs
+SIZE: 1289 bytes
+SHA256: 447a5f2ceafc6333667a981ff660750270b69abc526fb9dcc3f71cd14b6b43ef
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public class VillagerInventoryService
+{
+    [Serializable]
+    public class ItemStack
+    {
+        public string itemId;
+        public int amount;
+    }
+
+    public event Action<string> OnInventoryChanged; // agentId
+
+    private readonly Dictionary<string, List<ItemStack>> _inv = new();
+
+    public IReadOnlyList<ItemStack> Get(string agentId)
+    {
+        if (string.IsNullOrWhiteSpace(agentId)) agentId = "unknown";
+        if (!_inv.TryGetValue(agentId, out var list))
+        {
+            list = new List<ItemStack>();
+            _inv[agentId] = list;
+        }
+        return list;
+    }
+
+    public void Add(string agentId, string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
+        if (string.IsNullOrWhiteSpace(agentId)) agentId = "unknown";
+
+        if (!_inv.TryGetValue(agentId, out var list))
+        {
+            list = new List<ItemStack>();
+            _inv[agentId] = list;
+        }
+
+        var found = list.Find(x => x.itemId == itemId);
+        if (found != null) found.amount += amount;
+        else list.Add(new ItemStack { itemId = itemId, amount = amount });
+
+        OnInventoryChanged?.Invoke(agentId);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Presentation/GatherLocationAuthoring.cs
 SIZE: 246 bytes
 SHA256: bc4d7540784071e2787e5fedef80c6469749d22bb7426e3839072e8538bc5891
@@ -1726,8 +1780,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 2490 bytes
-SHA256: 2d1d609041d121f6d256df2ef93ee3c700ed5d89fa4ace37fede5398f0ec3611
+SIZE: 2619 bytes
+SHA256: 65297a4a53d4baaa5720db16fcba5ac0582f9fa4b594cb1c41415a4edea2288a
 CONTENT:
 using UnityEngine;
 
@@ -1741,6 +1795,7 @@ public class GameInstaller : MonoBehaviour
     public static ProgressionService Progression { get; private set; }
     public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
+    public static VillagerInventoryService Inventory { get; private set; }
 
 
     [SerializeField] private TreasuryPanelView treasuryPanel;
@@ -1760,6 +1815,7 @@ public class GameInstaller : MonoBehaviour
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
         _log = new EventLogService(10);
+        Inventory = new VillagerInventoryService();
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
@@ -2308,6 +2364,248 @@ public class TreasuryUI : MonoBehaviour
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/UI/VillagerClickSelector.cs
+SIZE: 1460 bytes
+SHA256: cdf29e3e65a63eb6709e55b19f3a9e3d0c9a5d97c11b756cc6d252c259de466f
+CONTENT:
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class VillagerClickSelector : MonoBehaviour
+{
+    [SerializeField] private Camera cam;
+    [SerializeField] private VillagerInspectPanelView inspectPanel;
+    [SerializeField] private LayerMask hitMask = ~0; // все
+    [SerializeField] private float maxDistance = 500f;
+
+    
+
+    private void Awake()
+    {
+        if (cam == null) cam = Camera.main;
+        if (cam == null) cam = FindFirstObjectByType<Camera>();
+    }
+
+    private void Update()
+    {
+        if (cam == null || inspectPanel == null) return;
+        if (Mouse.current == null) return;
+
+        // М1 клік
+        if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+
+        Vector2 screenPos = Mouse.current.position.ReadValue();
+        Ray ray = cam.ScreenPointToRay(screenPos);
+
+        // Для дебага (можеш потім прибрати)
+        Debug.DrawRay(ray.origin, ray.direction * 100f, Color.yellow, 1f);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, hitMask, QueryTriggerInteraction.Ignore))
+        {
+            var brain = hit.collider.GetComponentInParent<VillagerAgentBrain>();
+            if (brain != null)
+            {
+                inspectPanel.Show(brain);
+                return;
+            }
+        }
+
+        // клік не по віліджеру → закрити
+        inspectPanel.Hide();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/VillagerInspectPanelView.cs
+SIZE: 6205 bytes
+SHA256: 9870a365cc13047e7ae4fd3e8d567a081419ec9eedaca0e1a182fe40fa97e3b5
+CONTENT:
+using System.Text;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class VillagerInspectPanelView : MonoBehaviour
+{
+    [Header("UI")]
+    [SerializeField] private GameObject root;
+    [SerializeField] private TextMeshProUGUI titleText;
+    [SerializeField] private TextMeshProUGUI statusText;
+    [SerializeField] private TextMeshProUGUI statsText;
+    [SerializeField] private TextMeshProUGUI perksText;
+    [SerializeField] private TextMeshProUGUI inventoryText;
+
+    [Header("3D Preview")]
+    [SerializeField] private RawImage previewImage;       // показує RenderTexture
+    [SerializeField] private Camera previewCamera;        // рендерить тільки preview layer
+    [SerializeField] private Transform previewRoot;       // куди інстансити клон
+    [SerializeField] private LayerMask previewLayer;      // наприклад "UIPreview"
+    [SerializeField] private Vector3 previewLocalPos = new Vector3(0, 0, 0);
+    [SerializeField] private Vector3 previewLocalEuler = new Vector3(0, 180, 0);
+
+    private VillagerAgentBrain _target;
+    private GameObject _previewInstance;
+
+    private void Awake()
+    {
+        if (root != null) root.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged += HandleInventoryChanged;
+    }
+
+    private void OnDisable()
+    {
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+    }
+
+    public void Show(VillagerAgentBrain brain)
+    {
+        if (brain == null) return;
+
+        _target = brain;
+
+        if (root != null) root.SetActive(true);
+        RebuildAll();
+        BuildPreviewModel();
+    }
+
+    public void Hide()
+    {
+        _target = null;
+        if (root != null) root.SetActive(false);
+        ClearPreviewModel();
+    }
+
+    private void HandleInventoryChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildInventory();
+    }
+
+    private void RebuildAll()
+    {
+        if (_target == null) return;
+
+        var agentId = _target.AgentId;
+
+        var roster = GameInstaller.Villagers;
+        var prog = GameInstaller.Progression;
+
+        var s = roster?.GetOrCreate(agentId);
+        var p = prog?.Get(agentId);
+
+        if (titleText) titleText.text = s != null ? s.displayName : agentId;
+
+        if (statusText)
+        {
+            string task = (s == null || string.IsNullOrWhiteSpace(s.taskName)) ? "-" : s.taskName;
+            string st = s != null ? s.status.ToString() : "Unknown";
+            statusText.text = $"Status: {st}\nTask: {task}";
+        }
+
+        if (statsText)
+        {
+            if (p == null) statsText.text = "Lv.? (AP:?)\nSTR - | SPD - | ING -";
+            else statsText.text = $"Lv.{p.level} (AP:{p.achievementPoints})\nSTR {p.strength} | SPD {p.speed} | ING {p.ingenuity}";
+        }
+
+        if (perksText)
+        {
+            if (p == null || p.perks == null || p.perks.Count == 0) perksText.text = "Perks: (none)";
+            else perksText.text = "Perks: " + string.Join(", ", p.perks);
+        }
+
+        RebuildInventory();
+    }
+
+    private void RebuildInventory()
+    {
+        if (inventoryText == null) return;
+        if (_target == null) { inventoryText.text = ""; return; }
+
+        var inv = GameInstaller.Inventory;
+        if (inv == null)
+        {
+            inventoryText.text = "Inventory: (service missing)";
+            return;
+        }
+
+        var items = inv.Get(_target.AgentId);
+        if (items == null || items.Count == 0)
+        {
+            inventoryText.text = "Inventory: (empty)";
+            return;
+        }
+
+        var sb = new StringBuilder(128);
+        sb.AppendLine("Inventory:");
+        for (int i = 0; i < items.Count; i++)
+            sb.AppendLine($"- {items[i].itemId} x{items[i].amount}");
+        inventoryText.text = sb.ToString();
+    }
+
+    private void BuildPreviewModel()
+    {
+        ClearPreviewModel();
+
+        if (_target == null) return;
+        if (previewRoot == null || previewCamera == null || previewImage == null) return;
+
+        // Беремо візуал з віліджера: найпростіше — його MeshRenderer корінь
+        var render = _target.GetComponentInChildren<Renderer>();
+        if (render == null) return;
+
+        _previewInstance = Instantiate(render.gameObject, previewRoot);
+        _previewInstance.transform.localPosition = previewLocalPos;
+        _previewInstance.transform.localRotation = Quaternion.Euler(previewLocalEuler);
+
+        // Весь клон — в preview layer, щоб камера бачила тільки його
+        int layer = LayerMaskToLayer(previewLayer);
+        SetLayerRecursive(_previewInstance.transform, layer);
+
+        previewCamera.cullingMask = previewLayer;
+
+        // Підключення RenderTexture (зазвичай ти створиш RT ассет і закинеш у RawImage)
+        // Якщо RT заданий на RawImage — то ок, якщо ні, треба призначити previewCamera.targetTexture вручну.
+        // (Безпечно: якщо RawImage.texture є RenderTexture — підключимо до camera)
+        if (previewImage.texture is RenderTexture rt)
+            previewCamera.targetTexture = rt;
+    }
+
+    private void ClearPreviewModel()
+    {
+        if (_previewInstance != null)
+            Destroy(_previewInstance);
+        _previewInstance = null;
+    }
+
+    private static void SetLayerRecursive(Transform t, int layer)
+    {
+        t.gameObject.layer = layer;
+        for (int i = 0; i < t.childCount; i++)
+            SetLayerRecursive(t.GetChild(i), layer);
+    }
+
+    private static int LayerMaskToLayer(LayerMask mask)
+    {
+        int v = mask.value;
+        for (int i = 0; i < 32; i++)
+            if ((v & (1 << i)) != 0) return i;
+        return 0;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/UI/VillagerRosterPanelView.cs
 SIZE: 3159 bytes
 SHA256: 2f7a2db680c23883655fe58bb71cef93df5f0406bdd1fdaebcaa2f044bc1338b
@@ -2499,7 +2797,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 26
+Written: 29
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

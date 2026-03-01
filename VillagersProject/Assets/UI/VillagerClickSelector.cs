@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class VillagerClickSelector : MonoBehaviour
 {
@@ -7,38 +8,39 @@ public class VillagerClickSelector : MonoBehaviour
     [SerializeField] private LayerMask hitMask = ~0; // все
     [SerializeField] private float maxDistance = 500f;
 
+    
+
     private void Awake()
     {
         if (cam == null) cam = Camera.main;
+        if (cam == null) cam = FindFirstObjectByType<Camera>();
     }
 
     private void Update()
     {
         if (cam == null || inspectPanel == null) return;
+        if (Mouse.current == null) return;
 
-        if (Input.GetMouseButtonDown(0))
+        // М1 клік
+        if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+
+        Vector2 screenPos = Mouse.current.position.ReadValue();
+        Ray ray = cam.ScreenPointToRay(screenPos);
+
+        // Для дебага (можеш потім прибрати)
+        Debug.DrawRay(ray.origin, ray.direction * 100f, Color.yellow, 1f);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, hitMask, QueryTriggerInteraction.Ignore))
         {
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, maxDistance, hitMask))
+            var brain = hit.collider.GetComponentInParent<VillagerAgentBrain>();
+            if (brain != null)
             {
-                var brain = hit.collider.GetComponentInParent<VillagerAgentBrain>();
-                if (brain != null)
-                {
-                    inspectPanel.Show(brain);
-                    return;
-                }
-
-                // клік в “порожнечу/не-віліджера” → закрити
-                inspectPanel.Hide();
-            }
-            else
-            {
-                inspectPanel.Hide();
+                inspectPanel.Show(brain);
+                return;
             }
         }
 
-        // ESC теж зручно
-        if (Input.GetKeyDown(KeyCode.Escape))
-            inspectPanel.Hide();
+        // клік не по віліджеру → закрити
+        inspectPanel.Hide();
     }
 }

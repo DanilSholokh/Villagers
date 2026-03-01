@@ -1,21 +1,22 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-02-24 19:51:10
+Time: 2026-02-26 13:34:13
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
 
-Root objects: 8
+Root objects: 9
 
 - Main Camera (activeSelf=True, activeInHierarchy=True) [tag=MainCamera, layer=Default]
   Transform: pos=(291.30, 58.10, -28.00) rot=(54.71, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
-  Components (4):
+  Components (5):
   - Transform
   - Camera
   - AudioListener
   - UniversalAdditionalCameraData
+  - VillagerClickSelector
 
 - Directional Light (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-  Transform: pos=(0.00, 3.00, 0.00) rot=(50.00, 330.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Transform: pos=(0.00, 3.00, 0.00) rot=(40.48, 150.00, 180.00) scale=(1.00, 1.00, 1.00)
   Components (3):
   - Transform
   - Light
@@ -154,7 +155,7 @@ Root objects: 8
     Components (1):
     - Transform
     - ExplorerAgentPrefab (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(56.61, 1.06, 24.32) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(53.93, 1.06, 26.35) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
       - Transform
       - MeshFilter
@@ -162,8 +163,15 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(58.56, 1.06, 24.32) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(55.20, 1.06, 26.39) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
       - Transform
       - MeshFilter
@@ -171,8 +179,15 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (2) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(60.15, 1.06, 24.32) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(60.02, 1.06, 26.48) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
       - Transform
       - MeshFilter
@@ -180,8 +195,15 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (3) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(60.15, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(61.30, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
       - Transform
       - MeshFilter
@@ -189,6 +211,13 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (4) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
       Transform: pos=(58.80, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
@@ -198,6 +227,13 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (5) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
       Transform: pos=(56.89, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
@@ -207,8 +243,15 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
     - ExplorerAgentPrefab (6) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(56.89, 1.06, 21.63) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(63.10, 1.06, 26.58) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       Components (6):
       - Transform
       - MeshFilter
@@ -216,8 +259,15 @@ Root objects: 8
       - CapsuleCollider
       - NavMeshAgent
       - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
   - HomePoint (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-    Transform: pos=(322.17, 0.00, 30.50) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Transform: pos=(322.17, -0.01, 30.50) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
     Components (1):
     - Transform
     - Capsule (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
@@ -675,6 +725,80 @@ Root objects: 8
             - RectTransform
             - VerticalLayoutGroup (pad=(5,5,5,5) spacing=7 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
             - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
+    - VillagerInspect (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-399.00, -351.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                   anchoredPos=(-399.00, -351.00) sizeDelta=(100.00, 100.00) offsetMin=(-449.00, -401.00) offsetMax=(-349.00, -301.00)
+                   rect(w,h)=(100,100)
+      Components (2):
+      - RectTransform
+      - VillagerInspectPanelView
+      - VillagerInspectPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-1.00, -6.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(49.00, -56.00) sizeDelta=(216.20, 352.34) offsetMin=(-59.10, -232.17) offsetMax=(157.10, 120.17)
+                     rect(w,h)=(216,2,352,34)
+        Components (5):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.392))
+        - VerticalLayoutGroup (pad=(12,12,12,12) spacing=10 align=UpperLeft ctrlW=True ctrlH=True expW=True expH=False)
+        - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
+        - TXT_Title (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 150.76, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -25.41) sizeDelta=(192.20, 26.82) offsetMin=(12.00, -38.82) offsetMax=(204.20, -12.00)
+                       rect(w,h)=(192,2,26,82)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=24 autoSize=False wrap=True raycast=True) text="Villager" pref(w,h)=(79,67,26,82)
+        - IMG_Preview (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 37.35, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -138.82) sizeDelta=(192.20, 180.00) offsetMin=(12.00, -228.82) offsetMax=(204.20, -48.82)
+                       rect(w,h)=(192,2,180)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - RawImage
+          - LayoutElement (min=(-1,-1) pref=(-1,180) flex=(-1,-1))
+        - TXT_Status (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -71.59, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -247.76) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -256.70) offsetMax=(204.20, -238.82)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Status: …" pref(w,h)=(70,33,17,88)
+        - TXT_Stats (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -99.47, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -275.64) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -284.58) offsetMax=(204.20, -266.70)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Lv…" pref(w,h)=(32,94,17,88)
+        - TXT_Perks (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -127.35, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -303.52) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -312.46) offsetMax=(204.20, -294.58)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Perks: …" pref(w,h)=(66,05,17,88)
+        - TXT_Inventory (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -155.23, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -331.40) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -340.34) offsetMax=(204.20, -322.46)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Inventory: …" pref(w,h)=(90,61,17,88)
 
 - EventSystem (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
   Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
@@ -682,4 +806,15 @@ Root objects: 8
   - Transform
   - EventSystem
   - InputSystemUIInputModule
+
+- VillagerPreviewRoot (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (1):
+  - Transform
+  - VillagerPreviewCamera (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(-0.92, 1.29, -2.87) rot=(352.42, 18.54, 1.52) scale=(1.00, 1.00, 1.00)
+    Components (3):
+    - Transform
+    - Camera
+    - UniversalAdditionalCameraData
 

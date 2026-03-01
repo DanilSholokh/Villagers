@@ -18,6 +18,9 @@ public class TaskInstance
     public int maxTakers;     // N
     public float durationSec;
 
+
+    public int wageGold;
+
     // Для Gather (поки опціонально)
     public string resourceId;
     public int baseAmount;

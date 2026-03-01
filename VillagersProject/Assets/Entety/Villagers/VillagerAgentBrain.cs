@@ -121,7 +121,18 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            Log($"Picked task={task.taskId} ({task.displayName})");
+            // ✅ NEW: escrow hold (wage)
+            if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            {
+                // якщо грошей нема — відпускаємо слот назад
+                _board.Release(task.taskId, agentId);
+                Log($"Reserve failed: not enough gold for wage={task.wageGold}");
+                yield return null;
+                continue;
+            }
+
+            Log($"Picked task={task.taskId} ({task.displayName}) wage={task.wageGold}");
+
             _roster?.SetStatus(agentId, VillagerStatus.ReservedTask, task.taskId, task.displayName);
 
             // 3) Execute
