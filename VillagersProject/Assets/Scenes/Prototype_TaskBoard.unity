@@ -2942,6 +2942,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8542820392346219604}
     m_Modifications:
+    - target: {fileID: 24252393310116788, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
+      propertyPath: goldValue
+      value: 
+      objectReference: {fileID: 1822898986}
     - target: {fileID: 958028579614477442, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -3098,6 +3102,18 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5992988235616506746, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
+      propertyPath: m_text
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5992988235616506746, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
+      propertyPath: m_fontSize
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5992988235616506746, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
+      propertyPath: m_margin.z
+      value: 71.058105
+      objectReference: {fileID: 0}
     - target: {fileID: 6453864925671484373, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -3144,7 +3160,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6673974657929889799, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 441
+      value: 476.8
       objectReference: {fileID: 0}
     - target: {fileID: 6673974657929889799, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3180,7 +3196,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6673974657929889799, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -230
+      value: -250
       objectReference: {fileID: 0}
     - target: {fileID: 6673974657929889799, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -3518,6 +3534,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50ccc075694f0fd47877b48c2ff61599, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VillagerInspectPanelView
+--- !u!114 &1822898986 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3244230983763695132, guid: 6c9f8378ace898345ac7ffa7c7769138, type: 3}
+  m_PrefabInstance: {fileID: 1493923596}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!1 &1907451437
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-02-26 13:34:13
+Time: 2026-03-02 06:38:16
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -380,17 +380,17 @@ Root objects: 9
         - CanvasRenderer
         - TextMeshProUGUI (TMP_UI size=28 autoSize=True wrap=True raycast=True) text="..." pref(w,h)=(34,63,37,74)
     - TreasuryPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(854.00, 310.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(854.00, 290.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       RectTransform: anchMin=(1.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
-                   anchoredPos=(-106.00, -230.00) sizeDelta=(192.70, 441.00) offsetMin=(-202.35, -450.50) offsetMax=(-9.65, -9.50)
-                   rect(w,h)=(192,7,441)
+                   anchoredPos=(-106.00, -250.00) sizeDelta=(192.70, 476.80) offsetMin=(-202.35, -488.40) offsetMax=(-9.65, -11.60)
+                   rect(w,h)=(192,7,476,8)
       Components (4):
       - RectTransform
       - CanvasRenderer
       - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.392))
       - TreasuryPanelView
       - HeaderText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-        Transform: pos=(19.00, 187.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        Transform: pos=(19.00, 205.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 1.00) anchMax=(0.50, 1.00) pivot=(0.50, 0.50)
                      anchoredPos=(19.00, -33.00) sizeDelta=(200.00, 50.00) offsetMin=(-81.00, -58.00) offsetMax=(119.00, -8.00)
                      rect(w,h)=(200,50)
@@ -402,12 +402,12 @@ Root objects: 9
         Transform: pos=(2.50, -36.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
                      anchoredPos=(2.50, -36.90) sizeDelta=(-5.00, -73.80) offsetMin=(5.00, 0.00) offsetMax=(0.00, -73.80)
-                     rect(w,h)=(187,7,367,2)
+                     rect(w,h)=(187,7,403)
         Components (2):
         - RectTransform
         - VerticalLayoutGroup (pad=(25,0,0,0) spacing=0 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
         - Row_Wood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-18.85, 133.60, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(-18.85, 151.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                        anchoredPos=(75.00, -50.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -100.00) offsetMax=(125.00, 0.00)
                        rect(w,h)=(100,100)
@@ -433,9 +433,9 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
         - Row_Stone (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-18.85, 33.60, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(-18.85, 50.75, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(75.00, -150.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -200.00) offsetMax=(125.00, -100.00)
+                       anchoredPos=(75.00, -150.75) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -200.75) offsetMax=(125.00, -100.75)
                        rect(w,h)=(100,100)
           Components (2):
           - RectTransform
@@ -459,9 +459,9 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
         - Row_Fish (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-18.85, -66.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(-18.85, -50.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(75.00, -250.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -300.00) offsetMax=(125.00, -200.00)
+                       anchoredPos=(75.00, -251.50) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -301.50) offsetMax=(125.00, -201.50)
                        rect(w,h)=(100,100)
           Components (2):
           - RectTransform
@@ -485,9 +485,9 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
         - Row_Gold (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-18.85, -166.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(-18.85, -150.75, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(75.00, -350.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -400.00) offsetMax=(125.00, -300.00)
+                       anchoredPos=(75.00, -352.25) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -402.25) offsetMax=(125.00, -302.25)
                        rect(w,h)=(100,100)
           Components (2):
           - RectTransform
@@ -500,7 +500,7 @@ Root objects: 9
             Components (3):
             - RectTransform
             - CanvasRenderer
-            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="Gold" pref(w,h)=(152,38,63,35)
+            - TextMeshProUGUI (TMP_UI size=36 autoSize=True wrap=True raycast=True) text="" pref(w,h)=(0,0)
           - ValueText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(130.00, 30.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
@@ -509,9 +509,9 @@ Root objects: 9
             Components (3):
             - RectTransform
             - CanvasRenderer
-            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
+            - TextMeshProUGUI (TMP_UI size=36 autoSize=True wrap=True raycast=True) text="" pref(w,h)=(0,0)
       - sell button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-        Transform: pos=(0.00, -272.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        Transform: pos=(0.00, -290.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
                      anchoredPos=(0.00, -52.00) sizeDelta=(93.20, 70.80) offsetMin=(-46.60, -87.40) offsetMax=(46.60, -16.60)
                      rect(w,h)=(93,2,70,8)
@@ -677,7 +677,7 @@ Root objects: 9
             - RectTransform
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Explore Quest\n" pref(w,h)=(457,12,86,27)
-    - VillagerRosterPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    - VillagerRosterPanel (activeSelf=False, activeInHierarchy=False) [tag=Untagged, layer=Default]
       Transform: pos=(454.00, -210.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
                    anchoredPos=(454.00, 329.50) sizeDelta=(420.00, 600.00) offsetMin=(244.00, 29.50) offsetMax=(664.00, 629.50)
@@ -687,7 +687,7 @@ Root objects: 9
       - CanvasRenderer
       - Image (raycast=True, type=Sliced, color=RGBA(1.000, 0.855, 0.725, 1.000))
       - VillagerRosterPanelView
-      - Title (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      - Title (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
         Transform: pos=(-124.94, 272.07, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                      anchoredPos=(85.06, -27.93) sizeDelta=(127.82, 37.87) offsetMin=(21.15, -46.87) offsetMax=(148.97, -9.00)
@@ -695,8 +695,8 @@ Root objects: 9
         Components (3):
         - RectTransform
         - CanvasRenderer
-        - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(274,99,37,37)
-      - RosterScroll (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(0,0)
+      - RosterScroll (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
         Transform: pos=(0.55, -21.13, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
                      anchoredPos=(0.55, -21.13) sizeDelta=(378.79, 524.30) offsetMin=(-188.85, -283.27) offsetMax=(189.94, 241.02)
@@ -706,7 +706,7 @@ Root objects: 9
         - CanvasRenderer
         - Image (raycast=True, type=Sliced, color=RGBA(0.980, 0.941, 0.902, 1.000))
         - ScrollRect (H=False, V=True, move=Elastic, inertia=True, sens=1) viewport=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport content=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport/Content
-        - Viewport (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        - Viewport (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
           Transform: pos=(-189.40, 262.15, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.00, 1.00)
                        anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
@@ -716,7 +716,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=True, type=Sliced, color=RGBA(0.830, 0.708, 0.443, 1.000))
           - Mask (showMaskGraphic=False)
-          - Content (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - Content (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
             Transform: pos=(189.40, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 1.00)
                          anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 10.00) offsetMin=(0.00, -10.00) offsetMax=(0.00, 0.00)

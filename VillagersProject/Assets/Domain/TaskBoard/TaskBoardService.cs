@@ -93,6 +93,9 @@ public class TaskBoardService
             existing.priority = task.priority;
             existing.maxTakers = task.maxTakers;
             existing.durationSec = task.durationSec;
+
+            existing.wageGold = task.wageGold;
+
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
 

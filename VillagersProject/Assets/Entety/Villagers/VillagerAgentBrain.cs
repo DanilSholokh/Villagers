@@ -18,6 +18,9 @@ public class VillagerAgentBrain : MonoBehaviour
 
     [SerializeField] private float arriveDistance = 0.6f;
 
+    // -------------------- CARGO (prototype) --------------------
+    [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
+
 
     private NavMeshAgent agent;
     private Coroutine loop;
@@ -152,12 +155,54 @@ public class VillagerAgentBrain : MonoBehaviour
 
 
 
+            // === FAIL ROLL (MVP) ===
+            float finalFailChance = Mathf.Clamp01(task.baseFailChance);
+
+            // (опційно, пізніше) модифікатори від прогресії/перків:
+            // finalFailChance = ApplyFailModifiers(agentId, finalFailChance);
+
+            if (finalFailChance > 0f && UnityEngine.Random.value < finalFailChance)
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "FAILED");
+
+                // Втрачаємо cargo (нічого не комітимо), повертаємо wage
+                _treasury?.RefundGold(task.wageGold);
+
+                Log($"Task FAILED: {task.taskId} ({task.displayName}) failChance={finalFailChance:0.00}");
+
+                // Release + (якщо runtime таск одноразовий) remove
+                _board.Release(task.taskId, agentId);
+
+                // якщо у тебе одноразові runtime таски (rt_*) — можна прибирати:
+                // _board.RemoveTaskRuntime(task.taskId);
+
+                yield return null;
+                continue; // наступний цикл агента
+            }
+
+
 
             // 4) Return home
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
 
-            
+            // ✅ Wage settlement happens ONLY when villager reaches home
+            if (_treasury != null && task.wageGold > 0)
+            {
+                if (_completedThisCycle)
+                {
+                    CommitCargoToTreasury();
+                    _treasury.ConsumeLockedGold(task.wageGold);
+                    Log($"Wage paid: +{task.wageGold} gold");
+                }
+                else
+                {
+                    // fail -> refund escrow back to player
+                    _treasury.RefundGold(task.wageGold);
+                    _cargo.Clear();
+                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
+                }
+            }
 
             // 5) Release (після повернення)
             _board.Release(task.taskId, agentId);
@@ -220,8 +265,7 @@ public class VillagerAgentBrain : MonoBehaviour
         else if (outcome.type == ExploreOutcomeType.Reward)
         {
             Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-            if (_treasury != null)
-                _treasury.Add(outcome.resourceId, outcome.amount);
+            _cargo.Add(task.resourceId, task.baseAmount);
             GameInstaller.Progression?.AddAchievement(agentId, 3);
         }
         else
@@ -264,8 +308,9 @@ public class VillagerAgentBrain : MonoBehaviour
         if (!string.IsNullOrEmpty(task.resourceId) && task.baseAmount > 0)
         {
             Log($"Gather result: +{task.baseAmount} {task.resourceId}");
-            if (_treasury != null)
-                _treasury.Add(task.resourceId, task.baseAmount);
+
+            // ✅ put into cargo (not treasury yet)
+            _cargo.Add(task.resourceId, task.baseAmount);
 
             GameInstaller.Progression?.AddAchievement(agentId, 2);
         }
@@ -285,6 +330,23 @@ public class VillagerAgentBrain : MonoBehaviour
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+    }
+
+    private void CommitCargoToTreasury()
+    {
+        if (_treasury == null) return;
+        var snap = _cargo.Snapshot();
+            if (snap.Count == 0) return;
+        
+            foreach (var kv in snap)
+            {
+             if (kv.Value <= 0) continue;
+            _treasury.Add(kv.Key, kv.Value);
+            Log($"HomeCommit: delivered +{kv.Value} {kv.Key}");
+            }
+        
+        _cargo.Clear();
+        
     }
 
     // -------------------- NAVMESH SAFETY --------------------

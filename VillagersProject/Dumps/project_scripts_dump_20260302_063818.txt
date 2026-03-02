@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-02-26 13:34:19
+Time: 2026-03-02 06:38:18
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 29
+FilesCount: 30
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -231,8 +231,8 @@ public class ExploreSpotRegistry
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
-SIZE: 1264 bytes
-SHA256: ec320516e5012a8999a0a194fb7e0ea84d2bc3714d66abff84164b95b20d9635
+SIZE: 1309 bytes
+SHA256: 62e919e4270a044f5631c2146aa90a962110dead2e0ce89518fc3715241a5206
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -251,6 +251,8 @@ public class TaskBoardAuthoring : MonoBehaviour
         [Range(0, 5)] public int priority = 3;
         [Min(1)] public int maxTakers = 1;
         [Min(0.1f)] public float durationSec = 10f;
+
+        [Min(0)] public int wageGold = 5;
 
         // Gather (���. ��� ����� �����)
         public string resourceId;
@@ -280,41 +282,6 @@ public class TaskBoardAuthoring : MonoBehaviour
         return list;
     }
 }
-
------ FILE END -----
-
------ FILE BEGIN -----
-PATH: Assets/Domain/TaskBoard/TaskBoardModels.cs
-SIZE: 544 bytes
-SHA256: 83f07a946bb3f1162e62d24296aa6a02a2453156b22498c5497264c910d56ffc
-CONTENT:
-using System;
-using System.Collections.Generic;
-
-public enum TaskType
-{
-    Gather = 0,
-    Explore = 1
-}
-
-public class TaskInstance
-{
-    public string taskId;
-    public TaskType type;
-    public string displayName;
-
-    public bool active;
-    public int priority;      // 0..5
-    public int maxTakers;     // N
-    public float durationSec;
-
-    // ��� Gather (���� �����������)
-    public string resourceId;
-    public int baseAmount;
-
-    // ��� Explore: ������������� ExploreSpotRegistry + OutcomeService
-}
-
 
 ----- FILE END -----
 
@@ -459,6 +426,44 @@ public class TaskBoardService
     }
 
 }
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/TaskBoard/TaskInstance.cs
+SIZE: 574 bytes
+SHA256: 36ef0a75728ffd6f440652c28a4e1d12de5a8a9f2783d28ed9e559f0f2e835ff
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public enum TaskType
+{
+    Gather = 0,
+    Explore = 1
+}
+
+public class TaskInstance
+{
+    public string taskId;
+    public TaskType type;
+    public string displayName;
+
+    public bool active;
+    public int priority;      // 0..5
+    public int maxTakers;     // N
+    public float durationSec;
+
+
+    public int wageGold;
+
+    // ��� Gather (���� �����������)
+    public string resourceId;
+    public int baseAmount;
+
+    // ��� Explore: ������������� ExploreSpotRegistry + OutcomeService
+}
+
 
 ----- FILE END -----
 
@@ -761,8 +766,8 @@ public class EventLogService
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
-SIZE: 3043 bytes
-SHA256: fbdbf454d12137fef2b7a4ba4dbd4583131d501fa3276e5a59473e53cc28edaf
+SIZE: 3206 bytes
+SHA256: 4a901dd447268c58cfcbf01fe993c8c73d9129a6e57b0a9d729a130127cce08e
 CONTENT:
 using System.Collections.Generic;
 using TMPro;
@@ -771,6 +776,9 @@ using UnityEngine.UI;
 
 public class TreasuryPanelView : MonoBehaviour
 {
+
+    [SerializeField] private int startGold = 25;
+
     [Header("Values")]
     public TextMeshProUGUI woodValue;
     public TextMeshProUGUI stoneValue;
@@ -783,6 +791,12 @@ public class TreasuryPanelView : MonoBehaviour
 
 
     private TreasuryService _treasury;
+
+
+    private void Start()
+    {
+        _treasury.InitializeGold(startGold);
+    }
 
 
     // v0.01 фіксовані ціни (MVP)
@@ -849,7 +863,9 @@ public class TreasuryPanelView : MonoBehaviour
             case "wood": if (woodValue) woodValue.text = newTotal.ToString(); break;
             case "stone": if (stoneValue) stoneValue.text = newTotal.ToString(); break;
             case "fish": if (fishValue) fishValue.text = newTotal.ToString(); break;
-            case "gold": if (goldValue) goldValue.text = newTotal.ToString(); break;
+            case "gold":
+                if (goldValue) goldValue.text = _treasury.GetGoldUi();
+                break;
         }
     }
 
@@ -860,7 +876,7 @@ public class TreasuryPanelView : MonoBehaviour
         if (woodValue) woodValue.text = _treasury.GetAmount("wood").ToString();
         if (stoneValue) stoneValue.text = _treasury.GetAmount("stone").ToString();
         if (fishValue) fishValue.text = _treasury.GetAmount("fish").ToString();
-        if (goldValue) goldValue.text = _treasury.GetAmount("gold").ToString();
+        if (goldValue) goldValue.text = _treasury.GetGoldUi();
     }
 
     private void OnSellAllClicked()
@@ -879,8 +895,8 @@ public class TreasuryPanelView : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryService.cs
-SIZE: 2731 bytes
-SHA256: fa3c70a1bc1088f1814ae07b68500ea848cc6773af8f3988ac16bbd853928ca1
+SIZE: 4873 bytes
+SHA256: 73d8d15b8a9d4533db016a3163e431591d90dd669ca3414561889da153991407
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -888,10 +904,18 @@ using UnityEngine;
 
 public class TreasuryService
 {
-    // ����� ������� ������
+    // Єдине джерело істини
     private readonly Dictionary<string, int> storage = new();
 
     public event Action<string, int> OnChanged;
+
+
+    private int lockedGold = 0;
+
+    public int GoldAvailable => GetAmount("gold");
+    public int GoldLocked => Mathf.Max(0, lockedGold);
+
+
 
     public int GetAmount(string resourceId)
     {
@@ -901,7 +925,7 @@ public class TreasuryService
         return storage.TryGetValue(resourceId, out var v) ? v : 0;
     }
 
-    // Back-compat: ��� �������� UI/���, ���� ������� Get("wood"), ��������
+    // Back-compat: щоб існуючий UI/код, який викликає Get("wood"), працював
     public int Get(string resId) => GetAmount(resId);
 
     public void Add(string resourceId, int amount)
@@ -966,7 +990,7 @@ public class TreasuryService
 
             gainedGold += amount * price;
 
-            // ��������� ������
+            // обнуляємо ресурс
             storage[resId] = 0;
             OnChanged?.Invoke(resId, 0);
         }
@@ -981,7 +1005,66 @@ public class TreasuryService
     }
 
 
+    public string GetGoldUi()
+    {
+        var avail = GoldAvailable;
+        var locked = GoldLocked;
+        return locked > 0 ? $"Gold {avail} (🔒{locked})" : $"Gold {avail}";
+    }
 
+
+    public bool TryHoldGold(int amount)
+    {
+        if (amount <= 0) return true;
+
+        var avail = GetAmount("gold");
+        if (avail < amount) return false;
+
+        // зменшуємо available gold
+        storage["gold"] = avail - amount;
+
+        // збільшуємо locked
+        lockedGold += amount;
+
+        OnChanged?.Invoke("gold", storage["gold"]);
+        Debug.Log($"[Treasury] HOLD {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
+        return true;
+    }
+
+    public void RefundGold(int amount)
+    {
+        if (amount <= 0) return;
+
+        // зменшуємо locked
+        lockedGold -= amount;
+        if (lockedGold < 0) lockedGold = 0;
+
+        // додаємо в available (через storage напряму, щоб не логати як “дохід”, або можна через Add)
+        storage.TryGetValue("gold", out var cur);
+        storage["gold"] = cur + amount;
+
+        OnChanged?.Invoke("gold", storage["gold"]);
+        Debug.Log($"[Treasury] REFUND {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
+    }
+
+    public void ConsumeLockedGold(int amount)
+    {
+        // використовується коли золото переходить у corpse або виплачується віледжеру
+        if (amount <= 0) return;
+
+        lockedGold -= amount;
+        if (lockedGold < 0) lockedGold = 0;
+
+        OnChanged?.Invoke("gold", GetAmount("gold"));
+        Debug.Log($"[Treasury] CONSUME_LOCKED {amount} gold (avail={GetAmount("gold")}, locked={lockedGold})");
+    }
+
+
+
+    public void InitializeGold(int amaunt)
+    {
+        Add("gold", amaunt);
+    }
 
 
 }
@@ -1217,8 +1300,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 12123 bytes
-SHA256: ad90d47ed026f0650610aac72f4b78dffd72ff793a51db52211170f8f8e9d598
+SIZE: 13191 bytes
+SHA256: c5ac732fa251dd1e1a9862e7b3a2cabdc93bc307080711db21c9ca1d499532a7
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1239,6 +1322,10 @@ public class VillagerAgentBrain : MonoBehaviour
     [SerializeField] private float minVelocitySqr = 0.01f; // стабілізація "приїхав"
 
     [SerializeField] private float arriveDistance = 0.6f;
+
+    // -------------------- CARGO (prototype) --------------------
+    private string _cargoResId;
+    private int _cargoAmount;
 
 
     private NavMeshAgent agent;
@@ -1343,7 +1430,18 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            Log($"Picked task={task.taskId} ({task.displayName})");
+            // ✅ NEW: escrow hold (wage)
+            if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            {
+                // якщо грошей нема — відпускаємо слот назад
+                _board.Release(task.taskId, agentId);
+                Log($"Reserve failed: not enough gold for wage={task.wageGold}");
+                yield return null;
+                continue;
+            }
+
+            Log($"Picked task={task.taskId} ({task.displayName}) wage={task.wageGold}");
+
             _roster?.SetStatus(agentId, VillagerStatus.ReservedTask, task.taskId, task.displayName);
 
             // 3) Execute
@@ -1367,8 +1465,8 @@ public class VillagerAgentBrain : MonoBehaviour
             // 4) Return home
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
+            CommitCargoToTreasury();
 
-            
 
             // 5) Release (після повернення)
             _board.Release(task.taskId, agentId);
@@ -1475,8 +1573,10 @@ public class VillagerAgentBrain : MonoBehaviour
         if (!string.IsNullOrEmpty(task.resourceId) && task.baseAmount > 0)
         {
             Log($"Gather result: +{task.baseAmount} {task.resourceId}");
-            if (_treasury != null)
-                _treasury.Add(task.resourceId, task.baseAmount);
+
+            // ✅ put into cargo (not treasury yet)
+            _cargoResId = task.resourceId;
+            _cargoAmount += task.baseAmount;
 
             GameInstaller.Progression?.AddAchievement(agentId, 2);
         }
@@ -1496,6 +1596,21 @@ public class VillagerAgentBrain : MonoBehaviour
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+    }
+
+    private void CommitCargoToTreasury()
+    {
+        if (_cargoAmount <= 0 || string.IsNullOrEmpty(_cargoResId))
+            return;
+
+        if (_treasury != null)
+        {
+            _treasury.Add(_cargoResId, _cargoAmount);
+            Log($"HomeCommit: delivered +{_cargoAmount} {_cargoResId}");
+        }
+
+        _cargoResId = null;
+        _cargoAmount = 0;
     }
 
     // -------------------- NAVMESH SAFETY --------------------
@@ -1596,6 +1711,77 @@ public class VillagerAgentBrain : MonoBehaviour
     {
         Debug.Log($"[Agent {agentId}] {msg}");
         _log?.Push($"[Agent {agentId}] {msg}");
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/Villagers/VillagerCargo.cs
+SIZE: 1471 bytes
+SHA256: 4272d4bf4a7be0919e97ae78d5c6b9970ede4470616c623715038bf6a35154d4
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[Serializable]
+public class VillagerCargo
+{
+    [SerializeField] private List<string> keys = new();
+    [SerializeField] private List<int> values = new();
+
+    // runtime map
+    private Dictionary<string, int> _map;
+
+    private Dictionary<string, int> Map
+    {
+        get
+        {
+            if (_map == null)
+            {
+                _map = new Dictionary<string, int>();
+                for (int i = 0; i < Mathf.Min(keys.Count, values.Count); i++)
+                    _map[keys[i]] = values[i];
+            }
+            return _map;
+        }
+    }
+
+    public void Add(string resId, int amount)
+    {
+        if (string.IsNullOrEmpty(resId) || amount <= 0) return;
+        Map.TryGetValue(resId, out var cur);
+        Map[resId] = cur + amount;
+        SyncLists();
+    }
+
+    public int Get(string resId)
+    {
+        if (string.IsNullOrEmpty(resId)) return 0;
+        return Map.TryGetValue(resId, out var cur) ? cur : 0;
+    }
+
+    public Dictionary<string, int> Snapshot()
+    {
+        return new Dictionary<string, int>(Map);
+    }
+
+    public void Clear()
+    {
+        Map.Clear();
+        SyncLists();
+    }
+
+    private void SyncLists()
+    {
+        keys.Clear();
+        values.Clear();
+        foreach (var kv in Map)
+        {
+            keys.Add(kv.Key);
+            values.Add(kv.Value);
+        }
     }
 }
 
@@ -2183,8 +2369,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 1775 bytes
-SHA256: 9d886a28c8f2e3765b93d29251f65764d1ac09314bbe8992db1aec69d630bf1f
+SIZE: 1876 bytes
+SHA256: d4c359c1c4df7563f2dc004f6ae29f3f88756eada22f9cd79b7ec99f3bca83d6
 CONTENT:
 using UnityEngine;
 
@@ -2193,9 +2379,9 @@ public class TaskPublisherPanel : MonoBehaviour
 
     private int _seq = 0;
 
-    public void PublishGatherWood() => PublishGather("wood", "Gather Wood", priority: 3, maxTakers: 1, durationSec: 8f, baseAmount: 3);
-    public void PublishGatherStone() => PublishGather("stone", "Gather Stone", priority: 5, maxTakers: 1, durationSec: 30f, baseAmount: 10);
-    public void PublishGatherFish() => PublishGather("fish", "Gather Fish", priority: 3, maxTakers: 1, durationSec: 7f, baseAmount: 2);
+    public void PublishGatherWood() => PublishGather("wood", "Gather Wood", priority: 3, maxTakers: 1, durationSec: 8f, baseAmount: 3, wageGold: 5);
+    public void PublishGatherStone() => PublishGather("stone", "Gather Stone", priority: 5, maxTakers: 1, durationSec: 30f, baseAmount: 10, wageGold: 5);
+    public void PublishGatherFish() => PublishGather("fish", "Gather Fish", priority: 3, maxTakers: 1, durationSec: 7f, baseAmount: 2, wageGold: 5);
 
     public void PublishExplore()
     {
@@ -2221,7 +2407,7 @@ public class TaskPublisherPanel : MonoBehaviour
         
     }
 
-    private void PublishGather(string resId, string name, int priority, int maxTakers, float durationSec, int baseAmount)
+    private void PublishGather(string resId, string name, int priority, int maxTakers, float durationSec, int baseAmount, int wageGold)
     {
         var board = GameInstaller.TaskBoard;
         if (board == null) return;
@@ -2238,7 +2424,8 @@ public class TaskPublisherPanel : MonoBehaviour
             maxTakers = maxTakers,
             durationSec = durationSec,
             resourceId = resId,
-            baseAmount = baseAmount
+            baseAmount = baseAmount,
+            wageGold = Mathf.Max(0, wageGold)
         };
 
         board.AddTaskRuntime(task);
@@ -2797,7 +2984,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 29
+Written: 30
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

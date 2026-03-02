@@ -5,6 +5,9 @@ using UnityEngine.UI;
 
 public class TreasuryPanelView : MonoBehaviour
 {
+
+    [SerializeField] private int startGold = 25;
+
     [Header("Values")]
     public TextMeshProUGUI woodValue;
     public TextMeshProUGUI stoneValue;
@@ -17,6 +20,13 @@ public class TreasuryPanelView : MonoBehaviour
 
 
     private TreasuryService _treasury;
+
+
+    private void Start()
+    {
+        if (_treasury != null)
+            _treasury.InitializeGold(startGold);
+    }
 
 
     // v0.01 фіксовані ціни (MVP)

@@ -16,6 +16,7 @@ public class TreasuryService
     public int GoldLocked => Mathf.Max(0, lockedGold);
 
 
+
     public int GetAmount(string resourceId)
     {
         if (string.IsNullOrWhiteSpace(resourceId)) return 0;
@@ -158,6 +159,12 @@ public class TreasuryService
         Debug.Log($"[Treasury] CONSUME_LOCKED {amount} gold (avail={GetAmount("gold")}, locked={lockedGold})");
     }
 
+
+
+    public void InitializeGold(int amaunt)
+    {
+        Add("gold", amaunt);
+    }
 
 
 }

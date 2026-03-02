@@ -17,7 +17,7 @@ public class TaskInstance
     public int priority;      // 0..5
     public int maxTakers;     // N
     public float durationSec;
-
+    public float baseFailChance = 0.5f; // 0..1
 
     public int wageGold;
 

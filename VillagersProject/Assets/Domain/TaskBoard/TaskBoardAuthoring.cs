@@ -12,6 +12,8 @@ public class TaskBoardAuthoring : MonoBehaviour
         public string displayName;
 
         public bool active = true;
+
+        [Range(0f, 1f)] public float baseFailChance = 0f;
         [Range(0, 5)] public int priority = 3;
         [Min(1)] public int maxTakers = 1;
         [Min(0.1f)] public float durationSec = 10f;
@@ -39,8 +41,13 @@ public class TaskBoardAuthoring : MonoBehaviour
                 priority = t.priority,
                 maxTakers = t.maxTakers,
                 durationSec = t.durationSec,
+
+                wageGold = t.wageGold,
+
                 resourceId = t.resourceId,
-                baseAmount = t.baseAmount
+                baseAmount = t.baseAmount,
+
+                baseFailChance = t.baseFailChance
             });
         }
         return list;
