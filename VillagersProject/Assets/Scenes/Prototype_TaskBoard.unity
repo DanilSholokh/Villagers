@@ -4103,9 +4103,17 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2782781872319146637, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: m_Name
+      value: ButtonExplore
+      objectReference: {fileID: 0}
     - target: {fileID: 3411737822006365894, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_Name
       value: TaskPublisherPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 3593811586344193490, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: m_Name
+      value: ButtonMine
       objectReference: {fileID: 0}
     - target: {fileID: 3906539634809430067, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_Pivot.x
@@ -4187,6 +4195,158 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].type
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].button
+      value: 
+      objectReference: {fileID: 609571768930724535}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].button
+      value: 
+      objectReference: {fileID: 609571768930724536}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].button
+      value: 
+      objectReference: {fileID: 609571768930724537}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].button
+      value: 
+      objectReference: {fileID: 609571768930724538}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].priority
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].wageGold
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].priority
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].wageGold
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].priority
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].wageGold
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].priority
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].wageGold
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].maxTakers
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].maxTakers
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].maxTakers
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].maxTakers
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].baseAmount
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].resourceId
+      value: fish
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].baseAmount
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].resourceId
+      value: wood
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].baseAmount
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].resourceId
+      value: stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].baseAmount
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].resourceId
+      value: gold
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].displayName
+      value: Catch Fish
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].durationSec
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].displayName
+      value: Wood Mission
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].durationSec
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].displayName
+      value: Mine Quest
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].durationSec
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].displayName
+      value: Explore
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].durationSec
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[0].baseFailChance
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[1].baseFailChance
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[2].baseFailChance
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].baseFailChance
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 4744568840398910613, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -4202,6 +4362,10 @@ PrefabInstance:
     - target: {fileID: 4744568840398910613, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5408492348817875212, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: m_Name
+      value: ButtonFish
       objectReference: {fileID: 0}
     - target: {fileID: 5574709804077618621, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_AnchorMax.y
@@ -4250,12 +4414,60 @@ PrefabInstance:
     - target: {fileID: 6504697114121430625, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8039738225233000758, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: m_Name
+      value: ButtonWood
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+--- !u!114 &609571768930724535 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8849254436468189082, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+  m_PrefabInstance: {fileID: 609571768930724534}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!114 &609571768930724536 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8913574485757899921, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+  m_PrefabInstance: {fileID: 609571768930724534}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!114 &609571768930724537 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3865168859762497340, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+  m_PrefabInstance: {fileID: 609571768930724534}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!114 &609571768930724538 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 474249915567523209, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+  m_PrefabInstance: {fileID: 609571768930724534}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
 --- !u!223 &672786196777459978
 Canvas:
   m_ObjectHideFlags: 0

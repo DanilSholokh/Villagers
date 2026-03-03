@@ -174,7 +174,7 @@ public class VillagerAgentBrain : MonoBehaviour
                 _board.Release(task.taskId, agentId);
 
                 // якщо у тебе одноразові runtime таски (rt_*) — можна прибирати:
-                // _board.RemoveTaskRuntime(task.taskId);
+                //_board.RemoveTaskRuntime(task.taskId);
 
                 yield return null;
                 continue; // наступний цикл агента
@@ -193,6 +193,8 @@ public class VillagerAgentBrain : MonoBehaviour
                 {
                     CommitCargoToTreasury();
                     _treasury.ConsumeLockedGold(task.wageGold);
+
+                    _board.RemoveTaskRuntime(task.taskId);
                     Log($"Wage paid: +{task.wageGold} gold");
                 }
                 else
@@ -206,6 +208,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
             // 5) Release (після повернення)
             _board.Release(task.taskId, agentId);
+            _board.RemoveTaskRuntime(task.taskId);
 
             // VARIANT 1: runtime таски одноразові — після успіху видаляємо з борди
             if (_completedThisCycle && task.taskId != null && task.taskId.StartsWith("rt_"))

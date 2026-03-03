@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-02 06:38:18
+Time: 2026-03-02 18:40:08
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -231,8 +231,8 @@ public class ExploreSpotRegistry
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
-SIZE: 1309 bytes
-SHA256: 62e919e4270a044f5631c2146aa90a962110dead2e0ce89518fc3715241a5206
+SIZE: 1468 bytes
+SHA256: 9119e81fead9d409e4bca2c5e2070e7ddcdf29d16167fd9c166dec286befaf5a
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -248,6 +248,8 @@ public class TaskBoardAuthoring : MonoBehaviour
         public string displayName;
 
         public bool active = true;
+
+        [Range(0f, 1f)] public float baseFailChance = 0f;
         [Range(0, 5)] public int priority = 3;
         [Min(1)] public int maxTakers = 1;
         [Min(0.1f)] public float durationSec = 10f;
@@ -275,8 +277,13 @@ public class TaskBoardAuthoring : MonoBehaviour
                 priority = t.priority,
                 maxTakers = t.maxTakers,
                 durationSec = t.durationSec,
+
+                wageGold = t.wageGold,
+
                 resourceId = t.resourceId,
-                baseAmount = t.baseAmount
+                baseAmount = t.baseAmount,
+
+                baseFailChance = t.baseFailChance
             });
         }
         return list;
@@ -287,8 +294,8 @@ public class TaskBoardAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardService.cs
-SIZE: 4357 bytes
-SHA256: 821b039c2f80e76e5596d696e1be4345ae7952a1d87bd9ec3f9f932a1d93e93b
+SIZE: 4409 bytes
+SHA256: d72bafab80e1b8b973180eb4c785a1d3db6dcc0f5caddf16091665f9bf90cabb
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -385,6 +392,9 @@ public class TaskBoardService
             existing.priority = task.priority;
             existing.maxTakers = task.maxTakers;
             existing.durationSec = task.durationSec;
+
+            existing.wageGold = task.wageGold;
+
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
 
@@ -431,8 +441,8 @@ public class TaskBoardService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskInstance.cs
-SIZE: 574 bytes
-SHA256: 36ef0a75728ffd6f440652c28a4e1d12de5a8a9f2783d28ed9e559f0f2e835ff
+SIZE: 621 bytes
+SHA256: 2439394d4e323ee7167d2e8e13018245242fb6bc030f6b2f18e2bd8988825de2
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -453,7 +463,7 @@ public class TaskInstance
     public int priority;      // 0..5
     public int maxTakers;     // N
     public float durationSec;
-
+    public float baseFailChance = 0.5f; // 0..1
 
     public int wageGold;
 
@@ -766,8 +776,8 @@ public class EventLogService
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
-SIZE: 3206 bytes
-SHA256: 4a901dd447268c58cfcbf01fe993c8c73d9129a6e57b0a9d729a130127cce08e
+SIZE: 3242 bytes
+SHA256: 3e44690592aaff0aa8a998a3d67468e6160e65812834ae6bef4611e87561df25
 CONTENT:
 using System.Collections.Generic;
 using TMPro;
@@ -795,7 +805,8 @@ public class TreasuryPanelView : MonoBehaviour
 
     private void Start()
     {
-        _treasury.InitializeGold(startGold);
+        if (_treasury != null)
+            _treasury.InitializeGold(startGold);
     }
 
 
@@ -1300,8 +1311,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 13191 bytes
-SHA256: c5ac732fa251dd1e1a9862e7b3a2cabdc93bc307080711db21c9ca1d499532a7
+SIZE: 15100 bytes
+SHA256: 1c72d5f6ad4dccff3a251ed209f67ba6a1a9501ca860d4203757ae48d9579583
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1324,8 +1335,7 @@ public class VillagerAgentBrain : MonoBehaviour
     [SerializeField] private float arriveDistance = 0.6f;
 
     // -------------------- CARGO (prototype) --------------------
-    private string _cargoResId;
-    private int _cargoAmount;
+    [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
 
 
     private NavMeshAgent agent;
@@ -1461,12 +1471,54 @@ public class VillagerAgentBrain : MonoBehaviour
 
 
 
+            // === FAIL ROLL (MVP) ===
+            float finalFailChance = Mathf.Clamp01(task.baseFailChance);
+
+            // (опційно, пізніше) модифікатори від прогресії/перків:
+            // finalFailChance = ApplyFailModifiers(agentId, finalFailChance);
+
+            if (finalFailChance > 0f && UnityEngine.Random.value < finalFailChance)
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "FAILED");
+
+                // Втрачаємо cargo (нічого не комітимо), повертаємо wage
+                _treasury?.RefundGold(task.wageGold);
+
+                Log($"Task FAILED: {task.taskId} ({task.displayName}) failChance={finalFailChance:0.00}");
+
+                // Release + (якщо runtime таск одноразовий) remove
+                _board.Release(task.taskId, agentId);
+
+                // якщо у тебе одноразові runtime таски (rt_*) — можна прибирати:
+                // _board.RemoveTaskRuntime(task.taskId);
+
+                yield return null;
+                continue; // наступний цикл агента
+            }
+
+
 
             // 4) Return home
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
-            CommitCargoToTreasury();
 
+            // ✅ Wage settlement happens ONLY when villager reaches home
+            if (_treasury != null && task.wageGold > 0)
+            {
+                if (_completedThisCycle)
+                {
+                    CommitCargoToTreasury();
+                    _treasury.ConsumeLockedGold(task.wageGold);
+                    Log($"Wage paid: +{task.wageGold} gold");
+                }
+                else
+                {
+                    // fail -> refund escrow back to player
+                    _treasury.RefundGold(task.wageGold);
+                    _cargo.Clear();
+                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
+                }
+            }
 
             // 5) Release (після повернення)
             _board.Release(task.taskId, agentId);
@@ -1529,8 +1581,7 @@ public class VillagerAgentBrain : MonoBehaviour
         else if (outcome.type == ExploreOutcomeType.Reward)
         {
             Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-            if (_treasury != null)
-                _treasury.Add(outcome.resourceId, outcome.amount);
+            _cargo.Add(task.resourceId, task.baseAmount);
             GameInstaller.Progression?.AddAchievement(agentId, 3);
         }
         else
@@ -1575,8 +1626,7 @@ public class VillagerAgentBrain : MonoBehaviour
             Log($"Gather result: +{task.baseAmount} {task.resourceId}");
 
             // ✅ put into cargo (not treasury yet)
-            _cargoResId = task.resourceId;
-            _cargoAmount += task.baseAmount;
+            _cargo.Add(task.resourceId, task.baseAmount);
 
             GameInstaller.Progression?.AddAchievement(agentId, 2);
         }
@@ -1600,17 +1650,19 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void CommitCargoToTreasury()
     {
-        if (_cargoAmount <= 0 || string.IsNullOrEmpty(_cargoResId))
-            return;
-
-        if (_treasury != null)
-        {
-            _treasury.Add(_cargoResId, _cargoAmount);
-            Log($"HomeCommit: delivered +{_cargoAmount} {_cargoResId}");
-        }
-
-        _cargoResId = null;
-        _cargoAmount = 0;
+        if (_treasury == null) return;
+        var snap = _cargo.Snapshot();
+            if (snap.Count == 0) return;
+        
+            foreach (var kv in snap)
+            {
+             if (kv.Value <= 0) continue;
+            _treasury.Add(kv.Key, kv.Value);
+            Log($"HomeCommit: delivered +{kv.Value} {kv.Key}");
+            }
+        
+        _cargo.Clear();
+        
     }
 
     // -------------------- NAVMESH SAFETY --------------------
