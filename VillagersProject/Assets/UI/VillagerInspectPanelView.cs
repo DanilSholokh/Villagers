@@ -7,11 +7,17 @@ public class VillagerInspectPanelView : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private GameObject root;
+    [SerializeField] private Button closeButton;
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private TextMeshProUGUI statsText;
     [SerializeField] private TextMeshProUGUI perksText;
     [SerializeField] private TextMeshProUGUI inventoryText;
+
+
+    [Header("Auto Refresh")]
+    [SerializeField] private bool autoRefresh = true;            // <- ДОДАЙ
+    [SerializeField] private float refreshInterval = 0.25f;
 
     [Header("3D Preview")]
     [SerializeField] private RawImage previewImage;       // показує RenderTexture
@@ -24,9 +30,25 @@ public class VillagerInspectPanelView : MonoBehaviour
     private VillagerAgentBrain _target;
     private GameObject _previewInstance;
 
+    private float _nextRefreshAt;
+    private string _lastSnapshot; // щоб не перерисовувати без змін
+
     private void Awake()
     {
         if (root != null) root.SetActive(false);
+
+        if (closeButton != null)
+            closeButton.onClick.AddListener(Hide);
+    }
+
+    private void Update()
+    {
+        if (!autoRefresh) return;
+        if (_target == null) return;
+        if (Time.unscaledTime < _nextRefreshAt) return;
+
+        _nextRefreshAt = Time.unscaledTime + refreshInterval;
+        RebuildAll_IfChanged();
     }
 
     private void OnEnable()
@@ -48,6 +70,10 @@ public class VillagerInspectPanelView : MonoBehaviour
         _target = brain;
 
         if (root != null) root.SetActive(true);
+
+        _nextRefreshAt = 0f;
+        _lastSnapshot = null;
+
         RebuildAll();
         BuildPreviewModel();
     }
@@ -64,6 +90,42 @@ public class VillagerInspectPanelView : MonoBehaviour
         if (_target == null) return;
         if (_target.AgentId != agentId) return;
         RebuildInventory();
+    }
+
+
+    private void RebuildAll_IfChanged()
+    {
+        // Знімаємо “знімок” даних з сервісів.
+        // Якщо нічого не змінилось — не чіпаємо TMP/лейаути.
+        var snap = BuildSnapshotString();
+        if (snap == _lastSnapshot) return;
+
+        _lastSnapshot = snap;
+        RebuildAll();
+    }
+
+
+    private string BuildSnapshotString()
+    {
+        if (_target == null) return "";
+
+        var agentId = _target.AgentId;
+        var roster = GameInstaller.Villagers;
+        var prog = GameInstaller.Progression;
+
+        var s = roster?.GetOrCreate(agentId);
+        var p = prog?.Get(agentId);
+
+        // Мінімальний набір, який реально міняється під час гри:
+        // статус/таск/level/перки + можна розширити.
+        var sb = new StringBuilder(128);
+        sb.Append(agentId).Append('|');
+        sb.Append(s != null ? s.status.ToString() : "null").Append('|');
+        sb.Append(s != null ? s.taskName : "null").Append('|');
+        sb.Append(p != null ? p.level.ToString() : "null").Append('|');
+        if (p != null && p.perks != null)
+            sb.Append(string.Join(",", p.perks));
+        return sb.ToString();
     }
 
     private void RebuildAll()
@@ -128,6 +190,8 @@ public class VillagerInspectPanelView : MonoBehaviour
         inventoryText.text = sb.ToString();
     }
 
+    // ----- 3D Preview (твій код лишаємо) -----
+
     private void BuildPreviewModel()
     {
         ClearPreviewModel();
@@ -135,7 +199,6 @@ public class VillagerInspectPanelView : MonoBehaviour
         if (_target == null) return;
         if (previewRoot == null || previewCamera == null || previewImage == null) return;
 
-        // Беремо візуал з віліджера: найпростіше — його MeshRenderer корінь
         var render = _target.GetComponentInChildren<Renderer>();
         if (render == null) return;
 
@@ -143,15 +206,11 @@ public class VillagerInspectPanelView : MonoBehaviour
         _previewInstance.transform.localPosition = previewLocalPos;
         _previewInstance.transform.localRotation = Quaternion.Euler(previewLocalEuler);
 
-        // Весь клон — в preview layer, щоб камера бачила тільки його
         int layer = LayerMaskToLayer(previewLayer);
         SetLayerRecursive(_previewInstance.transform, layer);
 
         previewCamera.cullingMask = previewLayer;
 
-        // Підключення RenderTexture (зазвичай ти створиш RT ассет і закинеш у RawImage)
-        // Якщо RT заданий на RawImage — то ок, якщо ні, треба призначити previewCamera.targetTexture вручну.
-        // (Безпечно: якщо RawImage.texture є RenderTexture — підключимо до camera)
         if (previewImage.texture is RenderTexture rt)
             previewCamera.targetTexture = rt;
     }
@@ -177,4 +236,5 @@ public class VillagerInspectPanelView : MonoBehaviour
             if ((v & (1 << i)) != 0) return i;
         return 0;
     }
+
 }

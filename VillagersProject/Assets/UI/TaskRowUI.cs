@@ -12,15 +12,33 @@ public class TaskRowUI : MonoBehaviour
     [SerializeField] private Button prioPlusBtn;
     [SerializeField] private Button prioMinusBtn;
 
+    [SerializeField] private TMP_Text successText;
+    [SerializeField] private Image riskIcon;
+
     private string taskId;
 
-    public void Bind(string id)
+    public void Bind(TaskInstance task)
     {
-        taskId = id;
 
         if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
         if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
         if (activeToggle != null) activeToggle.onValueChanged.AddListener(OnToggle);
+
+        // Success %
+        int percent = Mathf.RoundToInt(task.successChance * 100f);
+        successText.text = percent + "%";
+
+        // Risk icon (поки просто колір)
+        switch (task.riskTier)
+        {
+            case 0: riskIcon.color = Color.green; break;
+            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
+            case 2: riskIcon.color = Color.yellow; break;
+            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
+            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
+            case 5: riskIcon.color = Color.red; break;
+        }
+
 
         Refresh(true);
     }

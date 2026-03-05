@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
-using static TaskPublisherPanel;
+
 
 public class TaskPublisherPanel : MonoBehaviour
 {
@@ -51,13 +51,12 @@ public class TaskPublisherPanel : MonoBehaviour
 
     private void OnEnable()
     {
-        // якщо Bind прийде після OnEnable — WireButtons викличеться у Bind()
-        WireButtons();
+        SubscribeButtons();
     }
 
     private void OnDisable()
     {
-        UnwireButtons();
+        UnsubscribeButtons();
     }
 
 
@@ -159,6 +158,16 @@ public class TaskPublisherPanel : MonoBehaviour
             t.resourceId = "";
             t.baseAmount = 0;
         }
+
+        // === Risk model bootstrap ===
+        t.successChance = 1f - t.baseFailChance;
+
+        if (t.successChance >= 0.85f) t.riskTier = 0;
+        else if (t.successChance >= 0.7f) t.riskTier = 1;
+        else if (t.successChance >= 0.55f) t.riskTier = 2;
+        else if (t.successChance >= 0.4f) t.riskTier = 3;
+        else if (t.successChance >= 0.25f) t.riskTier = 4;
+        else t.riskTier = 5;
 
         _board.AddTaskRuntime(t);
     }

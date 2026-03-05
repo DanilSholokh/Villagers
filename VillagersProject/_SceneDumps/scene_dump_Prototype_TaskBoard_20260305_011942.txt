@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-03-02 18:40:11
+Time: 2026-03-05 01:19:42
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -571,7 +571,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
-          - Button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - ButtonFish (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
@@ -600,7 +600,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
-          - Button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - ButtonWood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
@@ -629,7 +629,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
-          - Button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - ButtonMine (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
@@ -658,7 +658,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
-          - Button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - ButtonExplore (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
@@ -799,6 +799,25 @@ Root objects: 9
           - RectTransform
           - CanvasRenderer
           - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Inventory: …" pref(w,h)=(90,61,17,88)
+      - Button (Legacy) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(82.50, 154.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(1.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(32.50, 104.90) sizeDelta=(50.00, 30.00) offsetMin=(7.50, 89.90) offsetMax=(57.50, 119.90)
+                     rect(w,h)=(50,30)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(0.877, 0.751, 0.542, 1.000))
+        - Button (interactable=True, transition=ColorTint)
+        - Text (Legacy) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                       rect(w,h)=(50,30)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - Text
 
 - EventSystem (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
   Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)

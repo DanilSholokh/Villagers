@@ -5,6 +5,9 @@ public class ExploreSpotRegistry
 {
     public List<ExploreSpotAuthoring> Spots { get; private set; }
 
+    public Dictionary<string, LocationEntity> Locations { get; private set; }
+    public Dictionary<string, ExploreSpotAuthoring> AuthoringsById { get; private set; }
+
     public void Initialize()
     {
         Spots = new List<ExploreSpotAuthoring>(
@@ -17,6 +20,40 @@ public class ExploreSpotRegistry
         {
             Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");
         }
+
+
+        Locations = new Dictionary<string, LocationEntity>();
+        AuthoringsById = new Dictionary<string, ExploreSpotAuthoring>();
+
+        foreach (var s in Spots)
+        {
+            if (s == null) continue;
+
+            if (string.IsNullOrWhiteSpace(s.spotId))
+            {
+                Debug.LogWarning($"[ExploreSpotRegistry] Spot has empty spotId on object={s.name}");
+                continue;
+            }
+
+            if (AuthoringsById.ContainsKey(s.spotId))
+            {
+                Debug.LogError($"[ExploreSpotRegistry] Duplicate spotId={s.spotId}. Object={s.name}");
+                continue;
+            }
+
+            AuthoringsById[s.spotId] = s;
+
+            var loc = new LocationEntity(
+                spotId: s.spotId,
+                displayName: string.IsNullOrWhiteSpace(s.displayName) ? s.spotId : s.displayName,
+                gatherResourceId: s.gatherResourceId,
+                position: s.transform.position,
+                weight: s.weight
+            );
+
+            Locations[s.spotId] = loc;
+        }
+
     }
 
 
@@ -89,9 +126,49 @@ public class ExploreSpotRegistry
     }
 
 
+    public ExploreSpotAuthoring GetSpotById(string spotId)
+    {
+        if (string.IsNullOrWhiteSpace(spotId)) return null;
+        return AuthoringsById != null && AuthoringsById.TryGetValue(spotId, out var s) ? s : null;
+    }
 
+    public ExploreSpotAuthoring GetRandomUndiscoveredWeighted(SettlementKnowledgeService knowledge)
+    {
+        if (Spots == null || Spots.Count == 0) return null;
+        if (knowledge == null) return GetRandomSpotWeighted();
 
+        var candidates = new List<ExploreSpotAuthoring>();
+        foreach (var s in Spots)
+        {
+            if (s == null) continue;
+            if (string.IsNullOrWhiteSpace(s.spotId)) continue;
 
+            if (!knowledge.IsDiscovered(s.spotId))
+                candidates.Add(s);
+        }
+
+        if (candidates.Count == 0)
+            return GetRandomSpotWeighted();
+
+        // weighted pick
+        float total = 0f;
+        for (int i = 0; i < candidates.Count; i++)
+            total += Mathf.Max(0f, candidates[i].weight);
+
+        if (total <= 0.0001f)
+            return candidates[Random.Range(0, candidates.Count)];
+
+        float roll = Random.Range(0f, total);
+        float acc = 0f;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            acc += Mathf.Max(0f, candidates[i].weight);
+            if (roll <= acc) return candidates[i];
+        }
+
+        return candidates[candidates.Count - 1];
+    }
 
 }
 

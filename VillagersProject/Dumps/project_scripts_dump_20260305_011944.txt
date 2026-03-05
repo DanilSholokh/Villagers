@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-02 18:40:08
+Time: 2026-03-05 01:19:44
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 30
+FilesCount: 35
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -230,6 +230,143 @@ public class ExploreSpotRegistry
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Domain/Risk/CorpseService.cs
+SIZE: 748 bytes
+SHA256: a176c720e303ebeeed1934580e940623006aaee7520fd983e088605364ecf48d
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CorpseRecord
+{
+    public string agentId;
+    public Vector3 worldPos;
+    public int escrowGold;
+    public Dictionary<string, int> cargo;
+}
+
+public class CorpseService
+{
+    public readonly List<CorpseRecord> Records = new();
+
+    public void AddCorpse(CorpseRecord r)
+    {
+        Records.Add(r);
+        SpawnMarker(r.worldPos, "⚰");
+    }
+
+    private void SpawnMarker(Vector3 pos, string name)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = $"Marker_Corpse_{name}";
+        go.transform.position = pos + Vector3.up * 1.2f;
+        go.transform.localScale = new Vector3(0.6f, 0.2f, 0.6f);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Risk/LostService.cs
+SIZE: 771 bytes
+SHA256: 4c1acb3edc0003b422941b8d9ee0a66619f14220923b733843917ea1f0e1215b
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LostRecord
+{
+    public string agentId;
+    public Vector3 lastSeenPos;
+    public int escrowGold;
+    public Dictionary<string, int> cargo;
+    public LostHiddenOutcome hiddenOutcome;
+}
+
+public class LostService
+{
+    public readonly List<LostRecord> Records = new();
+
+    public void AddLost(LostRecord r)
+    {
+        Records.Add(r);
+        SpawnMarker(r.lastSeenPos, "?");
+    }
+
+    private void SpawnMarker(Vector3 pos, string name)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = $"Marker_Lost_{name}";
+        go.transform.position = pos + Vector3.up * 1.2f;
+        go.transform.localScale = Vector3.one * 0.5f;
+    }
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Risk/PenaltyRoll.cs
+SIZE: 1223 bytes
+SHA256: b382ee4eeb3dc454efaf4e1f96fff66b33417bac7da03d49f9442b078f541cb0
+CONTENT:
+using UnityEngine;
+
+public static class PenaltyRoll
+{
+    // riskTier 0..5 -> ���� (None/Lost/Death)
+    // ̳�������, ���� �����������.
+    private static readonly float[] W_NONE = { 0.95f, 0.85f, 0.75f, 0.60f, 0.45f, 0.30f };
+    private static readonly float[] W_LOST = { 0.05f, 0.12f, 0.18f, 0.25f, 0.35f, 0.45f };
+    private static readonly float[] W_DEATH = { 0.00f, 0.03f, 0.07f, 0.15f, 0.20f, 0.25f };
+
+    public static PenaltyType RollPenalty(int riskTier)
+    {
+        int t = Mathf.Clamp(riskTier, 0, 5);
+        float total = W_NONE[t] + W_LOST[t] + W_DEATH[t];
+        float r = Random.Range(0f, total);
+
+        if (r < W_NONE[t]) return PenaltyType.None;
+        r -= W_NONE[t];
+
+        if (r < W_LOST[t]) return PenaltyType.Lost;
+        return PenaltyType.Death;
+    }
+
+    // hidden outcome ��� Lost (AliveLost / DeadLost)
+    public static LostHiddenOutcome RollLostHidden(int riskTier)
+    {
+        int t = Mathf.Clamp(riskTier, 0, 5);
+
+        // ��� ������ tier � ��� ����� ���� DeadLost
+        float deadChance = Mathf.Lerp(0.10f, 0.55f, t / 5f);
+        return (Random.value < deadChance) ? LostHiddenOutcome.DeadLost : LostHiddenOutcome.AliveLost;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Risk/PenaltyTypes.cs
+SIZE: 151 bytes
+SHA256: ad6728f9a896d07887487382dce02f60db64eb028a89799d3bf13b3ca4abdf46
+CONTENT:
+public enum PenaltyType
+{
+    None = 0,
+    Lost = 1,
+    Death = 2
+}
+
+public enum LostHiddenOutcome
+{
+    AliveLost = 0,
+    DeadLost = 1
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
 SIZE: 1468 bytes
 SHA256: 9119e81fead9d409e4bca2c5e2070e7ddcdf29d16167fd9c166dec286befaf5a
@@ -441,8 +578,8 @@ public class TaskBoardService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskInstance.cs
-SIZE: 621 bytes
-SHA256: 2439394d4e323ee7167d2e8e13018245242fb6bc030f6b2f18e2bd8988825de2
+SIZE: 747 bytes
+SHA256: 2d68373dbed6b5eada59516bcb5457dcb4a8280de3a3e03e345d7b951ab2cbcc
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -466,6 +603,9 @@ public class TaskInstance
     public float baseFailChance = 0.5f; // 0..1
 
     public int wageGold;
+
+    public float successChance;   // 0..1 (���������� � UI)
+    public int riskTier;          // 0..5 (����� ���������)
 
     // ��� Gather (���� �����������)
     public string resourceId;
@@ -1311,8 +1451,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 15100 bytes
-SHA256: 1c72d5f6ad4dccff3a251ed209f67ba6a1a9501ca860d4203757ae48d9579583
+SIZE: 19774 bytes
+SHA256: 19342692e2f63d5b09bf69623489b67164a9cb570afa7b7f74bdc235939e5cfd
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1332,7 +1472,8 @@ public class VillagerAgentBrain : MonoBehaviour
     [SerializeField] private float arriveTimeoutSec = 20f; // щоб не зависати назавжди
     [SerializeField] private float minVelocitySqr = 0.01f; // стабілізація "приїхав"
 
-    [SerializeField] private float arriveDistance = 0.6f;
+    [SerializeField] private float arriveDistance = 1.6f;
+
 
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
@@ -1350,6 +1491,8 @@ public class VillagerAgentBrain : MonoBehaviour
     private TreasuryService _treasury;
     private EventLogService _log;
 
+    private Vector3 _lastWorkPos;
+    private string _lastWorkSpotId;
 
     private VillagerRosterService _roster;
 
@@ -1440,7 +1583,7 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            // ✅ NEW: escrow hold (wage)
+            // ✅ Escrow hold (wage)
             if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
             {
                 // якщо грошей нема — відпускаємо слот назад
@@ -1451,7 +1594,6 @@ public class VillagerAgentBrain : MonoBehaviour
             }
 
             Log($"Picked task={task.taskId} ({task.displayName}) wage={task.wageGold}");
-
             _roster?.SetStatus(agentId, VillagerStatus.ReservedTask, task.taskId, task.displayName);
 
             // 3) Execute
@@ -1469,170 +1611,204 @@ public class VillagerAgentBrain : MonoBehaviour
                 yield return DoGather(task);
             }
 
+            // 3.5) Final outcome roll (ONE place!)
+            float failChance = Mathf.Clamp01(task.baseFailChance); // MVP
+            float roll = UnityEngine.Random.value;
+            bool failed = roll < failChance;
 
+            Log($"FailRoll task={task.taskId} failChance={failChance} roll={roll:F3} failed={failed}");
 
-            // === FAIL ROLL (MVP) ===
-            float finalFailChance = Mathf.Clamp01(task.baseFailChance);
-
-            // (опційно, пізніше) модифікатори від прогресії/перків:
-            // finalFailChance = ApplyFailModifiers(agentId, finalFailChance);
-
-            if (finalFailChance > 0f && UnityEngine.Random.value < finalFailChance)
+            // ❗ IMPORTANT: penalty is rolled ONLY if failed == true
+            if (failed)
             {
-                _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "FAILED");
+                var penalty = PenaltyRoll.RollPenalty(task.riskTier);
 
-                // Втрачаємо cargo (нічого не комітимо), повертаємо wage
-                _treasury?.RefundGold(task.wageGold);
+                if (penalty == PenaltyType.Death)
+                {
+                    HandleDeath(task);
+                    yield break; // агент “вибув”
+                }
 
-                Log($"Task FAILED: {task.taskId} ({task.displayName}) failChance={finalFailChance:0.00}");
+                if (penalty == PenaltyType.Lost)
+                {
+                    HandleLost(task);
+                    yield break; // агент “зник”
+                }
 
-                // Release + (якщо runtime таск одноразовий) remove
-                _board.Release(task.taskId, agentId);
+                // Penalty=None => просто фейл без наслідків (але зарплата повертається)
+                _completedThisCycle = false;
 
-                // якщо у тебе одноразові runtime таски (rt_*) — можна прибирати:
-                // _board.RemoveTaskRuntime(task.taskId);
+                _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
+                yield return DoGoHome();
 
-                yield return null;
-                continue; // наступний цикл агента
+                _cargo.Clear();
+
+                Log($"Task FAILED. Penalty=None riskTier={task.riskTier}");
+                FinalizeTask(task, false);
+
+                _roster?.SetStatus(agentId, VillagerStatus.Idle);
+                yield return new WaitForSeconds(afterCycleDelay);
+                continue;
             }
 
-
-
-            // 4) Return home
+            // 4) Success path: return home + finalize
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
 
-            // ✅ Wage settlement happens ONLY when villager reaches home
-            if (_treasury != null && task.wageGold > 0)
-            {
-                if (_completedThisCycle)
-                {
-                    CommitCargoToTreasury();
-                    _treasury.ConsumeLockedGold(task.wageGold);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-                else
-                {
-                    // fail -> refund escrow back to player
-                    _treasury.RefundGold(task.wageGold);
-                    _cargo.Clear();
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
-            }
-
-            // 5) Release (після повернення)
-            _board.Release(task.taskId, agentId);
-
-            // VARIANT 1: runtime таски одноразові — після успіху видаляємо з борди
-            if (_completedThisCycle && task.taskId != null && task.taskId.StartsWith("rt_"))
-            {
-                _board.RemoveTaskRuntime(task.taskId);
-            }
+            FinalizeTask(task, _completedThisCycle);
 
             _roster?.SetStatus(agentId, VillagerStatus.Idle);
-
             yield return new WaitForSeconds(afterCycleDelay);
-
         }
-
     }
 
     // -------------------- ACTIONS --------------------
 
     private IEnumerator DoExplore(TaskInstance task)
     {
-        var spot = _spots.GetRandomSpotWeighted();
+        _completedThisCycle = true;
+
+        // 1) Registry
+        var registry = GameInstaller.ExploreRegistry;
+        if (registry == null)
+        {
+            Log("Explore failed: ExploreRegistry is null");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        // 2) Pick spot
+        var spot = registry.GetRandomSpotWeighted();
         if (spot == null)
         {
-            Log($"Explore failed: no spot (registry empty?)");
-            // release одразу, щоб слот не висів
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(afterCycleDelay);
+            Log("Explore failed: no spot (registry empty?)");
+            _completedThisCycle = false;
             yield break;
         }
 
         Log($"Explore to spot={spot.spotId}");
+        _lastWorkPos = spot.transform.position;
+        _lastWorkSpotId = spot.spotId;
 
+        // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
         {
             Log($"Explore refused: invalid destination spot={spot.spotId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(afterCycleDelay);
+            _completedThisCycle = false;
             yield break;
         }
 
+        // Дочекайся прибуття (якщо у тебе є такий метод/цикл — підстав свій)
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
 
-        yield return new WaitForSeconds(task.durationSec);
+        // 4) Do work (як зараз у тебе — таймером)
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
 
-        if (GameInstaller.ExploreOutcome == null)
+        // 5) Roll outcome
+        var outcomeSvc = GameInstaller.ExploreOutcome;
+        if (outcomeSvc == null)
         {
-            Log("ExploreOutcome is null (installer not initialized?)");
+            Log("Explore failed: ExploreOutcome is null");
+            _completedThisCycle = false;
             yield break;
         }
 
-        var outcome = GameInstaller.ExploreOutcome.Roll();
+        var outcome = outcomeSvc.Roll();
 
         if (outcome.type == ExploreOutcomeType.Nothing)
         {
-            Log($"Explore outcome: Nothing");
-            GameInstaller.Progression?.AddAchievement(agentId, 1);
+            Log("Explore outcome: Nothing");
+
+            // IMPORTANT: за поточним рішенням ми не міняємо дизайн:
+            // Nothing вважається "completed", тобто _completedThisCycle лишається true.
+            // Якщо потім вирішиш, що Nothing=fail — це міняється тут.
+            yield break;
         }
-        else if (outcome.type == ExploreOutcomeType.Reward)
+
+        if (outcome.type == ExploreOutcomeType.Danger)
+        {
+            Log("Explore outcome: Danger");
+
+            // Поки без penalties — просто completed (як у тебе зараз).
+            yield break;
+        }
+
+        if (outcome.type == ExploreOutcomeType.Reward)
         {
             Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-            _cargo.Add(task.resourceId, task.baseAmount);
+
+            // ✅ Це і є твій фікс P0: додаємо саме outcome, а не task.resourceId/baseAmount
+            _cargo.Add(outcome.resourceId, outcome.amount);
+
             GameInstaller.Progression?.AddAchievement(agentId, 3);
-        }
-        else
-        {
-            Log($"Explore outcome: Danger (+{outcome.returnDelaySec:0.0}s)");
-            yield return new WaitForSeconds(outcome.returnDelaySec);
+            yield break;
         }
 
-        _completedThisCycle = true;
-
+        // safety
+        Log("Explore outcome: unknown type");
+        _completedThisCycle = false;
     }
 
     private IEnumerator DoGather(TaskInstance task)
     {
-        var spot = _spots.PickGatherSpotWeighted(task.resourceId);
+        _completedThisCycle = true;
 
-        if (spot == null)
+        // 1) Validate resource
+        if (string.IsNullOrEmpty(task.resourceId))
         {
-            Log($"Gather refused: no spot for resource={task.resourceId} task={task.taskId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(gatherNoSpotDelay);
+            Log($"Gather failed: empty resourceId for task={task.taskId}");
+            _completedThisCycle = false;
             yield break;
         }
 
-        Log($"Gather -> spot={spot.spotId} res={task.resourceId}");
+        // 2) Pick gather spot by resource (як у тебе вже є в ExploreSpotRegistry)
+        var registry = GameInstaller.ExploreRegistry;
+        if (registry == null)
+        {
+            Log("Gather failed: ExploreRegistry is null");
+            _completedThisCycle = false;
+            yield break;
+        }
 
+        var spot = registry.PickGatherSpotWeighted(task.resourceId);
+        if (spot == null)
+        {
+            Log($"Gather failed: no gather spot for resource={task.resourceId}");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
+        _lastWorkPos = spot.transform.position;
+        _lastWorkSpotId = spot.spotId;
+
+        // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
         {
             Log($"Gather refused: invalid destination spot={spot.spotId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(gatherNoSpotDelay);
+            _completedThisCycle = false;
             yield break;
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
 
-        Log($"Gather working {task.durationSec:0.0}s");
-        yield return new WaitForSeconds(task.durationSec);
+        // 4) Do work (як зараз — таймером)
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
 
-        if (!string.IsNullOrEmpty(task.resourceId) && task.baseAmount > 0)
+        // 5) Add cargo (як було)
+        if (task.baseAmount <= 0)
         {
-            Log($"Gather result: +{task.baseAmount} {task.resourceId}");
-
-            // ✅ put into cargo (not treasury yet)
-            _cargo.Add(task.resourceId, task.baseAmount);
-
-            GameInstaller.Progression?.AddAchievement(agentId, 2);
+            Log($"Gather produced nothing: baseAmount={task.baseAmount}");
+            // зазвичай це має бути fail, але якщо не хочеш чіпати дизайн — можеш лишити success
+            // я ставлю fail, бо інакше це дивно для gather:
+            _completedThisCycle = false;
+            yield break;
         }
 
-        _completedThisCycle = true;
-
+        _cargo.Add(task.resourceId, task.baseAmount);
+        Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
     }
 
     private IEnumerator DoGoHome()
@@ -1764,6 +1940,115 @@ public class VillagerAgentBrain : MonoBehaviour
         Debug.Log($"[Agent {agentId}] {msg}");
         _log?.Push($"[Agent {agentId}] {msg}");
     }
+
+
+    private void FinalizeTask(TaskInstance task, bool success)
+    {
+        // --- Escrow + Cargo settlement ---
+        if (_treasury != null && task.wageGold > 0)
+        {
+            if (success)
+            {
+                // Commit rewards ONLY on success
+                CommitCargoToTreasury();
+
+                // Pay wage from locked escrow
+                _treasury.ConsumeLockedGold(task.wageGold);
+                Log($"Wage paid: +{task.wageGold} gold");
+            }
+            else
+            {
+                // Refund escrow back to available
+                _treasury.RefundGold(task.wageGold);
+
+                // Fail cannot yield profit
+                _cargo.Clear();
+                Log($"Task failed -> wage refunded: {task.wageGold} gold");
+            }
+        }
+        else
+        {
+            // Even if wage=0, fail should not keep cargo
+            if (!success)
+                _cargo.Clear();
+        }
+
+        // --- Board cleanup ALWAYS (exactly once) ---
+        _board.Release(task.taskId, agentId);
+
+        // Remove only runtime tasks
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+    }
+
+
+    private void HandleDeath(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        // escrow: забираємо з locked у record
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
+
+        var rec = new CorpseRecord
+        {
+            agentId = agentId,
+            worldPos = _lastWorkPos,
+            escrowGold = task.wageGold,
+            cargo = _cargo.Snapshot()
+        };
+
+        GameInstaller.Corpses?.AddCorpse(rec);
+
+        _cargo.Clear();
+
+        Log($"PENALTY: DEATH at {_lastWorkSpotId} escrow={task.wageGold}");
+
+        // cleanup board (без FinalizeTask, бо він робить refund/commit)
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
+
+        StopBrain(); // зупиняємо корутину цього агента
+    }
+
+    private void HandleLost(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
+
+        var hidden = PenaltyRoll.RollLostHidden(task.riskTier);
+
+        var rec = new LostRecord
+        {
+            agentId = agentId,
+            lastSeenPos = _lastWorkPos,
+            escrowGold = task.wageGold,
+            cargo = _cargo.Snapshot(),
+            hiddenOutcome = hidden
+        };
+
+        GameInstaller.Lost?.AddLost(rec);
+
+        _cargo.Clear();
+
+        Log($"PENALTY: LOST at {_lastWorkSpotId} hidden={hidden} escrow={task.wageGold}");
+
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
+
+        StopBrain();
+    }
+
+
+
 }
 
 ----- FILE END -----
@@ -2018,8 +2303,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 2619 bytes
-SHA256: 65297a4a53d4baaa5720db16fcba5ac0582f9fa4b594cb1c41415a4edea2288a
+SIZE: 3112 bytes
+SHA256: e2a9e3d4cdb58b9fac964294db9a749e25d813286575ef4a0dc344993ea154d6
 CONTENT:
 using UnityEngine;
 
@@ -2034,7 +2319,12 @@ public class GameInstaller : MonoBehaviour
     public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
     public static VillagerInventoryService Inventory { get; private set; }
+    public static SelectedVillagerService SelectedVillager;
+    public static CorpseService Corpses { get; private set; }
+    public static LostService Lost { get; private set; }
 
+
+    [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
 
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
@@ -2050,14 +2340,23 @@ public class GameInstaller : MonoBehaviour
         // 1) ������ (���/���������) � ��� UI � OnEnable ��� �� �����
         TaskBoard = new TaskBoardService();
         Treasury = new TreasuryService();
+        ExploreOutcome = new ExploreOutcomeService();
+
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
         _log = new EventLogService(10);
         Inventory = new VillagerInventoryService();
+        SelectedVillager = new SelectedVillagerService();
+        
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
         ExploreRegistry.Initialize();
+
+
+        Corpses = new CorpseService();
+        Lost = new LostService();
+
 
         // �������: ��� �� �������� ������ � �� SetTasks
     }
@@ -2071,6 +2370,7 @@ public class GameInstaller : MonoBehaviour
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+   
 
         // 4) ������������ �����
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
@@ -2309,9 +2609,38 @@ public static class SceneFullDump
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/UI/SelectedVillagerService.cs
+SIZE: 462 bytes
+SHA256: 047dec4ed1baade5fa8520b3fb557017642cd292dd743d56510409f71e43c42f
+CONTENT:
+using System;
+
+public class SelectedVillagerService
+{
+
+    public event Action<string> OnSelectedChanged; // agentId (null/"" = none)
+
+    private string _selectedId;
+
+    public string SelectedId => _selectedId;
+
+    public void SetSelected(string agentId)
+    {
+        if (_selectedId == agentId) return;
+        _selectedId = agentId;
+        OnSelectedChanged?.Invoke(_selectedId);
+    }
+
+    public void Clear() => SetSelected(null);
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/UI/TaskBoardUI.cs
-SIZE: 2882 bytes
-SHA256: 09a454eab23604e17c4f098c128c79c9e5db29823b005c2843abcf4be9e08966
+SIZE: 2877 bytes
+SHA256: f72ca2735f324ecb7122ec526d00ea307132f54a2f4be55335794f81657d039d
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -2352,6 +2681,7 @@ public class TaskBoardUI : MonoBehaviour
 
     private void OnEnable()
     {
+
         // ���� ������ ��������/������� � ��������������
         if (_board != null)
         {
@@ -2403,7 +2733,7 @@ public class TaskBoardUI : MonoBehaviour
         {
             var t = tasks[i];
             var row = Instantiate(rowPrefab, rowsRoot);
-            row.Bind(t.taskId);
+            row.Bind(t);
             rows.Add(row);
         }
     }
@@ -2421,67 +2751,246 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 1876 bytes
-SHA256: d4c359c1c4df7563f2dc004f6ae29f3f88756eada22f9cd79b7ec99f3bca83d6
+SIZE: 6555 bytes
+SHA256: 71d44e216781476e928e67e3d811675a0a2334af70beb0fb2d35efde093d536e
 CONTENT:
+using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
 
 public class TaskPublisherPanel : MonoBehaviour
 {
 
-    private int _seq = 0;
-
-    public void PublishGatherWood() => PublishGather("wood", "Gather Wood", priority: 3, maxTakers: 1, durationSec: 8f, baseAmount: 3, wageGold: 5);
-    public void PublishGatherStone() => PublishGather("stone", "Gather Stone", priority: 5, maxTakers: 1, durationSec: 30f, baseAmount: 10, wageGold: 5);
-    public void PublishGatherFish() => PublishGather("fish", "Gather Fish", priority: 3, maxTakers: 1, durationSec: 7f, baseAmount: 2, wageGold: 5);
-
-    public void PublishExplore()
+    [Serializable]
+    public class PublishDef
     {
-        var board = GameInstaller.TaskBoard;
-        if (board == null) return;
+        [Header("UI")]
+        public Button button;
 
-        _seq++;
+        [Header("Task")]
+        public TaskType type = TaskType.Gather;
+        public string displayName = "Gather";
+        public string resourceId = "wood";
 
-        var task = new TaskInstance
-        {
-            taskId = $"rt_explore_{_seq}",
-            type = TaskType.Explore,
-            displayName = $"Explore #{_seq}",
-            active = true,
-            priority = 2,
-            maxTakers = 1,
-            durationSec = 6f,
-            resourceId = null,
-            baseAmount = 0
-        };
+        [Min(1)] public int baseAmount = 3;
+        [Min(1)] public int maxTakers = 1;
+        [Min(0.1f)] public float durationSec = 7f;
 
-        board.AddTaskRuntime(task);
-        
+        [Min(0)] public int wageGold = 5;
+
+        [Range(0f, 1f)] public float baseFailChance = 0f;
+        [Range(0, 5)] public int priority = 3;
     }
 
-    private void PublishGather(string resId, string name, int priority, int maxTakers, float durationSec, int baseAmount, int wageGold)
-    {
-        var board = GameInstaller.TaskBoard;
-        if (board == null) return;
+    [SerializeField] private List<PublishDef> publishButtons = new();
 
-        _seq++;
+    private TaskBoardService _board;
+    private readonly Dictionary<Button, UnityAction> _handlers = new();
+
+
+    private void Awake()
+    {
+        // як і раніше, беремо singleton зі сцени через installer
+        // (в дампі TaskBoardService створюється в GameInstaller.Awake/Start) :contentReference[oaicite:2]{index=2}
+        _board = GameInstaller.TaskBoard;
+    }
+
+
+    public void Bind(TaskBoardService board)
+    {
+        _board = board;
+        WireButtons();
+    }
+
+    private void OnEnable()
+    {
+        SubscribeButtons();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeButtons();
+    }
+
+
+    private void SubscribeButtons()
+    {
+        UnsubscribeButtons();
+
+        if (publishButtons == null) return;
+
+        foreach (var def in publishButtons)
+        {
+            if (def == null || def.button == null) continue;
+
+            // важливо: локальна копія, щоб не зловити closure-bug
+            var defLocal = def;
+
+            UnityAction h = () => Publish(defLocal);
+
+            _handlers[def.button] = h;
+            def.button.onClick.AddListener(h);
+        }
+    }
+
+    private void UnsubscribeButtons()
+    {
+        if (_handlers.Count == 0) return;
+
+        foreach (var kv in _handlers)
+        {
+            if (kv.Key != null)
+                kv.Key.onClick.RemoveListener(kv.Value);
+        }
+
+        _handlers.Clear();
+    }
+
+
+    private void WireButtons()
+    {
+        if (publishButtons == null) return;
+
+        foreach (var def in publishButtons)
+        {
+            if (def == null || def.button == null) continue;
+
+            def.button.onClick.RemoveListener(() => Publish(def));
+            def.button.onClick.AddListener(() => Publish(def));
+        }
+    }
+
+    private void UnwireButtons()
+    {
+        if (publishButtons == null) return;
+
+        foreach (var def in publishButtons)
+        {
+            if (def == null || def.button == null) continue;
+            def.button.onClick.RemoveListener(() => Publish(def));
+        }
+    }
+
+    private void Publish(PublishDef def)
+    {
+        if (def == null) return;
+
+        if (_board == null)
+            _board = GameInstaller.TaskBoard;
+
+        if (_board == null)
+        {
+            Debug.LogError("[TaskPublisherPanel] TaskBoardService is null (GameInstaller not ready?)");
+            return;
+        }
+
+        // runtime id як у тебе в логах: rt_gather_x_N
+        string suffix = $"{def.type.ToString().ToLowerInvariant()}_{(def.type == TaskType.Gather ? def.resourceId : "explore")}";
+        string taskId = $"rt_{suffix}_{UnityEngine.Random.Range(1, 99999)}";
+
+        var t = new TaskInstance
+        {
+            taskId = taskId,
+            type = def.type,
+            displayName = def.displayName,
+            active = true,
+            priority = def.priority,
+            maxTakers = Mathf.Max(1, def.maxTakers),
+            durationSec = Mathf.Max(0.1f, def.durationSec),
+            baseFailChance = Mathf.Clamp01(def.baseFailChance),
+            wageGold = Mathf.Max(0, def.wageGold),
+
+            // gather-only
+            resourceId = (def.resourceId ?? "").ToLowerInvariant(),
+            baseAmount = Mathf.Max(0, def.baseAmount),
+        };
+
+        // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
+        if (t.type == TaskType.Explore)
+        {
+            t.resourceId = "";
+            t.baseAmount = 0;
+        }
+
+        // === Risk model bootstrap ===
+        t.successChance = 1f - t.baseFailChance;
+
+        if (t.successChance >= 0.85f) t.riskTier = 0;
+        else if (t.successChance >= 0.7f) t.riskTier = 1;
+        else if (t.successChance >= 0.55f) t.riskTier = 2;
+        else if (t.successChance >= 0.4f) t.riskTier = 3;
+        else if (t.successChance >= 0.25f) t.riskTier = 4;
+        else t.riskTier = 5;
+
+        _board.AddTaskRuntime(t);
+    }
+
+    // ---- ORIGINAL API залишаємо, щоб не ламати інше ----
+
+    public void PublishGather(
+        string displayName,
+        string resourceId,
+        int baseAmount,
+        int maxTakers,
+        float durationSec,
+        int wageGold,
+        int priority,
+        float baseFailChance
+    )
+    {
+        var id = $"rt_gather_{resourceId}_{Time.frameCount}";
 
         var task = new TaskInstance
         {
-            taskId = $"rt_gather_{resId}_{_seq}",
+            taskId = id,
             type = TaskType.Gather,
-            displayName = $"{name} #{_seq}",
+            displayName = displayName,
+
             active = true,
-            priority = priority,
             maxTakers = maxTakers,
             durationSec = durationSec,
-            resourceId = resId,
+            wageGold = wageGold,
+            priority = priority,
+
+            resourceId = resourceId,
             baseAmount = baseAmount,
-            wageGold = Mathf.Max(0, wageGold)
+
+            baseFailChance = baseFailChance
         };
 
-        board.AddTaskRuntime(task);
+        _board.AddTaskRuntime(task);
+    }
 
+    public void PublishExplore(
+        string displayName,
+        int maxTakers,
+        float durationSec,
+        int wageGold,
+        int priority,
+        float baseFailChance
+    )
+    {
+        var id = $"rt_explore_{Time.frameCount}";
+
+        var task = new TaskInstance
+        {
+            taskId = id,
+            type = TaskType.Explore,
+            displayName = displayName,
+
+            active = true,
+            maxTakers = maxTakers,
+            durationSec = durationSec,
+            wageGold = wageGold,
+            priority = priority,
+
+            baseFailChance = baseFailChance
+        };
+
+        _board.AddTaskRuntime(task);
     }
 }
 
@@ -2489,8 +2998,8 @@ public class TaskPublisherPanel : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskRowUI.cs
-SIZE: 2223 bytes
-SHA256: 80743effda19bc3efd73f340faa82f8285781ea1dcd2b68cd8bc188ce610b897
+SIZE: 2927 bytes
+SHA256: f93d4e7dc5d4c18317feab5cc83f6a8adaa056875c9a983dec9e2cc1b0cf3fcf
 CONTENT:
 using UnityEngine;
 using UnityEngine.UI;
@@ -2506,15 +3015,33 @@ public class TaskRowUI : MonoBehaviour
     [SerializeField] private Button prioPlusBtn;
     [SerializeField] private Button prioMinusBtn;
 
+    [SerializeField] private TMP_Text successText;
+    [SerializeField] private Image riskIcon;
+
     private string taskId;
 
-    public void Bind(string id)
+    public void Bind(TaskInstance task)
     {
-        taskId = id;
 
         if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
         if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
         if (activeToggle != null) activeToggle.onValueChanged.AddListener(OnToggle);
+
+        // Success %
+        int percent = Mathf.RoundToInt(task.successChance * 100f);
+        successText.text = percent + "%";
+
+        // Risk icon (���� ������ ����)
+        switch (task.riskTier)
+        {
+            case 0: riskIcon.color = Color.green; break;
+            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
+            case 2: riskIcon.color = Color.yellow; break;
+            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
+            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
+            case 5: riskIcon.color = Color.red; break;
+        }
+
 
         Refresh(true);
     }
@@ -2658,8 +3185,8 @@ public class VillagerClickSelector : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/VillagerInspectPanelView.cs
-SIZE: 6205 bytes
-SHA256: 9870a365cc13047e7ae4fd3e8d567a081419ec9eedaca0e1a182fe40fa97e3b5
+SIZE: 7751 bytes
+SHA256: 5a7a592114113a7a4a6516789ec931dd3c1ad03ee40fb44be4bb5336085c5ad8
 CONTENT:
 using System.Text;
 using TMPro;
@@ -2670,11 +3197,17 @@ public class VillagerInspectPanelView : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private GameObject root;
+    [SerializeField] private Button closeButton;
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private TextMeshProUGUI statsText;
     [SerializeField] private TextMeshProUGUI perksText;
     [SerializeField] private TextMeshProUGUI inventoryText;
+
+
+    [Header("Auto Refresh")]
+    [SerializeField] private bool autoRefresh = true;            // <- ДОДАЙ
+    [SerializeField] private float refreshInterval = 0.25f;
 
     [Header("3D Preview")]
     [SerializeField] private RawImage previewImage;       // показує RenderTexture
@@ -2687,9 +3220,25 @@ public class VillagerInspectPanelView : MonoBehaviour
     private VillagerAgentBrain _target;
     private GameObject _previewInstance;
 
+    private float _nextRefreshAt;
+    private string _lastSnapshot; // щоб не перерисовувати без змін
+
     private void Awake()
     {
         if (root != null) root.SetActive(false);
+
+        if (closeButton != null)
+            closeButton.onClick.AddListener(Hide);
+    }
+
+    private void Update()
+    {
+        if (!autoRefresh) return;
+        if (_target == null) return;
+        if (Time.unscaledTime < _nextRefreshAt) return;
+
+        _nextRefreshAt = Time.unscaledTime + refreshInterval;
+        RebuildAll_IfChanged();
     }
 
     private void OnEnable()
@@ -2711,6 +3260,10 @@ public class VillagerInspectPanelView : MonoBehaviour
         _target = brain;
 
         if (root != null) root.SetActive(true);
+
+        _nextRefreshAt = 0f;
+        _lastSnapshot = null;
+
         RebuildAll();
         BuildPreviewModel();
     }
@@ -2727,6 +3280,42 @@ public class VillagerInspectPanelView : MonoBehaviour
         if (_target == null) return;
         if (_target.AgentId != agentId) return;
         RebuildInventory();
+    }
+
+
+    private void RebuildAll_IfChanged()
+    {
+        // Знімаємо “знімок” даних з сервісів.
+        // Якщо нічого не змінилось — не чіпаємо TMP/лейаути.
+        var snap = BuildSnapshotString();
+        if (snap == _lastSnapshot) return;
+
+        _lastSnapshot = snap;
+        RebuildAll();
+    }
+
+
+    private string BuildSnapshotString()
+    {
+        if (_target == null) return "";
+
+        var agentId = _target.AgentId;
+        var roster = GameInstaller.Villagers;
+        var prog = GameInstaller.Progression;
+
+        var s = roster?.GetOrCreate(agentId);
+        var p = prog?.Get(agentId);
+
+        // Мінімальний набір, який реально міняється під час гри:
+        // статус/таск/level/перки + можна розширити.
+        var sb = new StringBuilder(128);
+        sb.Append(agentId).Append('|');
+        sb.Append(s != null ? s.status.ToString() : "null").Append('|');
+        sb.Append(s != null ? s.taskName : "null").Append('|');
+        sb.Append(p != null ? p.level.ToString() : "null").Append('|');
+        if (p != null && p.perks != null)
+            sb.Append(string.Join(",", p.perks));
+        return sb.ToString();
     }
 
     private void RebuildAll()
@@ -2791,6 +3380,8 @@ public class VillagerInspectPanelView : MonoBehaviour
         inventoryText.text = sb.ToString();
     }
 
+    // ----- 3D Preview (твій код лишаємо) -----
+
     private void BuildPreviewModel()
     {
         ClearPreviewModel();
@@ -2798,7 +3389,6 @@ public class VillagerInspectPanelView : MonoBehaviour
         if (_target == null) return;
         if (previewRoot == null || previewCamera == null || previewImage == null) return;
 
-        // Беремо візуал з віліджера: найпростіше — його MeshRenderer корінь
         var render = _target.GetComponentInChildren<Renderer>();
         if (render == null) return;
 
@@ -2806,15 +3396,11 @@ public class VillagerInspectPanelView : MonoBehaviour
         _previewInstance.transform.localPosition = previewLocalPos;
         _previewInstance.transform.localRotation = Quaternion.Euler(previewLocalEuler);
 
-        // Весь клон — в preview layer, щоб камера бачила тільки його
         int layer = LayerMaskToLayer(previewLayer);
         SetLayerRecursive(_previewInstance.transform, layer);
 
         previewCamera.cullingMask = previewLayer;
 
-        // Підключення RenderTexture (зазвичай ти створиш RT ассет і закинеш у RawImage)
-        // Якщо RT заданий на RawImage — то ок, якщо ні, треба призначити previewCamera.targetTexture вручну.
-        // (Безпечно: якщо RawImage.texture є RenderTexture — підключимо до camera)
         if (previewImage.texture is RenderTexture rt)
             previewCamera.targetTexture = rt;
     }
@@ -2840,6 +3426,7 @@ public class VillagerInspectPanelView : MonoBehaviour
             if ((v & (1 << i)) != 0) return i;
         return 0;
     }
+
 }
 
 ----- FILE END -----
@@ -3036,7 +3623,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 30
+Written: 35
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

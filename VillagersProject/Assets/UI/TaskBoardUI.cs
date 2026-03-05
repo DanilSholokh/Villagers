@@ -37,6 +37,7 @@ public class TaskBoardUI : MonoBehaviour
 
     private void OnEnable()
     {
+
         // €кщо панель вимикали/вмикали Ч переп≥дписатись
         if (_board != null)
         {
@@ -88,7 +89,7 @@ public class TaskBoardUI : MonoBehaviour
         {
             var t = tasks[i];
             var row = Instantiate(rowPrefab, rowsRoot);
-            row.Bind(t.taskId);
+            row.Bind(t);
             rows.Add(row);
         }
     }

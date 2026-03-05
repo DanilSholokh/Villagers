@@ -11,7 +11,12 @@ public class GameInstaller : MonoBehaviour
     public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
     public static VillagerInventoryService Inventory { get; private set; }
+    public static SelectedVillagerService SelectedVillager;
+    public static CorpseService Corpses { get; private set; }
+    public static LostService Lost { get; private set; }
+    public static SettlementKnowledgeService Knowledge { get; private set; }
 
+    [SerializeField] private VillagerClickSelector villagerClickSelector; // якщо вже є в сцені
 
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
@@ -27,14 +32,23 @@ public class GameInstaller : MonoBehaviour
         // 1) Сервіси (дані/синглтони) — щоб UI в OnEnable вже їх бачив
         TaskBoard = new TaskBoardService();
         Treasury = new TreasuryService();
+        ExploreOutcome = new ExploreOutcomeService();
+
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
         _log = new EventLogService(10);
         Inventory = new VillagerInventoryService();
+        SelectedVillager = new SelectedVillagerService();
+        Knowledge = new SettlementKnowledgeService();
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
         ExploreRegistry.Initialize();
+
+
+        Corpses = new CorpseService();
+        Lost = new LostService();
+
 
         // Важливо: тут НЕ стартуємо агентів і НЕ SetTasks
     }
@@ -48,6 +62,7 @@ public class GameInstaller : MonoBehaviour
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+   
 
         // 4) Завантаження тасків
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();

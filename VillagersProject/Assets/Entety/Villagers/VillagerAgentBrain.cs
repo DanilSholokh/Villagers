@@ -16,7 +16,8 @@ public class VillagerAgentBrain : MonoBehaviour
     [SerializeField] private float arriveTimeoutSec = 20f; // щоб не зависати назавжди
     [SerializeField] private float minVelocitySqr = 0.01f; // стабілізація "приїхав"
 
-    [SerializeField] private float arriveDistance = 0.6f;
+    [SerializeField] private float arriveDistance = 1.6f;
+
 
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
@@ -34,6 +35,8 @@ public class VillagerAgentBrain : MonoBehaviour
     private TreasuryService _treasury;
     private EventLogService _log;
 
+    private Vector3 _lastWorkPos;
+    private string _lastWorkSpotId;
 
     private VillagerRosterService _roster;
 
@@ -124,7 +127,7 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            // ✅ NEW: escrow hold (wage)
+            // ✅ Escrow hold (wage)
             if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
             {
                 // якщо грошей нема — відпускаємо слот назад
@@ -135,7 +138,6 @@ public class VillagerAgentBrain : MonoBehaviour
             }
 
             Log($"Picked task={task.taskId} ({task.displayName}) wage={task.wageGold}");
-
             _roster?.SetStatus(agentId, VillagerStatus.ReservedTask, task.taskId, task.displayName);
 
             // 3) Execute
@@ -153,173 +155,248 @@ public class VillagerAgentBrain : MonoBehaviour
                 yield return DoGather(task);
             }
 
+            // 3.5) Final outcome roll (ONE place!)
+            float failChance = Mathf.Clamp01(task.baseFailChance); // MVP
+            float roll = UnityEngine.Random.value;
+            bool failed = roll < failChance;
 
+            Log($"FailRoll task={task.taskId} failChance={failChance} roll={roll:F3} failed={failed}");
 
-            // === FAIL ROLL (MVP) ===
-            float finalFailChance = Mathf.Clamp01(task.baseFailChance);
-
-            // (опційно, пізніше) модифікатори від прогресії/перків:
-            // finalFailChance = ApplyFailModifiers(agentId, finalFailChance);
-
-            if (finalFailChance > 0f && UnityEngine.Random.value < finalFailChance)
+            // ❗ IMPORTANT: penalty is rolled ONLY if failed == true
+            if (failed)
             {
-                _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "FAILED");
+                var penalty = PenaltyRoll.RollPenalty(task.riskTier);
 
-                // Втрачаємо cargo (нічого не комітимо), повертаємо wage
-                _treasury?.RefundGold(task.wageGold);
+                if (penalty == PenaltyType.Death)
+                {
+                    HandleDeath(task);
+                    yield break; // агент “вибув”
+                }
 
-                Log($"Task FAILED: {task.taskId} ({task.displayName}) failChance={finalFailChance:0.00}");
+                if (penalty == PenaltyType.Lost)
+                {
+                    HandleLost(task);
+                    yield break; // агент “зник”
+                }
 
-                // Release + (якщо runtime таск одноразовий) remove
-                _board.Release(task.taskId, agentId);
+                // Penalty=None => просто фейл без наслідків (але зарплата повертається)
+                _completedThisCycle = false;
 
-                // якщо у тебе одноразові runtime таски (rt_*) — можна прибирати:
-                //_board.RemoveTaskRuntime(task.taskId);
+                _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
+                yield return DoGoHome();
 
-                yield return null;
-                continue; // наступний цикл агента
+                _cargo.Clear();
+
+                Log($"Task FAILED. Penalty=None riskTier={task.riskTier}");
+                FinalizeTask(task, false);
+
+                _roster?.SetStatus(agentId, VillagerStatus.Idle);
+                yield return new WaitForSeconds(afterCycleDelay);
+                continue;
             }
 
-
-
-            // 4) Return home
+            // 4) Success path: return home + finalize
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
 
-            // ✅ Wage settlement happens ONLY when villager reaches home
-            if (_treasury != null && task.wageGold > 0)
-            {
-                if (_completedThisCycle)
-                {
-                    CommitCargoToTreasury();
-                    _treasury.ConsumeLockedGold(task.wageGold);
-
-                    _board.RemoveTaskRuntime(task.taskId);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-                else
-                {
-                    // fail -> refund escrow back to player
-                    _treasury.RefundGold(task.wageGold);
-                    _cargo.Clear();
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
-            }
-
-            // 5) Release (після повернення)
-            _board.Release(task.taskId, agentId);
-            _board.RemoveTaskRuntime(task.taskId);
-
-            // VARIANT 1: runtime таски одноразові — після успіху видаляємо з борди
-            if (_completedThisCycle && task.taskId != null && task.taskId.StartsWith("rt_"))
-            {
-                _board.RemoveTaskRuntime(task.taskId);
-            }
+            FinalizeTask(task, _completedThisCycle);
 
             _roster?.SetStatus(agentId, VillagerStatus.Idle);
-
             yield return new WaitForSeconds(afterCycleDelay);
-
         }
-
     }
 
     // -------------------- ACTIONS --------------------
 
     private IEnumerator DoExplore(TaskInstance task)
     {
-        var spot = _spots.GetRandomSpotWeighted();
+        _completedThisCycle = true;
+
+        // 1) Registry
+        var registry = GameInstaller.ExploreRegistry;
+        if (registry == null)
+        {
+            Log("Explore failed: ExploreRegistry is null");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        // 2) Pick spot
+        ExploreSpotAuthoring spot = null;
+
+        // 2) Pick spot
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        {
+            spot = registry.GetSpotById(task.targetSpotId);
+            if (spot == null)
+            {
+                Log($"Explore failed: targetSpotId not found={task.targetSpotId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+        }
+        else
+        {
+            spot = registry.GetRandomUndiscoveredWeighted(GameInstaller.Knowledge);
+        }
+
         if (spot == null)
         {
-            Log($"Explore failed: no spot (registry empty?)");
-            // release одразу, щоб слот не висів
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(afterCycleDelay);
+            Log("Explore failed: no spot (registry empty?)");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        if (spot == null)
+        {
+            Log("Explore failed: no spot (registry empty?)");
+            _completedThisCycle = false;
             yield break;
         }
 
         Log($"Explore to spot={spot.spotId}");
+        _lastWorkPos = spot.transform.position;
+        _lastWorkSpotId = spot.spotId;
 
+        // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
         {
             Log($"Explore refused: invalid destination spot={spot.spotId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(afterCycleDelay);
+            _completedThisCycle = false;
             yield break;
         }
 
+        // Дочекайся прибуття (якщо у тебе є такий метод/цикл — підстав свій)
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+        GameInstaller.Knowledge?.Discover(spot.spotId);
 
-        yield return new WaitForSeconds(task.durationSec);
+        // 4) Do work (як зараз у тебе — таймером)
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
 
-        if (GameInstaller.ExploreOutcome == null)
+        // 5) Roll outcome
+        var outcomeSvc = GameInstaller.ExploreOutcome;
+        if (outcomeSvc == null)
         {
-            Log("ExploreOutcome is null (installer not initialized?)");
+            Log("Explore failed: ExploreOutcome is null");
+            _completedThisCycle = false;
             yield break;
         }
 
-        var outcome = GameInstaller.ExploreOutcome.Roll();
+        var outcome = outcomeSvc.Roll();
 
         if (outcome.type == ExploreOutcomeType.Nothing)
         {
-            Log($"Explore outcome: Nothing");
-            GameInstaller.Progression?.AddAchievement(agentId, 1);
+            Log("Explore outcome: Nothing");
+
+            // IMPORTANT: за поточним рішенням ми не міняємо дизайн:
+            // Nothing вважається "completed", тобто _completedThisCycle лишається true.
+            // Якщо потім вирішиш, що Nothing=fail — це міняється тут.
+            yield break;
         }
-        else if (outcome.type == ExploreOutcomeType.Reward)
+
+        if (outcome.type == ExploreOutcomeType.Danger)
+        {
+            Log("Explore outcome: Danger");
+
+            // Поки без penalties — просто completed (як у тебе зараз).
+            yield break;
+        }
+
+        if (outcome.type == ExploreOutcomeType.Reward)
         {
             Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-            _cargo.Add(task.resourceId, task.baseAmount);
+
+            // ✅ Це і є твій фікс P0: додаємо саме outcome, а не task.resourceId/baseAmount
+            _cargo.Add(outcome.resourceId, outcome.amount);
+
             GameInstaller.Progression?.AddAchievement(agentId, 3);
-        }
-        else
-        {
-            Log($"Explore outcome: Danger (+{outcome.returnDelaySec:0.0}s)");
-            yield return new WaitForSeconds(outcome.returnDelaySec);
+            yield break;
         }
 
-        _completedThisCycle = true;
-
+        // safety
+        Log("Explore outcome: unknown type");
+        _completedThisCycle = false;
     }
 
     private IEnumerator DoGather(TaskInstance task)
     {
-        var spot = _spots.PickGatherSpotWeighted(task.resourceId);
+        _completedThisCycle = true;
 
-        if (spot == null)
+        // 1) Validate resource
+        if (string.IsNullOrEmpty(task.resourceId))
         {
-            Log($"Gather refused: no spot for resource={task.resourceId} task={task.taskId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(gatherNoSpotDelay);
+            Log($"Gather failed: empty resourceId for task={task.taskId}");
+            _completedThisCycle = false;
             yield break;
         }
 
-        Log($"Gather -> spot={spot.spotId} res={task.resourceId}");
+        // 2) Pick gather spot by resource (як у тебе вже є в ExploreSpotRegistry)
+        var registry = GameInstaller.ExploreRegistry;
+        ExploreSpotAuthoring spot = null;
 
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        {
+            spot = registry.GetSpotById(task.targetSpotId);
+
+            if (spot == null)
+            {
+                Log($"Gather failed: targetSpotId not found={task.targetSpotId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+
+            // optional safety: ресурс локації співпадає?
+            if (!string.IsNullOrWhiteSpace(spot.gatherResourceId) &&
+                !string.Equals(spot.gatherResourceId, task.resourceId, System.StringComparison.OrdinalIgnoreCase))
+            {
+                Log($"Gather failed: spot resource mismatch. spot={spot.spotId} spotRes={spot.gatherResourceId} taskRes={task.resourceId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+        }
+        else
+        {
+            spot = registry.PickGatherSpotWeighted(task.resourceId);
+        }
+
+        if (spot == null)
+        {
+            Log($"Gather failed: no gather spot for resource={task.resourceId}");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
+        _lastWorkPos = spot.transform.position;
+        _lastWorkSpotId = spot.spotId;
+
+        // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
         {
             Log($"Gather refused: invalid destination spot={spot.spotId}");
-            _board.Release(task.taskId, agentId);
-            yield return new WaitForSeconds(gatherNoSpotDelay);
+            _completedThisCycle = false;
             yield break;
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
 
-        Log($"Gather working {task.durationSec:0.0}s");
-        yield return new WaitForSeconds(task.durationSec);
+        // 4) Do work (як зараз — таймером)
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
 
-        if (!string.IsNullOrEmpty(task.resourceId) && task.baseAmount > 0)
+        // 5) Add cargo (як було)
+        if (task.baseAmount <= 0)
         {
-            Log($"Gather result: +{task.baseAmount} {task.resourceId}");
-
-            // ✅ put into cargo (not treasury yet)
-            _cargo.Add(task.resourceId, task.baseAmount);
-
-            GameInstaller.Progression?.AddAchievement(agentId, 2);
+            Log($"Gather produced nothing: baseAmount={task.baseAmount}");
+            // зазвичай це має бути fail, але якщо не хочеш чіпати дизайн — можеш лишити success
+            // я ставлю fail, бо інакше це дивно для gather:
+            _completedThisCycle = false;
+            yield break;
         }
 
-        _completedThisCycle = true;
-
+        _cargo.Add(task.resourceId, task.baseAmount);
+        Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
     }
 
     private IEnumerator DoGoHome()
@@ -451,4 +528,113 @@ public class VillagerAgentBrain : MonoBehaviour
         Debug.Log($"[Agent {agentId}] {msg}");
         _log?.Push($"[Agent {agentId}] {msg}");
     }
+
+
+    private void FinalizeTask(TaskInstance task, bool success)
+    {
+        // --- Escrow + Cargo settlement ---
+        if (_treasury != null && task.wageGold > 0)
+        {
+            if (success)
+            {
+                // Commit rewards ONLY on success
+                CommitCargoToTreasury();
+
+                // Pay wage from locked escrow
+                _treasury.ConsumeLockedGold(task.wageGold);
+                Log($"Wage paid: +{task.wageGold} gold");
+            }
+            else
+            {
+                // Refund escrow back to available
+                _treasury.RefundGold(task.wageGold);
+
+                // Fail cannot yield profit
+                _cargo.Clear();
+                Log($"Task failed -> wage refunded: {task.wageGold} gold");
+            }
+        }
+        else
+        {
+            // Even if wage=0, fail should not keep cargo
+            if (!success)
+                _cargo.Clear();
+        }
+
+        // --- Board cleanup ALWAYS (exactly once) ---
+        _board.Release(task.taskId, agentId);
+
+        // Remove only runtime tasks
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+    }
+
+
+    private void HandleDeath(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        // escrow: забираємо з locked у record
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
+
+        var rec = new CorpseRecord
+        {
+            agentId = agentId,
+            worldPos = _lastWorkPos,
+            escrowGold = task.wageGold,
+            cargo = _cargo.Snapshot()
+        };
+
+        GameInstaller.Corpses?.AddCorpse(rec);
+
+        _cargo.Clear();
+
+        Log($"PENALTY: DEATH at {_lastWorkSpotId} escrow={task.wageGold}");
+
+        // cleanup board (без FinalizeTask, бо він робить refund/commit)
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
+
+        StopBrain(); // зупиняємо корутину цього агента
+    }
+
+    private void HandleLost(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
+
+        var hidden = PenaltyRoll.RollLostHidden(task.riskTier);
+
+        var rec = new LostRecord
+        {
+            agentId = agentId,
+            lastSeenPos = _lastWorkPos,
+            escrowGold = task.wageGold,
+            cargo = _cargo.Snapshot(),
+            hiddenOutcome = hidden
+        };
+
+        GameInstaller.Lost?.AddLost(rec);
+
+        _cargo.Clear();
+
+        Log($"PENALTY: LOST at {_lastWorkSpotId} hidden={hidden} escrow={task.wageGold}");
+
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
+
+        StopBrain();
+    }
+
+
+
 }

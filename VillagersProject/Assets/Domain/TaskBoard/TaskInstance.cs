@@ -10,6 +10,8 @@ public enum TaskType
 public class TaskInstance
 {
     public string taskId;
+    public string targetSpotId; // optional: якщо задано — працюємо в конкретній локації
+
     public TaskType type;
     public string displayName;
 
@@ -21,10 +23,14 @@ public class TaskInstance
 
     public int wageGold;
 
+    public float successChance;   // 0..1 (показується в UI)
+    public int riskTier;          // 0..5 (тільки індикатор)
+
     // Для Gather (поки опціонально)
     public string resourceId;
     public int baseAmount;
 
     // Для Explore: використовуємо ExploreSpotRegistry + OutcomeService
+
 }
 
