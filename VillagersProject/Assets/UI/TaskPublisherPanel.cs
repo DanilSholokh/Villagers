@@ -46,7 +46,6 @@ public class TaskPublisherPanel : MonoBehaviour
     public void Bind(TaskBoardService board)
     {
         _board = board;
-        WireButtons();
     }
 
     private void OnEnable()
@@ -152,6 +151,22 @@ public class TaskPublisherPanel : MonoBehaviour
             baseAmount = Mathf.Max(0, def.baseAmount),
         };
 
+
+        // MVP: resource gate by discovery
+        string resId = def.resourceId; // або звідки ти береш resourceId у дефініції
+        if (!string.IsNullOrWhiteSpace(resId))
+        {
+            var reg = GameInstaller.ExploreRegistry;
+            var know = GameInstaller.Knowledge;
+
+            bool unlocked = reg != null && reg.HasDiscoveredResource(know, resId);
+            if (!unlocked)
+            {
+                Debug.Log($"[Publisher] Locked: resource '{resId}' not discovered yet");
+                return;
+            }
+        }
+
         // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
         if (t.type == TaskType.Explore)
         {
@@ -168,6 +183,17 @@ public class TaskPublisherPanel : MonoBehaviour
         else if (t.successChance >= 0.4f) t.riskTier = 3;
         else if (t.successChance >= 0.25f) t.riskTier = 4;
         else t.riskTier = 5;
+
+
+        // attach to a discovered location (so danger works + deterministic target)
+        if (!string.IsNullOrWhiteSpace(t.resourceId) && string.IsNullOrWhiteSpace(t.targetSpotId))
+        {
+            var reg = GameInstaller.ExploreRegistry;
+            var know = GameInstaller.Knowledge;
+            string spotId = reg?.GetAnyDiscoveredSpotIdForResource(know, t.resourceId);
+            if (!string.IsNullOrWhiteSpace(spotId))
+                t.targetSpotId = spotId;
+        }
 
         _board.AddTaskRuntime(t);
     }

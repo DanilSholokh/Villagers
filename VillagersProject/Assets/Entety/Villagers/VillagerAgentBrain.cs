@@ -22,6 +22,7 @@ public class VillagerAgentBrain : MonoBehaviour
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
 
+    private int _lastWorkSpotDangerTier;
 
     private NavMeshAgent agent;
     private Coroutine loop;
@@ -155,31 +156,39 @@ public class VillagerAgentBrain : MonoBehaviour
                 yield return DoGather(task);
             }
 
-            // 3.5) Final outcome roll (ONE place!)
-            float failChance = Mathf.Clamp01(task.baseFailChance); // MVP
+
+            // location danger modifier (MVP simple):
+            // +3% fail chance per danger tier (0..5) => +0..15%
+            int locDanger = GetTaskLocationDanger(task);
+            float locationFailAdd = 0.03f * locDanger;
+
+            float failChance = Mathf.Clamp01(task.baseFailChance + locationFailAdd);
             float roll = UnityEngine.Random.value;
             bool failed = roll < failChance;
 
-            Log($"FailRoll task={task.taskId} failChance={failChance} roll={roll:F3} failed={failed}");
+            Log($"FailRoll task={task.taskId} baseFail={task.baseFailChance:F2} " +
+                $"locDanger={locDanger} (+{locationFailAdd:F2}) " +
+                $"failChance={failChance:F2} roll={roll:F3} failed={failed}");
 
-            // ❗ IMPORTANT: penalty is rolled ONLY if failed == true
             if (failed)
             {
-                var penalty = PenaltyRoll.RollPenalty(task.riskTier);
+                int effectiveRiskTier = Mathf.Clamp(task.riskTier + locDanger, 0, 5);
+                var penalty = PenaltyRoll.RollPenalty(effectiveRiskTier);
+
+                Log($"PenaltyRoll riskTier={task.riskTier} + locDanger={locDanger} => {effectiveRiskTier} result={penalty}");
 
                 if (penalty == PenaltyType.Death)
                 {
                     HandleDeath(task);
-                    yield break; // агент “вибув”
+                    yield break;
                 }
 
                 if (penalty == PenaltyType.Lost)
                 {
                     HandleLost(task);
-                    yield break; // агент “зник”
+                    yield break;
                 }
 
-                // Penalty=None => просто фейл без наслідків (але зарплата повертається)
                 _completedThisCycle = false;
 
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
@@ -187,7 +196,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                Log($"Task FAILED. Penalty=None riskTier={task.riskTier}");
+                Log($"Task FAILED. Penalty=None riskTier={task.riskTier} locDanger={locDanger}");
                 FinalizeTask(task, false);
 
                 _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -224,7 +233,6 @@ public class VillagerAgentBrain : MonoBehaviour
         // 2) Pick spot
         ExploreSpotAuthoring spot = null;
 
-        // 2) Pick spot
         if (!string.IsNullOrWhiteSpace(task.targetSpotId))
         {
             spot = registry.GetSpotById(task.targetSpotId);
@@ -237,26 +245,15 @@ public class VillagerAgentBrain : MonoBehaviour
         }
         else
         {
+            // Якщо ти ще не ввів knowledge — тут може бути просто registry.GetRandomSpotWeighted()
             spot = registry.GetRandomUndiscoveredWeighted(GameInstaller.Knowledge);
         }
 
-        if (spot == null)
-        {
-            Log("Explore failed: no spot (registry empty?)");
-            _completedThisCycle = false;
-            yield break;
-        }
 
-        if (spot == null)
-        {
-            Log("Explore failed: no spot (registry empty?)");
-            _completedThisCycle = false;
-            yield break;
-        }
-
-        Log($"Explore to spot={spot.spotId}");
+        Log($"Explore to spot={spot.spotId} ({spot.displayName}) danger={spot.dangerTier}");
         _lastWorkPos = spot.transform.position;
         _lastWorkSpotId = spot.spotId;
+        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
 
         // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
@@ -370,6 +367,8 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
         _lastWorkPos = spot.transform.position;
         _lastWorkSpotId = spot.spotId;
+
+        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
 
         // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
@@ -525,8 +524,8 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void Log(string msg)
     {
-        Debug.Log($"[Agent {agentId}] {msg}");
-        _log?.Push($"[Agent {agentId}] {msg}");
+        //Debug.Log($"[Agent {agentId}] {msg}");
+        //_log?.Push($"[Agent {agentId}] {msg}");
     }
 
 
@@ -635,6 +634,14 @@ public class VillagerAgentBrain : MonoBehaviour
         StopBrain();
     }
 
+    private int GetTaskLocationDanger(TaskInstance task)
+    {
+        if (task == null) return 0;
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+            return Mathf.Clamp(GameInstaller.ExploreRegistry.GetDangerTier(task.targetSpotId), 0, 5);
 
+        // fallback: якщо таска без targetSpotId, то беремо останню робочу
+        return Mathf.Clamp(_lastWorkSpotDangerTier, 0, 5);
+    }
 
 }

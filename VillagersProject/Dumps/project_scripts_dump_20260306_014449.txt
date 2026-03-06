@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-05 01:19:44
+Time: 2026-03-06 01:44:49
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 35
+FilesCount: 37
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -100,8 +100,8 @@ public class ExploreOutcomeService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotAuthoring.cs
-SIZE: 214 bytes
-SHA256: 0cb67f2db54d3c912a53184636517142bb2b509f2a777474bfdc1e4449a44e1e
+SIZE: 279 bytes
+SHA256: 976b791683469cd8d5c10b68f1e996d6072dddebec6a622ab463ac3327213c44
 CONTENT:
 using UnityEngine;
 
@@ -112,6 +112,10 @@ public class ExploreSpotAuthoring : MonoBehaviour
     public string displayName;
 
 
+    // NEW
+    [Range(0, 5)]
+    public int dangerTier = 0;
+
     public string gatherResourceId;
 
 }
@@ -121,8 +125,8 @@ public class ExploreSpotAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotRegistry.cs
-SIZE: 2636 bytes
-SHA256: 86eb5907aeea7a3d860363af3c6308d642c027371c853867ffad4ab907a36d25
+SIZE: 6685 bytes
+SHA256: 67fcf67403c889bb6021be0c728bd39eb87c531550a76b72ed706694a33c5029
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -130,6 +134,9 @@ using UnityEngine;
 public class ExploreSpotRegistry
 {
     public List<ExploreSpotAuthoring> Spots { get; private set; }
+
+    public Dictionary<string, LocationEntity> Locations { get; private set; }
+    public Dictionary<string, ExploreSpotAuthoring> AuthoringsById { get; private set; }
 
     public void Initialize()
     {
@@ -143,6 +150,40 @@ public class ExploreSpotRegistry
         {
             Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");
         }
+
+
+        Locations = new Dictionary<string, LocationEntity>();
+        AuthoringsById = new Dictionary<string, ExploreSpotAuthoring>();
+
+        foreach (var s in Spots)
+        {
+            if (s == null) continue;
+
+            if (string.IsNullOrWhiteSpace(s.spotId))
+            {
+                Debug.LogWarning($"[ExploreSpotRegistry] Spot has empty spotId on object={s.name}");
+                continue;
+            }
+
+            if (AuthoringsById.ContainsKey(s.spotId))
+            {
+                Debug.LogError($"[ExploreSpotRegistry] Duplicate spotId={s.spotId}. Object={s.name}");
+                continue;
+            }
+
+            AuthoringsById[s.spotId] = s;
+
+            var loc = new LocationEntity(
+                spotId: s.spotId,
+                displayName: string.IsNullOrWhiteSpace(s.displayName) ? s.spotId : s.displayName,
+                gatherResourceId: s.gatherResourceId,
+                position: s.transform.position,
+                weight: s.weight
+            );
+
+            Locations[s.spotId] = loc;
+        }
+
     }
 
 
@@ -215,8 +256,92 @@ public class ExploreSpotRegistry
     }
 
 
+    public ExploreSpotAuthoring GetSpotById(string spotId)
+    {
+        if (string.IsNullOrWhiteSpace(spotId)) return null;
+        return AuthoringsById != null && AuthoringsById.TryGetValue(spotId, out var s) ? s : null;
+    }
+
+    public ExploreSpotAuthoring GetRandomUndiscoveredWeighted(SettlementKnowledgeService knowledge)
+    {
+        if (Spots == null || Spots.Count == 0) return null;
+        if (knowledge == null) return GetRandomSpotWeighted();
+
+        var candidates = new List<ExploreSpotAuthoring>();
+        foreach (var s in Spots)
+        {
+            if (s == null) continue;
+            if (string.IsNullOrWhiteSpace(s.spotId)) continue;
+
+            if (!knowledge.IsDiscovered(s.spotId))
+                candidates.Add(s);
+        }
+
+        if (candidates.Count == 0)
+            return GetRandomSpotWeighted();
+
+        // weighted pick
+        float total = 0f;
+        for (int i = 0; i < candidates.Count; i++)
+            total += Mathf.Max(0f, candidates[i].weight);
+
+        if (total <= 0.0001f)
+            return candidates[Random.Range(0, candidates.Count)];
+
+        float roll = Random.Range(0f, total);
+        float acc = 0f;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            acc += Mathf.Max(0f, candidates[i].weight);
+            if (roll <= acc) return candidates[i];
+        }
+
+        return candidates[candidates.Count - 1];
+    }
 
 
+    public int GetDangerTier(string spotId)
+    {
+        if (Spots == null) return 0;
+        var s = Spots.Find(x => x != null && x.spotId == spotId);
+        return (s != null) ? Mathf.Clamp(s.dangerTier, 0, 5) : 0;
+    }
+
+
+    public bool HasDiscoveredResource(SettlementKnowledgeService knowledge, string resourceId)
+    {
+        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        foreach (var spotId in knowledge.DiscoveredIds)
+        {
+            var spot = GetSpotById(spotId);
+            if (spot == null) continue;
+
+            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    public string GetAnyDiscoveredSpotIdForResource(SettlementKnowledgeService knowledge, string resourceId)
+    {
+        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
+            return null;
+
+        foreach (var spotId in knowledge.DiscoveredIds)
+        {
+            var spot = GetSpotById(spotId);
+            if (spot == null) continue;
+
+            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                return spotId;
+        }
+
+        return null;
+    }
 
 
 }
@@ -578,8 +703,8 @@ public class TaskBoardService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskInstance.cs
-SIZE: 747 bytes
-SHA256: 2d68373dbed6b5eada59516bcb5457dcb4a8280de3a3e03e345d7b951ab2cbcc
+SIZE: 841 bytes
+SHA256: adc7d681fac3d9b717d5fe5d5a4775f1f59dcc3d87bdf1fa6b01f082e6f279a2
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -593,6 +718,8 @@ public enum TaskType
 public class TaskInstance
 {
     public string taskId;
+    public string targetSpotId; // optional: ���� ������ � �������� � ��������� �������
+
     public TaskType type;
     public string displayName;
 
@@ -612,6 +739,7 @@ public class TaskInstance
     public int baseAmount;
 
     // ��� Explore: ������������� ExploreSpotRegistry + OutcomeService
+
 }
 
 
@@ -640,6 +768,35 @@ public static class TaskSelectionLogic
 
         return available.Count > 0 ? available[0] : null;
     }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/World/SettlementKnowledgeService.cs
+SIZE: 578 bytes
+SHA256: fc5a9734154c929aaf8186d3d5346dd8d9f94bd663f6b8ea2ea3e6d2f07c0a9f
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+public class SettlementKnowledgeService
+{
+    private readonly HashSet<string> _discovered = new();
+
+    public event Action OnChanged;
+
+    public bool IsDiscovered(string spotId)
+        => !string.IsNullOrWhiteSpace(spotId) && _discovered.Contains(spotId);
+
+    public void Discover(string spotId)
+    {
+        if (string.IsNullOrWhiteSpace(spotId)) return;
+        if (_discovered.Add(spotId))
+            OnChanged?.Invoke();
+    }
+
+    public IReadOnlyCollection<string> DiscoveredIds => _discovered;
 }
 
 ----- FILE END -----
@@ -909,6 +1066,49 @@ public class EventLogService
             _lines.Dequeue();
 
         OnPushed?.Invoke(msg);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/Locations/LocationEntity.cs
+SIZE: 1105 bytes
+SHA256: b6f6c07f45278455bfee13084831b6ab44728a88ad3521318a654e06a7972546
+CONTENT:
+using UnityEngine;
+
+public class LocationEntity
+{
+    public string spotId;
+    public string displayName;
+    public string gatherResourceId;
+
+    public Vector3 position;
+    public float weight;
+
+    public bool discovered;
+
+    // NEW
+    public int dangerTier;
+
+    // ✅ Старий конструктор лишається (backward-compatible)
+    public LocationEntity(string spotId, string displayName, string gatherResourceId, Vector3 position, float weight)
+        : this(spotId, displayName, gatherResourceId, position, weight, 0)
+    {
+    }
+
+    // ✅ Новий — якщо хочеш задавати dangerTier явно
+    public LocationEntity(string spotId, string displayName, string gatherResourceId, Vector3 position, float weight, int dangerTier)
+    {
+        this.spotId = spotId;
+        this.displayName = displayName;
+        this.gatherResourceId = gatherResourceId;
+        this.position = position;
+        this.weight = weight;
+
+        this.dangerTier = Mathf.Clamp(dangerTier, 0, 5);
+        this.discovered = false;
     }
 }
 
@@ -1451,8 +1651,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 19774 bytes
-SHA256: 19342692e2f63d5b09bf69623489b67164a9cb570afa7b7f74bdc235939e5cfd
+SIZE: 22025 bytes
+SHA256: a25af8ec678f9a2f61dfa64c4e06ee529f5e34cbac4de2f126bc1510bb779142
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1478,6 +1678,7 @@ public class VillagerAgentBrain : MonoBehaviour
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
 
+    private int _lastWorkSpotDangerTier;
 
     private NavMeshAgent agent;
     private Coroutine loop;
@@ -1611,31 +1812,39 @@ public class VillagerAgentBrain : MonoBehaviour
                 yield return DoGather(task);
             }
 
-            // 3.5) Final outcome roll (ONE place!)
-            float failChance = Mathf.Clamp01(task.baseFailChance); // MVP
+
+            // location danger modifier (MVP simple):
+            // +3% fail chance per danger tier (0..5) => +0..15%
+            int locDanger = GetTaskLocationDanger(task);
+            float locationFailAdd = 0.03f * locDanger;
+
+            float failChance = Mathf.Clamp01(task.baseFailChance + locationFailAdd);
             float roll = UnityEngine.Random.value;
             bool failed = roll < failChance;
 
-            Log($"FailRoll task={task.taskId} failChance={failChance} roll={roll:F3} failed={failed}");
+            Log($"FailRoll task={task.taskId} baseFail={task.baseFailChance:F2} " +
+                $"locDanger={locDanger} (+{locationFailAdd:F2}) " +
+                $"failChance={failChance:F2} roll={roll:F3} failed={failed}");
 
-            // ❗ IMPORTANT: penalty is rolled ONLY if failed == true
             if (failed)
             {
-                var penalty = PenaltyRoll.RollPenalty(task.riskTier);
+                int effectiveRiskTier = Mathf.Clamp(task.riskTier + locDanger, 0, 5);
+                var penalty = PenaltyRoll.RollPenalty(effectiveRiskTier);
+
+                Log($"PenaltyRoll riskTier={task.riskTier} + locDanger={locDanger} => {effectiveRiskTier} result={penalty}");
 
                 if (penalty == PenaltyType.Death)
                 {
                     HandleDeath(task);
-                    yield break; // агент “вибув”
+                    yield break;
                 }
 
                 if (penalty == PenaltyType.Lost)
                 {
                     HandleLost(task);
-                    yield break; // агент “зник”
+                    yield break;
                 }
 
-                // Penalty=None => просто фейл без наслідків (але зарплата повертається)
                 _completedThisCycle = false;
 
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
@@ -1643,7 +1852,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                Log($"Task FAILED. Penalty=None riskTier={task.riskTier}");
+                Log($"Task FAILED. Penalty=None riskTier={task.riskTier} locDanger={locDanger}");
                 FinalizeTask(task, false);
 
                 _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -1678,17 +1887,29 @@ public class VillagerAgentBrain : MonoBehaviour
         }
 
         // 2) Pick spot
-        var spot = registry.GetRandomSpotWeighted();
-        if (spot == null)
+        ExploreSpotAuthoring spot = null;
+
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
         {
-            Log("Explore failed: no spot (registry empty?)");
-            _completedThisCycle = false;
-            yield break;
+            spot = registry.GetSpotById(task.targetSpotId);
+            if (spot == null)
+            {
+                Log($"Explore failed: targetSpotId not found={task.targetSpotId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+        }
+        else
+        {
+            // Якщо ти ще не ввів knowledge — тут може бути просто registry.GetRandomSpotWeighted()
+            spot = registry.GetRandomUndiscoveredWeighted(GameInstaller.Knowledge);
         }
 
-        Log($"Explore to spot={spot.spotId}");
+
+        Log($"Explore to spot={spot.spotId} ({spot.displayName}) danger={spot.dangerTier}");
         _lastWorkPos = spot.transform.position;
         _lastWorkSpotId = spot.spotId;
+        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
 
         // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
@@ -1700,6 +1921,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         // Дочекайся прибуття (якщо у тебе є такий метод/цикл — підстав свій)
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+        GameInstaller.Knowledge?.Discover(spot.spotId);
 
         // 4) Do work (як зараз у тебе — таймером)
         if (task.durationSec > 0f)
@@ -1764,14 +1986,33 @@ public class VillagerAgentBrain : MonoBehaviour
 
         // 2) Pick gather spot by resource (як у тебе вже є в ExploreSpotRegistry)
         var registry = GameInstaller.ExploreRegistry;
-        if (registry == null)
+        ExploreSpotAuthoring spot = null;
+
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
         {
-            Log("Gather failed: ExploreRegistry is null");
-            _completedThisCycle = false;
-            yield break;
+            spot = registry.GetSpotById(task.targetSpotId);
+
+            if (spot == null)
+            {
+                Log($"Gather failed: targetSpotId not found={task.targetSpotId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+
+            // optional safety: ресурс локації співпадає?
+            if (!string.IsNullOrWhiteSpace(spot.gatherResourceId) &&
+                !string.Equals(spot.gatherResourceId, task.resourceId, System.StringComparison.OrdinalIgnoreCase))
+            {
+                Log($"Gather failed: spot resource mismatch. spot={spot.spotId} spotRes={spot.gatherResourceId} taskRes={task.resourceId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+        }
+        else
+        {
+            spot = registry.PickGatherSpotWeighted(task.resourceId);
         }
 
-        var spot = registry.PickGatherSpotWeighted(task.resourceId);
         if (spot == null)
         {
             Log($"Gather failed: no gather spot for resource={task.resourceId}");
@@ -1782,6 +2023,8 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
         _lastWorkPos = spot.transform.position;
         _lastWorkSpotId = spot.spotId;
+
+        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
 
         // 3) Move to spot
         if (!TrySetDestination(spot.transform.position))
@@ -1937,8 +2180,8 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void Log(string msg)
     {
-        Debug.Log($"[Agent {agentId}] {msg}");
-        _log?.Push($"[Agent {agentId}] {msg}");
+        //Debug.Log($"[Agent {agentId}] {msg}");
+        //_log?.Push($"[Agent {agentId}] {msg}");
     }
 
 
@@ -2047,7 +2290,15 @@ public class VillagerAgentBrain : MonoBehaviour
         StopBrain();
     }
 
+    private int GetTaskLocationDanger(TaskInstance task)
+    {
+        if (task == null) return 0;
+        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+            return Mathf.Clamp(GameInstaller.ExploreRegistry.GetDangerTier(task.targetSpotId), 0, 5);
 
+        // fallback: якщо таска без targetSpotId, то беремо останню робочу
+        return Mathf.Clamp(_lastWorkSpotDangerTier, 0, 5);
+    }
 
 }
 
@@ -2303,8 +2554,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 3112 bytes
-SHA256: e2a9e3d4cdb58b9fac964294db9a749e25d813286575ef4a0dc344993ea154d6
+SIZE: 3233 bytes
+SHA256: bcf3fb35ca46c0addde873e30846f20e3ed0ba1eeb9de5127ccc080cacdc4494
 CONTENT:
 using UnityEngine;
 
@@ -2322,7 +2573,7 @@ public class GameInstaller : MonoBehaviour
     public static SelectedVillagerService SelectedVillager;
     public static CorpseService Corpses { get; private set; }
     public static LostService Lost { get; private set; }
-
+    public static SettlementKnowledgeService Knowledge { get; private set; }
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
 
@@ -2347,7 +2598,7 @@ public class GameInstaller : MonoBehaviour
         _log = new EventLogService(10);
         Inventory = new VillagerInventoryService();
         SelectedVillager = new SelectedVillagerService();
-        
+        Knowledge = new SettlementKnowledgeService();
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
@@ -2751,8 +3002,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 6555 bytes
-SHA256: 71d44e216781476e928e67e3d811675a0a2334af70beb0fb2d35efde093d536e
+SIZE: 7621 bytes
+SHA256: fad3bfd925d7310459a53bbc74436bc652d55edfbfb22789db34e33e9210cd4a
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -2802,7 +3053,6 @@ public class TaskPublisherPanel : MonoBehaviour
     public void Bind(TaskBoardService board)
     {
         _board = board;
-        WireButtons();
     }
 
     private void OnEnable()
@@ -2908,6 +3158,22 @@ public class TaskPublisherPanel : MonoBehaviour
             baseAmount = Mathf.Max(0, def.baseAmount),
         };
 
+
+        // MVP: resource gate by discovery
+        string resId = def.resourceId; // або звідки ти береш resourceId у дефініції
+        if (!string.IsNullOrWhiteSpace(resId))
+        {
+            var reg = GameInstaller.ExploreRegistry;
+            var know = GameInstaller.Knowledge;
+
+            bool unlocked = reg != null && reg.HasDiscoveredResource(know, resId);
+            if (!unlocked)
+            {
+                Debug.Log($"[Publisher] Locked: resource '{resId}' not discovered yet");
+                return;
+            }
+        }
+
         // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
         if (t.type == TaskType.Explore)
         {
@@ -2924,6 +3190,17 @@ public class TaskPublisherPanel : MonoBehaviour
         else if (t.successChance >= 0.4f) t.riskTier = 3;
         else if (t.successChance >= 0.25f) t.riskTier = 4;
         else t.riskTier = 5;
+
+
+        // attach to a discovered location (so danger works + deterministic target)
+        if (!string.IsNullOrWhiteSpace(t.resourceId) && string.IsNullOrWhiteSpace(t.targetSpotId))
+        {
+            var reg = GameInstaller.ExploreRegistry;
+            var know = GameInstaller.Knowledge;
+            string spotId = reg?.GetAnyDiscoveredSpotIdForResource(know, t.resourceId);
+            if (!string.IsNullOrWhiteSpace(spotId))
+                t.targetSpotId = spotId;
+        }
 
         _board.AddTaskRuntime(t);
     }
@@ -3623,7 +3900,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 35
+Written: 37
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

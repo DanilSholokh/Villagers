@@ -170,6 +170,50 @@ public class ExploreSpotRegistry
         return candidates[candidates.Count - 1];
     }
 
+
+    public int GetDangerTier(string spotId)
+    {
+        if (Spots == null) return 0;
+        var s = Spots.Find(x => x != null && x.spotId == spotId);
+        return (s != null) ? Mathf.Clamp(s.dangerTier, 0, 5) : 0;
+    }
+
+
+    public bool HasDiscoveredResource(SettlementKnowledgeService knowledge, string resourceId)
+    {
+        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        foreach (var spotId in knowledge.DiscoveredIds)
+        {
+            var spot = GetSpotById(spotId);
+            if (spot == null) continue;
+
+            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    public string GetAnyDiscoveredSpotIdForResource(SettlementKnowledgeService knowledge, string resourceId)
+    {
+        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
+            return null;
+
+        foreach (var spotId in knowledge.DiscoveredIds)
+        {
+            var spot = GetSpotById(spotId);
+            if (spot == null) continue;
+
+            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
+                return spotId;
+        }
+
+        return null;
+    }
+
+
 }
 
 

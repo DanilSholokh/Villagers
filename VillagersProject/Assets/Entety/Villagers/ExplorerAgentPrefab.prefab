@@ -271,4 +271,7 @@ MonoBehaviour:
   gatherNoSpotDelay: 0.25
   arriveTimeoutSec: 20
   minVelocitySqr: 0.01
-  arriveDistance: 0.6
+  arriveDistance: 1.6
+  _cargo:
+    keys: []
+    values: 
