@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-03-06 01:44:43
+Time: 2026-03-11 05:23:04
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -559,20 +559,20 @@ Root objects: 9
         - RectTransform
         - CanvasRenderer
         - Image (raycast=False, type=Sliced, color=RGBA(0.896, 0.716, 0.520, 1.000))
-        - LayoutElement (min=(-1,-1) pref=(-1,170) flex=(-1,-1))
-        - VerticalLayoutGroup (pad=(5,5,5,5) spacing=5 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=False)
+        - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+        - VerticalLayoutGroup (pad=(17,13,0,3) spacing=5 align=UpperLeft ctrlW=True ctrlH=True expW=True expH=True)
         - FishQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-12.50, 119.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(2.00, 130.30, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(110.00, -41.00) sizeDelta=(210.00, 72.00) offsetMin=(5.00, -77.00) offsetMax=(215.00, -5.00)
-                       rect(w,h)=(210,72)
+                       anchoredPos=(124.50, -29.70) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -59.40) offsetMax=(232.00, 0.00)
+                       rect(w,h)=(215,59,4)
           Components (4):
           - RectTransform
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
           - ButtonFish (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
                          rect(w,h)=(65,65)
@@ -582,7 +582,7 @@ Root objects: 9
             - Image (raycast=True, type=Sliced, color=RGBA(0.000, 1.000, 1.000, 1.000))
             - Button (interactable=True, transition=ColorTint)
           - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(36.88, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
                          rect(w,h)=(129,361,65)
@@ -591,17 +591,17 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Fishing Quest\n" pref(w,h)=(445,4,90,69)
         - WoodQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-12.50, 42.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(2.00, 65.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(110.00, -118.00) sizeDelta=(210.00, 72.00) offsetMin=(5.00, -154.00) offsetMax=(215.00, -82.00)
-                       rect(w,h)=(210,72)
+                       anchoredPos=(124.50, -94.10) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -123.80) offsetMax=(232.00, -64.40)
+                       rect(w,h)=(215,59,4)
           Components (4):
           - RectTransform
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
           - ButtonWood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
                          rect(w,h)=(65,65)
@@ -611,7 +611,7 @@ Root objects: 9
             - Image (raycast=True, type=Sliced, color=RGBA(0.196, 0.632, 0.063, 1.000))
             - Button (interactable=True, transition=ColorTint)
           - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(36.88, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
                          rect(w,h)=(129,361,65)
@@ -620,17 +620,17 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Woods Quest\n" pref(w,h)=(439,08,93,18)
         - MiningQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-12.50, -35.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(2.00, 1.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(110.00, -195.00) sizeDelta=(210.00, 72.00) offsetMin=(5.00, -231.00) offsetMax=(215.00, -159.00)
-                       rect(w,h)=(210,72)
+                       anchoredPos=(124.50, -158.50) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -188.20) offsetMax=(232.00, -128.80)
+                       rect(w,h)=(215,59,4)
           Components (4):
           - RectTransform
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
           - ButtonMine (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
                          rect(w,h)=(65,65)
@@ -640,7 +640,7 @@ Root objects: 9
             - Image (raycast=True, type=Sliced, color=RGBA(0.329, 0.330, 0.330, 1.000))
             - Button (interactable=True, transition=ColorTint)
           - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(36.88, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
                          rect(w,h)=(129,361,65)
@@ -649,17 +649,17 @@ Root objects: 9
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Mining Quest\n" pref(w,h)=(424,47,99,64)
         - ExploreQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-          Transform: pos=(-12.50, -112.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          Transform: pos=(2.00, -62.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
-                       anchoredPos=(110.00, -272.00) sizeDelta=(210.00, 72.00) offsetMin=(5.00, -308.00) offsetMax=(215.00, -236.00)
-                       rect(w,h)=(210,72)
+                       anchoredPos=(124.50, -222.90) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -252.60) offsetMax=(232.00, -193.20)
+                       rect(w,h)=(215,59,4)
           Components (4):
           - RectTransform
           - CanvasRenderer
           - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
           - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
           - ButtonExplore (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(-65.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
                          rect(w,h)=(65,65)
@@ -669,7 +669,36 @@ Root objects: 9
             - Image (raycast=True, type=Sliced, color=RGBA(0.980, 0.941, 0.902, 1.000))
             - Button (interactable=True, transition=ColorTint)
           - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-            Transform: pos=(36.88, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Explore Quest\n" pref(w,h)=(457,12,86,27)
+        - ExploreQuestCell (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, -127.30, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -287.30) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -317.00) offsetMax=(232.00, -257.60)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonExplore (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.600, 0.196, 0.800, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
                          anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
                          rect(w,h)=(129,361,65)

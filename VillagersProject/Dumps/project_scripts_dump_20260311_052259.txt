@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-06 01:44:49
+Time: 2026-03-11 05:22:59
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 37
+FilesCount: 45
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -100,13 +100,17 @@ public class ExploreOutcomeService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotAuthoring.cs
-SIZE: 279 bytes
-SHA256: 976b791683469cd8d5c10b68f1e996d6072dddebec6a622ab463ac3327213c44
+SIZE: 328 bytes
+SHA256: f2b0f625689463bad28bcf3abb0e6aa8ead4790e54f17d76f9d7333c2420af44
 CONTENT:
 using UnityEngine;
 
 public class ExploreSpotAuthoring : MonoBehaviour
 {
+
+
+    public string[] potentialResourceIds;
+
     public string spotId;
     public float weight = 1f;
     public string displayName;
@@ -125,8 +129,8 @@ public class ExploreSpotAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotRegistry.cs
-SIZE: 6685 bytes
-SHA256: 67fcf67403c889bb6021be0c728bd39eb87c531550a76b72ed706694a33c5029
+SIZE: 4369 bytes
+SHA256: 65fb32465acc6509361766e27139b8a14801cc2ac5f1335f20e19fd75da99613
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -262,44 +266,6 @@ public class ExploreSpotRegistry
         return AuthoringsById != null && AuthoringsById.TryGetValue(spotId, out var s) ? s : null;
     }
 
-    public ExploreSpotAuthoring GetRandomUndiscoveredWeighted(SettlementKnowledgeService knowledge)
-    {
-        if (Spots == null || Spots.Count == 0) return null;
-        if (knowledge == null) return GetRandomSpotWeighted();
-
-        var candidates = new List<ExploreSpotAuthoring>();
-        foreach (var s in Spots)
-        {
-            if (s == null) continue;
-            if (string.IsNullOrWhiteSpace(s.spotId)) continue;
-
-            if (!knowledge.IsDiscovered(s.spotId))
-                candidates.Add(s);
-        }
-
-        if (candidates.Count == 0)
-            return GetRandomSpotWeighted();
-
-        // weighted pick
-        float total = 0f;
-        for (int i = 0; i < candidates.Count; i++)
-            total += Mathf.Max(0f, candidates[i].weight);
-
-        if (total <= 0.0001f)
-            return candidates[Random.Range(0, candidates.Count)];
-
-        float roll = Random.Range(0f, total);
-        float acc = 0f;
-
-        for (int i = 0; i < candidates.Count; i++)
-        {
-            acc += Mathf.Max(0f, candidates[i].weight);
-            if (roll <= acc) return candidates[i];
-        }
-
-        return candidates[candidates.Count - 1];
-    }
-
 
     public int GetDangerTier(string spotId)
     {
@@ -309,39 +275,6 @@ public class ExploreSpotRegistry
     }
 
 
-    public bool HasDiscoveredResource(SettlementKnowledgeService knowledge, string resourceId)
-    {
-        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
-            return false;
-
-        foreach (var spotId in knowledge.DiscoveredIds)
-        {
-            var spot = GetSpotById(spotId);
-            if (spot == null) continue;
-
-            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    public string GetAnyDiscoveredSpotIdForResource(SettlementKnowledgeService knowledge, string resourceId)
-    {
-        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
-            return null;
-
-        foreach (var spotId in knowledge.DiscoveredIds)
-        {
-            var spot = GetSpotById(spotId);
-            if (spot == null) continue;
-
-            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
-                return spotId;
-        }
-
-        return null;
-    }
 
 
 }
@@ -351,6 +284,944 @@ public class ExploreSpotRegistry
 
 
 
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/SurveyOutcomeService.cs
+SIZE: 1423 bytes
+SHA256: c0560b1d124dfe5693d21a7ffdc4188151695a41924438ee1901eb703f7e0df8
+CONTENT:
+using UnityEngine;
+
+public enum SurveyOutcomeType
+{
+    Nothing = 0,
+    RevealHiddenResource = 1,
+    BonusGold = 2,
+    Danger = 3
+}
+
+public struct SurveyOutcome
+{
+    public SurveyOutcomeType type;
+    public int goldAmount;
+}
+
+public class SurveyOutcomeService
+{
+    private const float W_NOTHING = 0.40f;
+    private const float W_REVEAL = 0.35f;
+    private const float W_GOLD = 0.15f;
+    private const float W_DANGER = 0.10f;
+
+    public SurveyOutcome Roll(LocationModel location)
+    {
+        var o = new SurveyOutcome();
+
+        float revealWeight = W_REVEAL;
+        if (location == null || location.potentialResources == null || location.potentialResources.Count == 0)
+            revealWeight = 0f;
+
+        float total = W_NOTHING + revealWeight + W_GOLD + W_DANGER;
+        float r = Random.Range(0f, total);
+
+        if (r < W_NOTHING)
+        {
+            o.type = SurveyOutcomeType.Nothing;
+            return o;
+        }
+
+        r -= W_NOTHING;
+        if (r < revealWeight)
+        {
+            o.type = SurveyOutcomeType.RevealHiddenResource;
+            return o;
+        }
+
+        r -= revealWeight;
+        if (r < W_GOLD)
+        {
+            o.type = SurveyOutcomeType.BonusGold;
+            o.goldAmount = Random.Range(1, 4);
+            return o;
+        }
+
+        o.type = SurveyOutcomeType.Danger;
+        return o;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationBootstrap.cs
+SIZE: 4371 bytes
+SHA256: df71b7c59f03c44fe0dbc699f29b710f30b18f7b8a4fc58ce649ba7c75729cf2
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public static class LocationBootstrap
+{
+    public static void BuildFromScene(LocationRegistry registry)
+    {
+        if (registry == null) return;
+
+        registry.Clear();
+
+        var spots = Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None);
+
+        foreach (var spot in spots)
+        {
+            if (spot == null) continue;
+            if (string.IsNullOrWhiteSpace(spot.spotId)) continue;
+
+            var model = new LocationModel
+            {
+                id = spot.spotId,
+                templateId = spot.spotId,
+                name = string.IsNullOrWhiteSpace(spot.displayName) ? spot.spotId : spot.displayName,
+                status = LocationStatus.Unknown,
+                worldPosition = spot.transform.position,
+                baseDanger = Mathf.Clamp(spot.dangerTier, 0, 5),
+                currentDanger = Mathf.Clamp(spot.dangerTier, 0, 5)
+            };
+
+            if (!string.IsNullOrWhiteSpace(spot.gatherResourceId))
+            {
+                model.resources.Add(new LocationResource
+                {
+                    resourceId = spot.gatherResourceId.ToLowerInvariant(),
+                    timePerUnit = 1f,
+                    difficulty = Mathf.Clamp(spot.dangerTier, 0, 5),
+                    isUnlocked = false
+                });
+            }
+
+            if (spot.potentialResourceIds != null)
+            {
+                for (int i = 0; i < spot.potentialResourceIds.Length; i++)
+                {
+                    var resId = spot.potentialResourceIds[i];
+                    if (string.IsNullOrWhiteSpace(resId))
+                        continue;
+
+                    resId = resId.ToLowerInvariant();
+
+                    bool alreadyInBase = false;
+                    for (int j = 0; j < model.resources.Count; j++)
+                    {
+                        var baseRes = model.resources[j];
+                        if (baseRes == null) continue;
+
+                        if (string.Equals(baseRes.resourceId, resId, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            alreadyInBase = true;
+                            break;
+                        }
+                    }
+
+                    if (alreadyInBase)
+                        continue;
+
+                    bool alreadyInPotential = false;
+                    for (int j = 0; j < model.potentialResources.Count; j++)
+                    {
+                        var potentialRes = model.potentialResources[j];
+                        if (potentialRes == null) continue;
+
+                        if (string.Equals(potentialRes.resourceId, resId, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            alreadyInPotential = true;
+                            break;
+                        }
+                    }
+
+                    if (alreadyInPotential)
+                        continue;
+
+                    model.potentialResources.Add(new LocationResource
+                    {
+                        resourceId = resId,
+                        timePerUnit = 1f,
+                        difficulty = Mathf.Clamp(spot.dangerTier, 0, 5),
+                        isUnlocked = false
+                    });
+                }
+            }
+
+
+            registry.Add(model);
+
+            Debug.Log(
+            "[LocationBootstrap] " +
+            $"id={model.id}, name={model.name}, status={model.status}, " +
+            $"baseDanger={model.baseDanger}, currentDanger={model.currentDanger}, " +
+            $"baseResources=[{JoinResourceIds(model.resources)}], " +
+            $"potentialResources=[{JoinResourceIds(model.potentialResources)}]"
+            );
+        }
+    }
+
+    private static string JoinResourceIds(List<LocationResource> resources)
+    {
+        if (resources == null || resources.Count == 0)
+            return "(none)";
+
+        var parts = new List<string>();
+
+        for (int i = 0; i < resources.Count; i++)
+        {
+            var r = resources[i];
+            if (r == null) continue;
+            parts.Add(r.resourceId);
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "(none)";
+    }
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationMetrics.cs
+SIZE: 312 bytes
+SHA256: a2657d9f9e05a1f7c9a81321e36382e582d5275b6e44ce54c1d545e1f7c1ac4e
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+[Serializable]
+public class LocationMetrics
+{
+    public Dictionary<string, int> resourcesGathered = new();
+    public int villagersLost = 0;
+    public int villagersDead = 0;
+    public int totalTasksCompleted = 0;
+    public int totalVisits = 0;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationModel.cs
+SIZE: 698 bytes
+SHA256: f0fa3783f3ddee97d8f04abf70763c04cb4d50789edf606f7562781f0c0dcb0d
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[Serializable]
+public class LocationModel
+{
+    public string id;
+    public string templateId;
+    public string name;
+
+    public LocationStatus status = LocationStatus.Unknown;
+
+    public Vector3 worldPosition;
+
+    public int baseDanger = 0;
+    public int currentDanger = 0;
+
+    public List<LocationResource> resources = new();
+    public List<LocationResource> potentialResources = new();
+    public LocationMetrics metrics = new();
+
+    public List<string> currentWorkers = new();
+    public List<string> currentTasks = new();
+
+    public bool IsBlocked => status == LocationStatus.Blocked;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationRegistry.cs
+SIZE: 2348 bytes
+SHA256: 1b866efa4d8aeac13aceaa235c80770d274dcc00ec0504445d1d3cf97b07d036
+CONTENT:
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+public class LocationRegistry
+{
+    private readonly Dictionary<string, LocationModel> _locations = new();
+
+    public void Clear()
+    {
+        _locations.Clear();
+    }
+
+    public void Add(LocationModel location)
+    {
+        if (location == null) return;
+        if (string.IsNullOrWhiteSpace(location.id)) return;
+
+        _locations[location.id] = location;
+    }
+
+    public bool TryGet(string id, out LocationModel location)
+    {
+        return _locations.TryGetValue(id, out location);
+    }
+
+    public LocationModel Get(string id)
+    {
+        return _locations.TryGetValue(id, out var loc) ? loc : null;
+    }
+
+    public IReadOnlyCollection<LocationModel> GetAll()
+    {
+        return _locations.Values;
+    }
+
+    public List<LocationModel> FindByResource(string resourceId, bool onlyUnlocked = true, bool onlyDiscovered = false)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return new List<LocationModel>();
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        return _locations.Values
+            .Where(loc =>
+                loc != null &&
+                (!onlyDiscovered || loc.status == LocationStatus.Discovered) &&
+                loc.resources != null &&
+                loc.resources.Exists(r =>
+                    r != null &&
+                    string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase) &&
+                    (!onlyUnlocked || r.isUnlocked)))
+            .ToList();
+    }
+
+    public List<LocationModel> FindUndiscovered()
+    {
+        return _locations.Values
+            .Where(x => x.status == LocationStatus.Unknown)
+            .ToList();
+    }
+
+
+    public List<LocationModel> FindDiscovered()
+    {
+        return _locations.Values
+            .Where(x => x != null && x.status == LocationStatus.Discovered)
+            .ToList();
+    }
+
+    public List<LocationModel> FindDiscoveredWithPotentialResources()
+    {
+        return _locations.Values
+            .Where(x =>
+                x != null &&
+                x.status == LocationStatus.Discovered &&
+                x.potentialResources != null &&
+                x.potentialResources.Count > 0)
+            .ToList();
+    }
+
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationResource.cs
+SIZE: 208 bytes
+SHA256: 2bfcf03430771cad220da9919914ba20b0e5cbbf1bdd068bd49f4afc5f1201ad
+CONTENT:
+using System;
+
+[Serializable]
+public class LocationResource
+{
+    public string resourceId;
+    public float timePerUnit = 1f;
+    public int difficulty = 0;
+    public bool isUnlocked = true;
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationService.cs
+SIZE: 17272 bytes
+SHA256: 3b347e652b49c8576e9e3e1cfe43d562d9dffdd4b90a77b1fa970e44c79e8b96
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LocationService
+{
+
+    private const bool DEBUG_LOGS = true;
+
+    private readonly LocationRegistry _registry;
+
+    public event Action<string> OnLocationChanged;
+    public event Action<string> OnLocationDiscovered;
+    public event Action<string> OnLocationWorkersChanged;
+
+
+
+    public LocationService(LocationRegistry registry)
+    {
+        _registry = registry;
+    }
+
+    public LocationModel GetLocation(string locationId)
+        => _registry.Get(locationId);
+
+    public IReadOnlyCollection<LocationModel> GetAllLocations()
+        => _registry.GetAll();
+
+    public bool IsDiscovered(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        return loc != null && loc.status == LocationStatus.Discovered;
+    }
+
+    public bool HasAnyDiscoveredLocationForResource(string resourceId)
+    {
+        return !string.IsNullOrWhiteSpace(
+            FindAnyLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true)
+        );
+    }
+
+    public string FindAnyDiscoveredLocationForResource(string resourceId)
+    {
+        return FindAnyLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true);
+    }
+
+    public string FindRandomUndiscoveredLocationId()
+    {
+        var list = _registry.FindUndiscovered();
+        if (list.Count == 0) return null;
+        return list[UnityEngine.Random.Range(0, list.Count)].id;
+    }
+
+    public Vector3 GetWorldPosition(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        return loc != null ? loc.worldPosition : Vector3.zero;
+    }
+
+    public int GetDanger(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        return loc != null ? Mathf.Clamp(loc.currentDanger, 0, 5) : 0;
+    }
+
+    public void DiscoverLocation(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null) return;
+
+        bool changed = false;
+        var unlockedNow = new List<string>();
+
+        if (loc.status != LocationStatus.Discovered)
+        {
+            loc.status = LocationStatus.Discovered;
+            changed = true;
+        }
+
+        if (loc.resources != null)
+        {
+            for (int i = 0; i < loc.resources.Count; i++)
+            {
+                var r = loc.resources[i];
+                if (r == null) continue;
+
+                if (!r.isUnlocked)
+                {
+                    r.isUnlocked = true;
+                    unlockedNow.Add(r.resourceId);
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            Dbg($"DiscoverLocation id={locationId} name={loc.name} unlocked=[{(unlockedNow.Count > 0 ? string.Join(", ", unlockedNow) : "(none)")}]");
+            RaiseChanged(locationId);
+            OnLocationDiscovered?.Invoke(locationId);
+        }
+    }
+
+    public void RegisterWorker(string locationId, string villagerId, string taskId = null)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null || string.IsNullOrWhiteSpace(villagerId)) return;
+
+        if (!loc.currentWorkers.Contains(villagerId))
+            loc.currentWorkers.Add(villagerId);
+
+        if (!string.IsNullOrWhiteSpace(taskId) && !loc.currentTasks.Contains(taskId))
+            loc.currentTasks.Add(taskId);
+
+        Dbg($"RegisterWorker location={locationId} worker={villagerId} task={taskId ?? "(none)"} workers=[{FormatStringList(loc.currentWorkers)}]");
+
+        RaiseChanged(locationId);
+        OnLocationWorkersChanged?.Invoke(locationId);
+    }
+
+    public void RemoveWorker(string locationId, string villagerId, string taskId = null)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null || string.IsNullOrWhiteSpace(villagerId)) return;
+
+        loc.currentWorkers.Remove(villagerId);
+
+        if (!string.IsNullOrWhiteSpace(taskId))
+            loc.currentTasks.Remove(taskId);
+
+        Dbg($"RemoveWorker location={locationId} worker={villagerId} task={taskId ?? "(none)"} workers=[{FormatStringList(loc.currentWorkers)}]");
+
+        RaiseChanged(locationId);
+        OnLocationWorkersChanged?.Invoke(locationId);
+    }
+
+    public void AddVisit(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null) return;
+
+        loc.metrics.totalVisits++;
+        Dbg($"AddVisit location={locationId} visits={loc.metrics.totalVisits}");
+        RaiseChanged(locationId);
+    }
+
+    public void AddResourceGathered(string locationId, string resourceId, int amount)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null || string.IsNullOrWhiteSpace(resourceId) || amount <= 0) return;
+
+        if (!loc.metrics.resourcesGathered.ContainsKey(resourceId))
+            loc.metrics.resourcesGathered[resourceId] = 0;
+
+        loc.metrics.resourcesGathered[resourceId] += amount;
+
+        Dbg($"AddResourceGathered location={locationId} resource={resourceId} amount=+{amount} total={loc.metrics.resourcesGathered[resourceId]}");
+
+        RaiseChanged(locationId);
+    }
+
+    public void AddTaskCompleted(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null) return;
+
+        loc.metrics.totalTasksCompleted++;
+        Dbg($"AddTaskCompleted location={locationId} totalTasksCompleted={loc.metrics.totalTasksCompleted}");
+        RaiseChanged(locationId);
+    }
+
+    public void AddVillagerLost(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null) return;
+
+        loc.metrics.villagersLost++;
+        Dbg($"AddVillagerLost location={locationId} villagersLost={loc.metrics.villagersLost}");
+        RaiseChanged(locationId);
+    }
+
+    public void AddVillagerDead(string locationId)
+    {
+        var loc = _registry.Get(locationId);
+        if (loc == null) return;
+
+        loc.metrics.villagersDead++;
+        Dbg($"AddVillagerDead location={locationId} villagersDead={loc.metrics.villagersDead}");
+        RaiseChanged(locationId);
+    }
+
+    private void RaiseChanged(string locationId)
+    {
+        OnLocationChanged?.Invoke(locationId);
+    }
+
+    public bool HasUnlockedResource(string locationId, string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.resources == null)
+            return false;
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.resources.Count; i++)
+        {
+            var r = loc.resources[i];
+            if (r == null) continue;
+
+            if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase) && r.isUnlocked)
+                return true;
+        }
+
+        return false;
+    }
+
+    public List<LocationResource> GetUnlockedResources(string locationId)
+    {
+        var result = new List<LocationResource>();
+
+        if (string.IsNullOrWhiteSpace(locationId))
+            return result;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.resources == null)
+            return result;
+
+        for (int i = 0; i < loc.resources.Count; i++)
+        {
+            var r = loc.resources[i];
+            if (r == null) continue;
+            if (!r.isUnlocked) continue;
+
+            result.Add(r);
+        }
+
+        return result;
+    }
+
+    public string FindAnyLocationForResource(string resourceId, bool onlyDiscovered = true, bool onlyUnlocked = true)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return null;
+
+        var found = _registry.FindByResource(resourceId, onlyUnlocked, onlyDiscovered);
+        return found.Count > 0 ? found[0].id : null;
+    }
+
+    public void UnlockResource(string locationId, string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.resources == null)
+            return;
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.resources.Count; i++)
+        {
+            var r = loc.resources[i];
+            if (r == null) continue;
+
+            if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!r.isUnlocked)
+                {
+                    r.isUnlocked = true;
+                    RaiseChanged(locationId);
+                }
+                return;
+            }
+        }
+    }
+
+    public void AddResourceIfMissing(
+        string locationId,
+        string resourceId,
+        bool unlocked = true,
+        float timePerUnit = 1f,
+        int difficulty = 0)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null)
+            return;
+
+        if (loc.resources == null)
+            loc.resources = new List<LocationResource>();
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.resources.Count; i++)
+        {
+            var r = loc.resources[i];
+            if (r == null) continue;
+
+            if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        loc.resources.Add(new LocationResource
+        {
+            resourceId = resourceId,
+            isUnlocked = unlocked,
+            timePerUnit = Mathf.Max(0.01f, timePerUnit),
+            difficulty = Mathf.Clamp(difficulty, 0, 5)
+        });
+
+        RaiseChanged(locationId);
+    }
+
+
+
+    public bool HasPotentialResource(string locationId, string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.potentialResources == null)
+            return false;
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.potentialResources.Count; i++)
+        {
+            var r = loc.potentialResources[i];
+            if (r == null) continue;
+
+            if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    public List<LocationResource> GetPotentialResources(string locationId)
+    {
+        var result = new List<LocationResource>();
+
+        if (string.IsNullOrWhiteSpace(locationId))
+            return result;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.potentialResources == null)
+            return result;
+
+        for (int i = 0; i < loc.potentialResources.Count; i++)
+        {
+            var r = loc.potentialResources[i];
+            if (r == null) continue;
+
+            result.Add(r);
+        }
+
+        return result;
+    }
+
+    public bool RevealPotentialResource(string locationId, string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.potentialResources == null)
+            return false;
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.potentialResources.Count; i++)
+        {
+            var r = loc.potentialResources[i];
+            if (r == null) continue;
+
+            if (!string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            loc.potentialResources.RemoveAt(i);
+
+            AddResourceIfMissing(
+                locationId,
+                resourceId,
+                unlocked: true,
+                timePerUnit: r.timePerUnit,
+                difficulty: r.difficulty
+            );
+
+            Dbg($"RevealPotentialResource location={locationId} name={loc.name} resource={resourceId}");
+
+            RaiseChanged(locationId);
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool TryRevealRandomPotentialResource(string locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.potentialResources == null || loc.potentialResources.Count == 0)
+        {
+            Dbg($"TryRevealRandomPotentialResource location={locationId} -> no potential resources");
+            return false;
+        }
+
+        int index = UnityEngine.Random.Range(0, loc.potentialResources.Count);
+        var r = loc.potentialResources[index];
+        if (r == null) return false;
+
+        Dbg($"TryRevealRandomPotentialResource location={locationId} picked={r.resourceId}");
+        return RevealPotentialResource(locationId, r.resourceId);
+    }
+
+
+
+    public IReadOnlyCollection<string> GetDiscoveredLocationIds()
+    {
+        var result = new List<string>();
+
+        foreach (var loc in _registry.GetAll())
+        {
+            if (loc != null && loc.status == LocationStatus.Discovered)
+                result.Add(loc.id);
+        }
+
+        return result;
+    }
+
+
+
+    
+    private void Dbg(string message)
+    {
+        if (!DEBUG_LOGS) return;
+        Debug.Log("[LocationService] " + message);
+    }
+
+    private static string FormatResourceList(List<LocationResource> resources)
+    {
+        if (resources == null || resources.Count == 0)
+            return "(none)";
+
+        var parts = new List<string>();
+
+        for (int i = 0; i < resources.Count; i++)
+        {
+            var r = resources[i];
+            if (r == null) continue;
+
+            parts.Add($"{r.resourceId}[unlocked={r.isUnlocked}, t={r.timePerUnit:0.##}, d={r.difficulty}]");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "(none)";
+    }
+
+    private static string FormatStringList(List<string> items)
+    {
+        if (items == null || items.Count == 0)
+            return "(none)";
+
+        return string.Join(", ", items);
+    }
+
+
+    public string FindRandomUnknownLocationId()
+    {
+        var list = _registry.FindUndiscovered();
+        if (list == null || list.Count == 0)
+            return null;
+
+        return list[UnityEngine.Random.Range(0, list.Count)].id;
+    }
+
+    public string FindRandomDiscoveredLocationWithPotentialResource()
+    {
+        var list = _registry.FindDiscoveredWithPotentialResources();
+        if (list == null || list.Count == 0)
+            return null;
+
+        return list[UnityEngine.Random.Range(0, list.Count)].id;
+    }
+
+    public string FindRandomDiscoveredLocationId()
+    {
+        var list = _registry.FindDiscovered();
+        if (list == null || list.Count == 0)
+            return null;
+
+        return list[UnityEngine.Random.Range(0, list.Count)].id;
+    }
+
+    public bool HasAnyDiscoveredLocation()
+    {
+        foreach (var loc in _registry.GetAll())
+        {
+            if (loc != null && loc.status == LocationStatus.Discovered)
+                return true;
+        }
+
+        return false;
+    }
+
+    public void DumpAllLocationsToLog()
+    {
+        if (!DEBUG_LOGS) return;
+
+        Debug.Log("[LocationService] ===== DUMP ALL LOCATIONS =====");
+
+        foreach (var loc in _registry.GetAll())
+        {
+            if (loc == null) continue;
+
+            string metricsSummary =
+                $"visits={loc.metrics.totalVisits}, " +
+                $"tasks={loc.metrics.totalTasksCompleted}, " +
+                $"dead={loc.metrics.villagersDead}, " +
+                $"lost={loc.metrics.villagersLost}";
+
+            string gatheredSummary = "(none)";
+            if (loc.metrics.resourcesGathered != null && loc.metrics.resourcesGathered.Count > 0)
+            {
+                var parts = new List<string>();
+                foreach (var kv in loc.metrics.resourcesGathered)
+                    parts.Add($"{kv.Key}:{kv.Value}");
+                gatheredSummary = string.Join(", ", parts);
+            }
+
+            Debug.Log(
+                "[LocationService] " +
+                $"id={loc.id}, name={loc.name}, status={loc.status}, " +
+                $"baseDanger={loc.baseDanger}, currentDanger={loc.currentDanger}, " +
+                $"resources=[{FormatResourceList(loc.resources)}], " +
+                $"potential=[{FormatResourceList(loc.potentialResources)}], " +
+                $"workers=[{FormatStringList(loc.currentWorkers)}], " +
+                $"tasksActive=[{FormatStringList(loc.currentTasks)}], " +
+                $"metrics=({metricsSummary}), gathered=[{gatheredSummary}]"
+            );
+        }
+
+        Debug.Log("[LocationService] ===== END DUMP =====");
+    }
+
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationStatus.cs
+SIZE: 88 bytes
+SHA256: 7731bc79b16f0d3ec3a9708e504dcae07e51ff29685e12e2e885b43e13f2aadb
+CONTENT:
+public enum LocationStatus
+{
+    Unknown = 0,
+    Discovered = 1,
+    Blocked = 2
+}
 
 ----- FILE END -----
 
@@ -703,8 +1574,8 @@ public class TaskBoardService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskInstance.cs
-SIZE: 841 bytes
-SHA256: adc7d681fac3d9b717d5fe5d5a4775f1f59dcc3d87bdf1fa6b01f082e6f279a2
+SIZE: 939 bytes
+SHA256: bb7998cdbbc8752554bb42204aedcdc578d95516ef56311666a774e0b43f7361
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -712,13 +1583,15 @@ using System.Collections.Generic;
 public enum TaskType
 {
     Gather = 0,
-    Explore = 1
+    ExploreNewLocation = 1,
+    SurveyKnownLocation = 2
 }
 
 public class TaskInstance
 {
     public string taskId;
-    public string targetSpotId; // optional: ���� ������ � �������� � ��������� �������
+    public string targetSpotId; // legacy transitional field, do not use in new logic
+    public string targetLocationId; // new source-of-truth
 
     public TaskType type;
     public string displayName;
@@ -774,29 +1647,41 @@ public static class TaskSelectionLogic
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/World/SettlementKnowledgeService.cs
-SIZE: 578 bytes
-SHA256: fc5a9734154c929aaf8186d3d5346dd8d9f94bd663f6b8ea2ea3e6d2f07c0a9f
+SIZE: 974 bytes
+SHA256: ad1cadd1e3d0cbb467ae9fb6cdd7c004435100158a95b3935e2dbf8c8aa5c09a
 CONTENT:
 using System;
 using System.Collections.Generic;
 
 public class SettlementKnowledgeService
 {
-    private readonly HashSet<string> _discovered = new();
 
     public event Action OnChanged;
+    public IReadOnlyCollection<string> DiscoveredIds
+    => GameInstaller.LocationService != null
+        ? GameInstaller.LocationService.GetDiscoveredLocationIds()
+        : Array.Empty<string>();
 
     public bool IsDiscovered(string spotId)
-        => !string.IsNullOrWhiteSpace(spotId) && _discovered.Contains(spotId);
+    {
+        return GameInstaller.LocationService != null &&
+               GameInstaller.LocationService.IsDiscovered(spotId);
+    }
 
     public void Discover(string spotId)
     {
         if (string.IsNullOrWhiteSpace(spotId)) return;
-        if (_discovered.Add(spotId))
+        if (GameInstaller.LocationService == null) return;
+
+        bool wasDiscovered = GameInstaller.LocationService.IsDiscovered(spotId);
+        GameInstaller.LocationService.DiscoverLocation(spotId);
+
+        if (!wasDiscovered && GameInstaller.LocationService.IsDiscovered(spotId))
             OnChanged?.Invoke();
     }
 
-    public IReadOnlyCollection<string> DiscoveredIds => _discovered;
+    
+
 }
 
 ----- FILE END -----
@@ -1651,8 +2536,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 22025 bytes
-SHA256: a25af8ec678f9a2f61dfa64c4e06ee529f5e34cbac4de2f126bc1510bb779142
+SIZE: 25130 bytes
+SHA256: 6c3192e1f37a18b42880d90cafc3893c08ecddfc68fbb04a9e7249e70527af9d
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -1678,7 +2563,7 @@ public class VillagerAgentBrain : MonoBehaviour
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
 
-    private int _lastWorkSpotDangerTier;
+    private int _lastWorkLocationDangerTier;
 
     private NavMeshAgent agent;
     private Coroutine loop;
@@ -1688,12 +2573,12 @@ public class VillagerAgentBrain : MonoBehaviour
 
 
     private TaskBoardService _board;
-    private ExploreSpotRegistry _spots;
+
     private TreasuryService _treasury;
     private EventLogService _log;
 
     private Vector3 _lastWorkPos;
-    private string _lastWorkSpotId;
+    private string _lastWorkLocationId;
 
     private VillagerRosterService _roster;
 
@@ -1706,10 +2591,10 @@ public class VillagerAgentBrain : MonoBehaviour
 
     // ❗ ВАЖЛИВО: OnEnable/Start НЕ запускають логіку
 
-    public void Begin(TaskBoardService board, ExploreSpotRegistry spots, TreasuryService treasury, EventLogService log, VillagerRosterService roster)
+    public void Begin(TaskBoardService board, TreasuryService treasury, EventLogService log, VillagerRosterService roster)
     {
         _board = board;
-        _spots = spots;
+
         _treasury = treasury;
         _log = log;
         _roster = roster;
@@ -1733,13 +2618,6 @@ public class VillagerAgentBrain : MonoBehaviour
         if (_board == null)
         {
             Debug.LogError($"[VillagerAgentBrain] TaskBoard is null at Begin! agent={agentId}");
-            started = false;
-            return;
-        }
-
-        if (_spots == null)
-        {
-            Debug.LogError($"[VillagerAgentBrain] ExploreSpotRegistry is null at Begin! agent={agentId}");
             started = false;
             return;
         }
@@ -1801,17 +2679,26 @@ public class VillagerAgentBrain : MonoBehaviour
             _completedThisCycle = false;
             _roster?.SetStatus(agentId, VillagerStatus.MovingToTarget, task.taskId, task.displayName);
 
-            if (task.type == TaskType.Explore)
-            {
-                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
-                yield return DoExplore(task);
-            }
-            else
-            {
-                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
+            if (task.type == TaskType.Gather)
                 yield return DoGather(task);
-            }
+            else if (task.type == TaskType.ExploreNewLocation)
+                yield return DoExploreNewLocation(task);
+            else if (task.type == TaskType.SurveyKnownLocation)
+                yield return DoSurveyKnownLocation(task);
 
+            // якщо action already succeeded і сам виставив _completedThisCycle=true,
+            // не можна після цього ще раз кидати fail/lost/death resolution
+            if (_completedThisCycle)
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
+                yield return DoGoHome();
+
+                FinalizeTask(task, true);
+
+                _roster?.SetStatus(agentId, VillagerStatus.Idle);
+                yield return new WaitForSeconds(afterCycleDelay);
+                continue;
+            }
 
             // location danger modifier (MVP simple):
             // +3% fail chance per danger tier (0..5) => +0..15%
@@ -1873,110 +2760,175 @@ public class VillagerAgentBrain : MonoBehaviour
 
     // -------------------- ACTIONS --------------------
 
-    private IEnumerator DoExplore(TaskInstance task)
+    private IEnumerator DoExploreNewLocation(TaskInstance task)
     {
-        _completedThisCycle = true;
+        _completedThisCycle = false;
 
-        // 1) Registry
-        var registry = GameInstaller.ExploreRegistry;
-        if (registry == null)
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            Log("Explore failed: ExploreRegistry is null");
+            Log("ExploreNew failed: LocationService is null");
             _completedThisCycle = false;
             yield break;
         }
 
-        // 2) Pick spot
-        ExploreSpotAuthoring spot = null;
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        if (!string.IsNullOrWhiteSpace(locationId))
         {
-            spot = registry.GetSpotById(task.targetSpotId);
-            if (spot == null)
-            {
-                Log($"Explore failed: targetSpotId not found={task.targetSpotId}");
-                _completedThisCycle = false;
-                yield break;
-            }
+            loc = locations.GetLocation(locationId);
         }
         else
         {
-            // Якщо ти ще не ввів knowledge — тут може бути просто registry.GetRandomSpotWeighted()
-            spot = registry.GetRandomUndiscoveredWeighted(GameInstaller.Knowledge);
+            locationId = locations.FindRandomUnknownLocationId();
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
         }
 
-
-        Log($"Explore to spot={spot.spotId} ({spot.displayName}) danger={spot.dangerTier}");
-        _lastWorkPos = spot.transform.position;
-        _lastWorkSpotId = spot.spotId;
-        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
-
-        // 3) Move to spot
-        if (!TrySetDestination(spot.transform.position))
+        if (loc == null)
         {
-            Log($"Explore refused: invalid destination spot={spot.spotId}");
+            Log("ExploreNew failed: no unknown location found");
             _completedThisCycle = false;
             yield break;
         }
 
-        // Дочекайся прибуття (якщо у тебе є такий метод/цикл — підстав свій)
-        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
-        GameInstaller.Knowledge?.Discover(spot.spotId);
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-        // 4) Do work (як зараз у тебе — таймером)
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
+
+        if (!TrySetDestination(targetPos))
+        {
+            Log($"ExploreNew refused: invalid destination location={locationId}");
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
 
-        // 5) Roll outcome
-        var outcomeSvc = GameInstaller.ExploreOutcome;
-        if (outcomeSvc == null)
+        locations.DiscoverLocation(locationId);
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        _completedThisCycle = true;
+        Log($"ExploreNew success: discovered location={locationId}");
+    }
+
+
+    private IEnumerator DoSurveyKnownLocation(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            Log("Explore failed: ExploreOutcome is null");
+            Log("SurveyKnown failed: LocationService is null");
             _completedThisCycle = false;
             yield break;
         }
 
-        var outcome = outcomeSvc.Roll();
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-        if (outcome.type == ExploreOutcomeType.Nothing)
+        if (!string.IsNullOrWhiteSpace(locationId))
         {
-            Log("Explore outcome: Nothing");
+            loc = locations.GetLocation(locationId);
+        }
+        else
+        {
+            locationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
 
-            // IMPORTANT: за поточним рішенням ми не міняємо дизайн:
-            // Nothing вважається "completed", тобто _completedThisCycle лишається true.
-            // Якщо потім вирішиш, що Nothing=fail — це міняється тут.
+            if (string.IsNullOrWhiteSpace(locationId))
+                locationId = locations.FindRandomDiscoveredLocationId();
+
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
+        }
+
+        if (loc == null)
+        {
+            Log("SurveyKnown failed: no discovered location found");
+            _completedThisCycle = false;
             yield break;
         }
 
-        if (outcome.type == ExploreOutcomeType.Danger)
-        {
-            Log("Explore outcome: Danger");
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-            // Поки без penalties — просто completed (як у тебе зараз).
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
+
+        if (!TrySetDestination(targetPos))
+        {
+            Log($"SurveyKnown refused: invalid destination location={locationId}");
+            _completedThisCycle = false;
             yield break;
         }
 
-        if (outcome.type == ExploreOutcomeType.Reward)
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
+
+        var survey = GameInstaller.SurveyOutcome;
+        if (survey == null)
         {
-            Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-
-            // ✅ Це і є твій фікс P0: додаємо саме outcome, а не task.resourceId/baseAmount
-            _cargo.Add(outcome.resourceId, outcome.amount);
-
-            GameInstaller.Progression?.AddAchievement(agentId, 3);
+            locations.RemoveWorker(locationId, agentId, task.taskId);
+            Log("SurveyKnown failed: SurveyOutcomeService is null");
+            _completedThisCycle = false;
             yield break;
         }
 
-        // safety
-        Log("Explore outcome: unknown type");
-        _completedThisCycle = false;
+        var outcome = survey.Roll(loc);
+
+        if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
+        {
+            bool revealed = locations.TryRevealRandomPotentialResource(locationId);
+            Log(revealed
+                ? $"SurveyKnown: revealed hidden resource at location={locationId}"
+                : $"SurveyKnown: reveal rolled but no hidden resource at location={locationId}");
+        }
+        else if (outcome.type == SurveyOutcomeType.BonusGold)
+        {
+            if (outcome.goldAmount > 0)
+            {
+                _cargo.Add("gold", outcome.goldAmount);
+                Log($"SurveyKnown: found bonus gold +{outcome.goldAmount} at location={locationId}");
+            }
+        }
+        else if (outcome.type == SurveyOutcomeType.Nothing)
+        {
+            Log($"SurveyKnown: nothing found at location={locationId}");
+        }
+        else if (outcome.type == SurveyOutcomeType.Danger)
+        {
+            Log($"SurveyKnown: danger at location={locationId}");
+        }
+
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        _completedThisCycle = true;
     }
+
 
     private IEnumerator DoGather(TaskInstance task)
     {
-        _completedThisCycle = true;
+        _completedThisCycle = false;
 
-        // 1) Validate resource
         if (string.IsNullOrEmpty(task.resourceId))
         {
             Log($"Gather failed: empty resourceId for task={task.taskId}");
@@ -1984,73 +2936,90 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        // 2) Pick gather spot by resource (як у тебе вже є в ExploreSpotRegistry)
-        var registry = GameInstaller.ExploreRegistry;
-        ExploreSpotAuthoring spot = null;
-
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            spot = registry.GetSpotById(task.targetSpotId);
+            Log("Gather failed: LocationService is null");
+            _completedThisCycle = false;
+            yield break;
+        }
 
-            if (spot == null)
-            {
-                Log($"Gather failed: targetSpotId not found={task.targetSpotId}");
-                _completedThisCycle = false;
-                yield break;
-            }
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-            // optional safety: ресурс локації співпадає?
-            if (!string.IsNullOrWhiteSpace(spot.gatherResourceId) &&
-                !string.Equals(spot.gatherResourceId, task.resourceId, System.StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(locationId))
+        {
+            loc = locations.GetLocation(locationId);
+            if (loc == null)
             {
-                Log($"Gather failed: spot resource mismatch. spot={spot.spotId} spotRes={spot.gatherResourceId} taskRes={task.resourceId}");
+                Log($"Gather failed: targetLocationId not found={locationId}");
                 _completedThisCycle = false;
                 yield break;
             }
         }
         else
         {
-            spot = registry.PickGatherSpotWeighted(task.resourceId);
+            locationId = locations.FindAnyLocationForResource(task.resourceId, onlyDiscovered: true, onlyUnlocked: true);
+            if (string.IsNullOrWhiteSpace(locationId))
+            {
+                Log($"Gather failed: no discovered location for resource={task.resourceId}");
+                _completedThisCycle = false;
+                yield break;
+            }
+
+            loc = locations.GetLocation(locationId);
+            if (loc == null)
+            {
+                Log($"Gather failed: location not found after pick id={locationId}");
+                _completedThisCycle = false;
+                yield break;
+            }
         }
 
-        if (spot == null)
+        if (!locations.HasUnlockedResource(locationId, task.resourceId))
         {
-            Log($"Gather failed: no gather spot for resource={task.resourceId}");
+            Log($"Gather failed: resource '{task.resourceId}' is not unlocked in location={locationId}");
             _completedThisCycle = false;
             yield break;
         }
 
-        Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
-        _lastWorkPos = spot.transform.position;
-        _lastWorkSpotId = spot.spotId;
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
+        Log($"Gather {task.resourceId} at location={locationId} amount={task.baseAmount}");
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
-        // 3) Move to spot
-        if (!TrySetDestination(spot.transform.position))
+        if (!TrySetDestination(targetPos))
         {
-            Log($"Gather refused: invalid destination spot={spot.spotId}");
+            Log($"Gather refused: invalid destination location={locationId}");
             _completedThisCycle = false;
             yield break;
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
 
-        // 4) Do work (як зараз — таймером)
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
 
-        // 5) Add cargo (як було)
         if (task.baseAmount <= 0)
         {
+            locations.RemoveWorker(locationId, agentId, task.taskId);
             Log($"Gather produced nothing: baseAmount={task.baseAmount}");
-            // зазвичай це має бути fail, але якщо не хочеш чіпати дизайн — можеш лишити success
-            // я ставлю fail, бо інакше це дивно для gather:
             _completedThisCycle = false;
             yield break;
         }
 
         _cargo.Add(task.resourceId, task.baseAmount);
+        locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        _completedThisCycle = true;
         Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
     }
 
@@ -2243,9 +3212,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        {
+            GameInstaller.LocationService.AddVillagerDead(task.targetLocationId);
+            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+        }
+
         _cargo.Clear();
 
-        Log($"PENALTY: DEATH at {_lastWorkSpotId} escrow={task.wageGold}");
+        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={task.wageGold}");
 
         // cleanup board (без FinalizeTask, бо він робить refund/commit)
         _board.Release(task.taskId, agentId);
@@ -2277,9 +3252,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Lost?.AddLost(rec);
 
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        {
+            GameInstaller.LocationService.AddVillagerLost(task.targetLocationId);
+            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+        }
+
         _cargo.Clear();
 
-        Log($"PENALTY: LOST at {_lastWorkSpotId} hidden={hidden} escrow={task.wageGold}");
+        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={task.wageGold}");
 
         _board.Release(task.taskId, agentId);
         if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
@@ -2293,11 +3274,11 @@ public class VillagerAgentBrain : MonoBehaviour
     private int GetTaskLocationDanger(TaskInstance task)
     {
         if (task == null) return 0;
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
-            return Mathf.Clamp(GameInstaller.ExploreRegistry.GetDangerTier(task.targetSpotId), 0, 5);
 
-        // fallback: якщо таска без targetSpotId, то беремо останню робочу
-        return Mathf.Clamp(_lastWorkSpotDangerTier, 0, 5);
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+            return Mathf.Clamp(GameInstaller.LocationService.GetDanger(task.targetLocationId), 0, 5);
+
+        return Mathf.Clamp(_lastWorkLocationDangerTier, 0, 5);
     }
 
 }
@@ -2554,15 +3535,14 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 3233 bytes
-SHA256: bcf3fb35ca46c0addde873e30846f20e3ed0ba1eeb9de5127ccc080cacdc4494
+SIZE: 3696 bytes
+SHA256: 372d7221c051605910ac19efed00167af26493b04f6d4be9d7a3e07949864824
 CONTENT:
 using UnityEngine;
 
 
 public class GameInstaller : MonoBehaviour
 {
-
     public static TreasuryService Treasury { get; private set; }
     public static ExploreOutcomeService ExploreOutcome { get; private set; }
     public static TaskBoardService TaskBoard { get; private set; }
@@ -2574,6 +3554,9 @@ public class GameInstaller : MonoBehaviour
     public static CorpseService Corpses { get; private set; }
     public static LostService Lost { get; private set; }
     public static SettlementKnowledgeService Knowledge { get; private set; }
+    public static LocationRegistry Locations { get; private set; }
+    public static LocationService LocationService { get; private set; }
+    public static SurveyOutcomeService SurveyOutcome { get; private set; }
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
 
@@ -2599,11 +3582,18 @@ public class GameInstaller : MonoBehaviour
         Inventory = new VillagerInventoryService();
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
+        SurveyOutcome = new SurveyOutcomeService();
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
         ExploreRegistry.Initialize();
 
+        Locations = new LocationRegistry();
+        LocationService = new LocationService(Locations);
+        LocationBootstrap.BuildFromScene(Locations);
+
+
+        LocationService.DumpAllLocationsToLog();
 
         Corpses = new CorpseService();
         Lost = new LostService();
@@ -2637,7 +3627,7 @@ public class GameInstaller : MonoBehaviour
         Debug.Log($"[Installer] Starting agents={brains.Length}");
 
         foreach (var b in brains)
-            b.Begin(TaskBoard, ExploreRegistry, Treasury, _log, Villagers);
+            b.Begin(TaskBoard, Treasury, _log, Villagers);
 
         Debug.Log("[Installer] Ready");
     }
@@ -3002,8 +3992,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 7621 bytes
-SHA256: fad3bfd925d7310459a53bbc74436bc652d55edfbfb22789db34e33e9210cd4a
+SIZE: 8868 bytes
+SHA256: 4a25664e3c5ffa4aa2f96f91ea4a62ad732659fdba5fde0d607d32440fa09617
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -3138,8 +4128,26 @@ public class TaskPublisherPanel : MonoBehaviour
         }
 
         // runtime id як у тебе в логах: rt_gather_x_N
-        string suffix = $"{def.type.ToString().ToLowerInvariant()}_{(def.type == TaskType.Gather ? def.resourceId : "explore")}";
+        string suffix = def.type switch
+        {
+            TaskType.Gather => $"gather_{def.resourceId}",
+            TaskType.ExploreNewLocation => "explore_new_location",
+            TaskType.SurveyKnownLocation => "survey_known_location",
+            _ => def.type.ToString().ToLowerInvariant()
+        };
+
         string taskId = $"rt_{suffix}_{UnityEngine.Random.Range(1, 99999)}";
+        var locations = GameInstaller.LocationService;
+
+        if (def.type == TaskType.SurveyKnownLocation)
+        {
+            bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+            if (!hasKnown)
+            {
+                Debug.Log("[Publisher] Locked: no discovered locations yet for SurveyKnownLocation");
+                return;
+            }
+        }
 
         var t = new TaskInstance
         {
@@ -3159,14 +4167,14 @@ public class TaskPublisherPanel : MonoBehaviour
         };
 
 
-        // MVP: resource gate by discovery
-        string resId = def.resourceId; // або звідки ти береш resourceId у дефініції
+
+        // MVP: resource gate by location discovery
+        string resId = (def.resourceId ?? "").ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(resId))
         {
-            var reg = GameInstaller.ExploreRegistry;
-            var know = GameInstaller.Knowledge;
 
-            bool unlocked = reg != null && reg.HasDiscoveredResource(know, resId);
+            bool unlocked = locations != null &&
+                !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(resId, true, true));
             if (!unlocked)
             {
                 Debug.Log($"[Publisher] Locked: resource '{resId}' not discovered yet");
@@ -3175,7 +4183,7 @@ public class TaskPublisherPanel : MonoBehaviour
         }
 
         // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
-        if (t.type == TaskType.Explore)
+        if (t.type == TaskType.ExploreNewLocation || t.type == TaskType.SurveyKnownLocation)
         {
             t.resourceId = "";
             t.baseAmount = 0;
@@ -3193,13 +4201,13 @@ public class TaskPublisherPanel : MonoBehaviour
 
 
         // attach to a discovered location (so danger works + deterministic target)
-        if (!string.IsNullOrWhiteSpace(t.resourceId) && string.IsNullOrWhiteSpace(t.targetSpotId))
+        if (t.type == TaskType.Gather &&
+        !string.IsNullOrWhiteSpace(t.resourceId) &&
+         string.IsNullOrWhiteSpace(t.targetLocationId))
         {
-            var reg = GameInstaller.ExploreRegistry;
-            var know = GameInstaller.Knowledge;
-            string spotId = reg?.GetAnyDiscoveredSpotIdForResource(know, t.resourceId);
-            if (!string.IsNullOrWhiteSpace(spotId))
-                t.targetSpotId = spotId;
+            string locationId = locations?.FindAnyLocationForResource(t.resourceId, true, true);
+            if (!string.IsNullOrWhiteSpace(locationId))
+                t.targetLocationId = locationId;
         }
 
         _board.AddTaskRuntime(t);
@@ -3241,21 +4249,21 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(task);
     }
 
-    public void PublishExplore(
-        string displayName,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance
-    )
+    public void PublishExploreNewLocation(
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance
+)
     {
-        var id = $"rt_explore_{Time.frameCount}";
+        var id = $"rt_explore_new_{Time.frameCount}";
 
         var task = new TaskInstance
         {
             taskId = id,
-            type = TaskType.Explore,
+            type = TaskType.ExploreNewLocation,
             displayName = displayName,
 
             active = true,
@@ -3269,6 +4277,38 @@ public class TaskPublisherPanel : MonoBehaviour
 
         _board.AddTaskRuntime(task);
     }
+
+
+    public void PublishSurveyKnownLocation(
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance
+    )
+    {
+        var id = $"rt_survey_{Time.frameCount}";
+
+        var task = new TaskInstance
+        {
+            taskId = id,
+            type = TaskType.SurveyKnownLocation,
+            displayName = displayName,
+
+            active = true,
+            maxTakers = maxTakers,
+            durationSec = durationSec,
+            wageGold = wageGold,
+            priority = priority,
+
+            baseFailChance = baseFailChance
+        };
+
+        _board.AddTaskRuntime(task);
+    }
+
+
 }
 
 ----- FILE END -----
@@ -3900,7 +4940,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 37
+Written: 45
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

@@ -2,6 +2,10 @@ using UnityEngine;
 
 public class ExploreSpotAuthoring : MonoBehaviour
 {
+
+
+    public string[] potentialResourceIds;
+
     public string spotId;
     public float weight = 1f;
     public string displayName;

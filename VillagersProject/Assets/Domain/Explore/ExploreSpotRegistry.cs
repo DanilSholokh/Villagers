@@ -132,44 +132,6 @@ public class ExploreSpotRegistry
         return AuthoringsById != null && AuthoringsById.TryGetValue(spotId, out var s) ? s : null;
     }
 
-    public ExploreSpotAuthoring GetRandomUndiscoveredWeighted(SettlementKnowledgeService knowledge)
-    {
-        if (Spots == null || Spots.Count == 0) return null;
-        if (knowledge == null) return GetRandomSpotWeighted();
-
-        var candidates = new List<ExploreSpotAuthoring>();
-        foreach (var s in Spots)
-        {
-            if (s == null) continue;
-            if (string.IsNullOrWhiteSpace(s.spotId)) continue;
-
-            if (!knowledge.IsDiscovered(s.spotId))
-                candidates.Add(s);
-        }
-
-        if (candidates.Count == 0)
-            return GetRandomSpotWeighted();
-
-        // weighted pick
-        float total = 0f;
-        for (int i = 0; i < candidates.Count; i++)
-            total += Mathf.Max(0f, candidates[i].weight);
-
-        if (total <= 0.0001f)
-            return candidates[Random.Range(0, candidates.Count)];
-
-        float roll = Random.Range(0f, total);
-        float acc = 0f;
-
-        for (int i = 0; i < candidates.Count; i++)
-        {
-            acc += Mathf.Max(0f, candidates[i].weight);
-            if (roll <= acc) return candidates[i];
-        }
-
-        return candidates[candidates.Count - 1];
-    }
-
 
     public int GetDangerTier(string spotId)
     {
@@ -179,39 +141,6 @@ public class ExploreSpotRegistry
     }
 
 
-    public bool HasDiscoveredResource(SettlementKnowledgeService knowledge, string resourceId)
-    {
-        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
-            return false;
-
-        foreach (var spotId in knowledge.DiscoveredIds)
-        {
-            var spot = GetSpotById(spotId);
-            if (spot == null) continue;
-
-            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    public string GetAnyDiscoveredSpotIdForResource(SettlementKnowledgeService knowledge, string resourceId)
-    {
-        if (knowledge == null || string.IsNullOrWhiteSpace(resourceId))
-            return null;
-
-        foreach (var spotId in knowledge.DiscoveredIds)
-        {
-            var spot = GetSpotById(spotId);
-            if (spot == null) continue;
-
-            if (string.Equals(spot.gatherResourceId, resourceId, System.StringComparison.OrdinalIgnoreCase))
-                return spotId;
-        }
-
-        return null;
-    }
 
 
 }

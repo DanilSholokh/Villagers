@@ -3,19 +3,31 @@ using System.Collections.Generic;
 
 public class SettlementKnowledgeService
 {
-    private readonly HashSet<string> _discovered = new();
 
     public event Action OnChanged;
+    public IReadOnlyCollection<string> DiscoveredIds
+    => GameInstaller.LocationService != null
+        ? GameInstaller.LocationService.GetDiscoveredLocationIds()
+        : Array.Empty<string>();
 
     public bool IsDiscovered(string spotId)
-        => !string.IsNullOrWhiteSpace(spotId) && _discovered.Contains(spotId);
+    {
+        return GameInstaller.LocationService != null &&
+               GameInstaller.LocationService.IsDiscovered(spotId);
+    }
 
     public void Discover(string spotId)
     {
         if (string.IsNullOrWhiteSpace(spotId)) return;
-        if (_discovered.Add(spotId))
+        if (GameInstaller.LocationService == null) return;
+
+        bool wasDiscovered = GameInstaller.LocationService.IsDiscovered(spotId);
+        GameInstaller.LocationService.DiscoverLocation(spotId);
+
+        if (!wasDiscovered && GameInstaller.LocationService.IsDiscovered(spotId))
             OnChanged?.Invoke();
     }
 
-    public IReadOnlyCollection<string> DiscoveredIds => _discovered;
+    
+
 }

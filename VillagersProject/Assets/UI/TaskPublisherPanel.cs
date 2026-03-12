@@ -93,30 +93,6 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
 
-    private void WireButtons()
-    {
-        if (publishButtons == null) return;
-
-        foreach (var def in publishButtons)
-        {
-            if (def == null || def.button == null) continue;
-
-            def.button.onClick.RemoveListener(() => Publish(def));
-            def.button.onClick.AddListener(() => Publish(def));
-        }
-    }
-
-    private void UnwireButtons()
-    {
-        if (publishButtons == null) return;
-
-        foreach (var def in publishButtons)
-        {
-            if (def == null || def.button == null) continue;
-            def.button.onClick.RemoveListener(() => Publish(def));
-        }
-    }
-
     private void Publish(PublishDef def)
     {
         if (def == null) return;
@@ -126,13 +102,33 @@ public class TaskPublisherPanel : MonoBehaviour
 
         if (_board == null)
         {
-            Debug.LogError("[TaskPublisherPanel] TaskBoardService is null (GameInstaller not ready?)");
+            GameDebug.Error(GameDebugChannel.UI,
+            "TaskBoardService is null (GameInstaller not ready?)");
             return;
         }
 
         // runtime id як у тебе в логах: rt_gather_x_N
-        string suffix = $"{def.type.ToString().ToLowerInvariant()}_{(def.type == TaskType.Gather ? def.resourceId : "explore")}";
+        string suffix = def.type switch
+        {
+            TaskType.Gather => $"gather_{def.resourceId}",
+            TaskType.ExploreNewLocation => "explore_new_location",
+            TaskType.SurveyKnownLocation => "survey_known_location",
+            _ => def.type.ToString().ToLowerInvariant()
+        };
+
         string taskId = $"rt_{suffix}_{UnityEngine.Random.Range(1, 99999)}";
+        var locations = GameInstaller.LocationService;
+
+        if (def.type == TaskType.SurveyKnownLocation)
+        {
+            bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+            if (!hasKnown)
+            {
+                GameDebug.Warning(GameDebugChannel.Task,
+                "Locked: no discovered locations yet for SurveyKnownLocation");
+                return;
+            }
+        }
 
         var t = new TaskInstance
         {
@@ -152,23 +148,24 @@ public class TaskPublisherPanel : MonoBehaviour
         };
 
 
-        // MVP: resource gate by discovery
-        string resId = def.resourceId; // або звідки ти береш resourceId у дефініції
+
+        // MVP: resource gate by location discovery
+        string resId = (def.resourceId ?? "").ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(resId))
         {
-            var reg = GameInstaller.ExploreRegistry;
-            var know = GameInstaller.Knowledge;
 
-            bool unlocked = reg != null && reg.HasDiscoveredResource(know, resId);
+            bool unlocked = locations != null &&
+                !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(resId, true, true));
             if (!unlocked)
             {
-                Debug.Log($"[Publisher] Locked: resource '{resId}' not discovered yet");
+                GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{resId}' not discovered yet");
                 return;
             }
         }
 
         // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
-        if (t.type == TaskType.Explore)
+        if (t.type == TaskType.ExploreNewLocation || t.type == TaskType.SurveyKnownLocation)
         {
             t.resourceId = "";
             t.baseAmount = 0;
@@ -186,13 +183,13 @@ public class TaskPublisherPanel : MonoBehaviour
 
 
         // attach to a discovered location (so danger works + deterministic target)
-        if (!string.IsNullOrWhiteSpace(t.resourceId) && string.IsNullOrWhiteSpace(t.targetSpotId))
+        if (t.type == TaskType.Gather &&
+        !string.IsNullOrWhiteSpace(t.resourceId) &&
+         string.IsNullOrWhiteSpace(t.targetLocationId))
         {
-            var reg = GameInstaller.ExploreRegistry;
-            var know = GameInstaller.Knowledge;
-            string spotId = reg?.GetAnyDiscoveredSpotIdForResource(know, t.resourceId);
-            if (!string.IsNullOrWhiteSpace(spotId))
-                t.targetSpotId = spotId;
+            string locationId = locations?.FindAnyLocationForResource(t.resourceId, true, true);
+            if (!string.IsNullOrWhiteSpace(locationId))
+                t.targetLocationId = locationId;
         }
 
         _board.AddTaskRuntime(t);
@@ -234,21 +231,21 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(task);
     }
 
-    public void PublishExplore(
-        string displayName,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance
-    )
+    public void PublishExploreNewLocation(
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance
+)
     {
-        var id = $"rt_explore_{Time.frameCount}";
+        var id = $"rt_explore_new_{Time.frameCount}";
 
         var task = new TaskInstance
         {
             taskId = id,
-            type = TaskType.Explore,
+            type = TaskType.ExploreNewLocation,
             displayName = displayName,
 
             active = true,
@@ -262,4 +259,36 @@ public class TaskPublisherPanel : MonoBehaviour
 
         _board.AddTaskRuntime(task);
     }
+
+
+    public void PublishSurveyKnownLocation(
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance
+    )
+    {
+        var id = $"rt_survey_{Time.frameCount}";
+
+        var task = new TaskInstance
+        {
+            taskId = id,
+            type = TaskType.SurveyKnownLocation,
+            displayName = displayName,
+
+            active = true,
+            maxTakers = maxTakers,
+            durationSec = durationSec,
+            wageGold = wageGold,
+            priority = priority,
+
+            baseFailChance = baseFailChance
+        };
+
+        _board.AddTaskRuntime(task);
+    }
+
+
 }

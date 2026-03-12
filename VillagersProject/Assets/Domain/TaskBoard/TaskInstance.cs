@@ -4,13 +4,15 @@ using System.Collections.Generic;
 public enum TaskType
 {
     Gather = 0,
-    Explore = 1
+    ExploreNewLocation = 1,
+    SurveyKnownLocation = 2
 }
 
 public class TaskInstance
 {
     public string taskId;
-    public string targetSpotId; // optional: якщо задано — працюємо в конкретній локації
+    public string targetSpotId; // legacy transitional field, do not use in new logic
+    public string targetLocationId; // new source-of-truth
 
     public TaskType type;
     public string displayName;

@@ -22,7 +22,7 @@ public class VillagerAgentBrain : MonoBehaviour
     // -------------------- CARGO (prototype) --------------------
     [SerializeField] private VillagerCargo _cargo = new VillagerCargo();
 
-    private int _lastWorkSpotDangerTier;
+    private int _lastWorkLocationDangerTier;
 
     private NavMeshAgent agent;
     private Coroutine loop;
@@ -32,12 +32,12 @@ public class VillagerAgentBrain : MonoBehaviour
 
 
     private TaskBoardService _board;
-    private ExploreSpotRegistry _spots;
+
     private TreasuryService _treasury;
     private EventLogService _log;
 
     private Vector3 _lastWorkPos;
-    private string _lastWorkSpotId;
+    private string _lastWorkLocationId;
 
     private VillagerRosterService _roster;
 
@@ -50,10 +50,10 @@ public class VillagerAgentBrain : MonoBehaviour
 
     // ❗ ВАЖЛИВО: OnEnable/Start НЕ запускають логіку
 
-    public void Begin(TaskBoardService board, ExploreSpotRegistry spots, TreasuryService treasury, EventLogService log, VillagerRosterService roster)
+    public void Begin(TaskBoardService board, TreasuryService treasury, EventLogService log, VillagerRosterService roster)
     {
         _board = board;
-        _spots = spots;
+
         _treasury = treasury;
         _log = log;
         _roster = roster;
@@ -77,13 +77,6 @@ public class VillagerAgentBrain : MonoBehaviour
         if (_board == null)
         {
             Debug.LogError($"[VillagerAgentBrain] TaskBoard is null at Begin! agent={agentId}");
-            started = false;
-            return;
-        }
-
-        if (_spots == null)
-        {
-            Debug.LogError($"[VillagerAgentBrain] ExploreSpotRegistry is null at Begin! agent={agentId}");
             started = false;
             return;
         }
@@ -144,18 +137,28 @@ public class VillagerAgentBrain : MonoBehaviour
             // 3) Execute
             _completedThisCycle = false;
             _roster?.SetStatus(agentId, VillagerStatus.MovingToTarget, task.taskId, task.displayName);
+            PublishTaskEvent($"Task started: {task.taskId} ({task.type})");
 
-            if (task.type == TaskType.Explore)
-            {
-                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
-                yield return DoExplore(task);
-            }
-            else
-            {
-                _roster?.SetStatus(agentId, VillagerStatus.Working, task.taskId, task.displayName);
+            if (task.type == TaskType.Gather)
                 yield return DoGather(task);
-            }
+            else if (task.type == TaskType.ExploreNewLocation)
+                yield return DoExploreNewLocation(task);
+            else if (task.type == TaskType.SurveyKnownLocation)
+                yield return DoSurveyKnownLocation(task);
 
+            // якщо action already succeeded і сам виставив _completedThisCycle=true,
+            // не можна після цього ще раз кидати fail/lost/death resolution
+            if (_completedThisCycle)
+            {
+                _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
+                yield return DoGoHome();
+
+                FinalizeTask(task, true);
+
+                _roster?.SetStatus(agentId, VillagerStatus.Idle);
+                yield return new WaitForSeconds(afterCycleDelay);
+                continue;
+            }
 
             // location danger modifier (MVP simple):
             // +3% fail chance per danger tier (0..5) => +0..15%
@@ -179,12 +182,14 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 if (penalty == PenaltyType.Death)
                 {
+                    PublishTaskEvent($"Villager died on task {task.taskId}", GameDebugSeverity.Error);
                     HandleDeath(task);
                     yield break;
                 }
 
                 if (penalty == PenaltyType.Lost)
                 {
+                    PublishTaskEvent($"Villager lost on task {task.taskId}", GameDebugSeverity.Warning);
                     HandleLost(task);
                     yield break;
                 }
@@ -196,7 +201,13 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                Log($"Task FAILED. Penalty=None riskTier={task.riskTier} locDanger={locDanger}");
+                PublishTaskEvent(
+                $"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})",
+                GameDebugSeverity.Warning
+                );
+
+                PublishTaskEvent($"Task failed without severe penalty: {task.taskId}", GameDebugSeverity.Warning);
+
                 FinalizeTask(task, false);
 
                 _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -208,6 +219,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
 
+            PublishTaskEvent($"Task completed: {task.taskId}");
             FinalizeTask(task, _completedThisCycle);
 
             _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -217,184 +229,281 @@ public class VillagerAgentBrain : MonoBehaviour
 
     // -------------------- ACTIONS --------------------
 
-    private IEnumerator DoExplore(TaskInstance task)
+    private IEnumerator DoExploreNewLocation(TaskInstance task)
     {
-        _completedThisCycle = true;
+        _completedThisCycle = false;
 
-        // 1) Registry
-        var registry = GameInstaller.ExploreRegistry;
-        if (registry == null)
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            Log("Explore failed: ExploreRegistry is null");
+            PublishExploreEvent("Explore failed: LocationService is null", GameDebugSeverity.Error); ;
             _completedThisCycle = false;
             yield break;
         }
 
-        // 2) Pick spot
-        ExploreSpotAuthoring spot = null;
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        if (!string.IsNullOrWhiteSpace(locationId))
         {
-            spot = registry.GetSpotById(task.targetSpotId);
-            if (spot == null)
-            {
-                Log($"Explore failed: targetSpotId not found={task.targetSpotId}");
-                _completedThisCycle = false;
-                yield break;
-            }
+            loc = locations.GetLocation(locationId);
         }
         else
         {
-            // Якщо ти ще не ввів knowledge — тут може бути просто registry.GetRandomSpotWeighted()
-            spot = registry.GetRandomUndiscoveredWeighted(GameInstaller.Knowledge);
+            locationId = locations.FindRandomUnknownLocationId();
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
         }
 
-
-        Log($"Explore to spot={spot.spotId} ({spot.displayName}) danger={spot.dangerTier}");
-        _lastWorkPos = spot.transform.position;
-        _lastWorkSpotId = spot.spotId;
-        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
-
-        // 3) Move to spot
-        if (!TrySetDestination(spot.transform.position))
+        if (loc == null)
         {
-            Log($"Explore refused: invalid destination spot={spot.spotId}");
+            PublishExploreEvent("Explore failed: LocationService is null", GameDebugSeverity.Error);
             _completedThisCycle = false;
             yield break;
         }
 
-        // Дочекайся прибуття (якщо у тебе є такий метод/цикл — підстав свій)
-        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
-        GameInstaller.Knowledge?.Discover(spot.spotId);
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-        // 4) Do work (як зараз у тебе — таймером)
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+
+        PublishExploreEvent($"Explore started: {locationId}");
+
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
+
+        if (!TrySetDestination(targetPos))
+        {
+            PublishExploreEvent("Explore failed: no undiscovered location", GameDebugSeverity.Warning);
+            _completedThisCycle = false;
+            yield break;
+        }
+
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
 
-        // 5) Roll outcome
-        var outcomeSvc = GameInstaller.ExploreOutcome;
-        if (outcomeSvc == null)
+        locations.DiscoverLocation(locationId);
+        PublishExploreEvent("Discovered");
+        PublishTaskEvent($"Explore success: {task.taskId}");
+
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        _completedThisCycle = true;
+
+    }
+
+
+    private IEnumerator DoSurveyKnownLocation(TaskInstance task)
+    {
+        _completedThisCycle = false;
+
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            Log("Explore failed: ExploreOutcome is null");
+            Log("SurveyKnown failed: LocationService is null");
             _completedThisCycle = false;
             yield break;
         }
 
-        var outcome = outcomeSvc.Roll();
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-        if (outcome.type == ExploreOutcomeType.Nothing)
+        if (!string.IsNullOrWhiteSpace(locationId))
         {
-            Log("Explore outcome: Nothing");
+            loc = locations.GetLocation(locationId);
+        }
+        else
+        {
+            locationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
 
-            // IMPORTANT: за поточним рішенням ми не міняємо дизайн:
-            // Nothing вважається "completed", тобто _completedThisCycle лишається true.
-            // Якщо потім вирішиш, що Nothing=fail — це міняється тут.
+            if (string.IsNullOrWhiteSpace(locationId))
+                locationId = locations.FindRandomDiscoveredLocationId();
+
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
+        }
+
+        if (loc == null)
+        {
+            Log("SurveyKnown failed: no discovered location found");
+            _completedThisCycle = false;
             yield break;
         }
 
-        if (outcome.type == ExploreOutcomeType.Danger)
-        {
-            Log("Explore outcome: Danger");
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-            // Поки без penalties — просто completed (як у тебе зараз).
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+
+        PublishSurveyEvent($"Survey started: {locationId}");
+
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
+
+        if (!TrySetDestination(targetPos))
+        {
+            PublishSurveyEvent("Survey: nothing found");
+            _completedThisCycle = false;
             yield break;
         }
 
-        if (outcome.type == ExploreOutcomeType.Reward)
+        yield return WaitUntilArrivedSafe(arriveTimeoutSec);
+
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
+        if (task.durationSec > 0f)
+            yield return new WaitForSeconds(task.durationSec);
+
+        var survey = GameInstaller.SurveyOutcome;
+        if (survey == null)
         {
-            Log($"Explore outcome: Reward +{outcome.amount} {outcome.resourceId}");
-
-            // ✅ Це і є твій фікс P0: додаємо саме outcome, а не task.resourceId/baseAmount
-            _cargo.Add(outcome.resourceId, outcome.amount);
-
-            GameInstaller.Progression?.AddAchievement(agentId, 3);
+            locations.RemoveWorker(locationId, agentId, task.taskId);
+            Log("SurveyKnown failed: SurveyOutcomeService is null");
+            _completedThisCycle = false;
             yield break;
         }
 
-        // safety
-        Log("Explore outcome: unknown type");
-        _completedThisCycle = false;
+        var outcome = survey.Roll(loc);
+
+        if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
+        {
+            bool revealed = locations.TryRevealRandomPotentialResource(locationId);
+            PublishSurveyEvent($"Survey: resource revealed at {locationId}");
+        }
+        else if (outcome.type == SurveyOutcomeType.BonusGold)
+        {
+            if (outcome.goldAmount > 0)
+            {
+                _cargo.Add("gold", outcome.goldAmount);
+                PublishEconomyEvent($"+{outcome.goldAmount} gold");
+                PublishSurveyEvent($"Survey: bonus gold {outcome.goldAmount}");
+            }
+        }
+        else if (outcome.type == SurveyOutcomeType.Nothing)
+        {
+            PublishSurveyEvent("Nothing");
+        }
+        else if (outcome.type == SurveyOutcomeType.Danger)
+        {
+            PublishSurveyEvent("Survey: danger", GameDebugSeverity.Warning);
+        }
+
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        _completedThisCycle = true;
     }
+
 
     private IEnumerator DoGather(TaskInstance task)
     {
-        _completedThisCycle = true;
+        _completedThisCycle = false;
 
-        // 1) Validate resource
         if (string.IsNullOrEmpty(task.resourceId))
         {
-            Log($"Gather failed: empty resourceId for task={task.taskId}");
+            PublishTaskEvent("Gather blocked: missing resourceId", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
 
-        // 2) Pick gather spot by resource (як у тебе вже є в ExploreSpotRegistry)
-        var registry = GameInstaller.ExploreRegistry;
-        ExploreSpotAuthoring spot = null;
-
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
         {
-            spot = registry.GetSpotById(task.targetSpotId);
+            PublishTaskEvent("Gather blocked: LocationService is null", GameDebugSeverity.Error);
+            _completedThisCycle = false;
+            yield break;
+        }
 
-            if (spot == null)
-            {
-                Log($"Gather failed: targetSpotId not found={task.targetSpotId}");
-                _completedThisCycle = false;
-                yield break;
-            }
+        string locationId = task.targetLocationId;
+        LocationModel loc = null;
 
-            // optional safety: ресурс локації співпадає?
-            if (!string.IsNullOrWhiteSpace(spot.gatherResourceId) &&
-                !string.Equals(spot.gatherResourceId, task.resourceId, System.StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(locationId))
+        {
+            loc = locations.GetLocation(locationId);
+            if (loc == null)
             {
-                Log($"Gather failed: spot resource mismatch. spot={spot.spotId} spotRes={spot.gatherResourceId} taskRes={task.resourceId}");
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
                 _completedThisCycle = false;
                 yield break;
             }
         }
         else
         {
-            spot = registry.PickGatherSpotWeighted(task.resourceId);
+            locationId = locations.FindAnyLocationForResource(task.resourceId, onlyDiscovered: true, onlyUnlocked: true);
+            if (string.IsNullOrWhiteSpace(locationId))
+            {
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
+                _completedThisCycle = false;
+                yield break;
+            }
+
+            loc = locations.GetLocation(locationId);
+            if (loc == null)
+            {
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
+                _completedThisCycle = false;
+                yield break;
+            }
         }
 
-        if (spot == null)
+        if (!locations.HasUnlockedResource(locationId, task.resourceId))
         {
-            Log($"Gather failed: no gather spot for resource={task.resourceId}");
+            PublishTaskEvent($"Gather failed: resource locked {task.resourceId}", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
 
-        Log($"Gather {task.resourceId} at spot={spot.spotId} amount={task.baseAmount}");
-        _lastWorkPos = spot.transform.position;
-        _lastWorkSpotId = spot.spotId;
+        Vector3 targetPos = locations.GetWorldPosition(locationId);
+        int locDanger = locations.GetDanger(locationId);
 
-        _lastWorkSpotDangerTier = Mathf.Clamp(spot.dangerTier, 0, 5);
+        Log($"Gather {task.resourceId} at location={locationId} amount={task.baseAmount}");
+        _lastWorkPos = targetPos;
+        _lastWorkLocationId = locationId;
+        PublishTaskEvent($"Gather started: {task.resourceId}");
 
-        // 3) Move to spot
-        if (!TrySetDestination(spot.transform.position))
+        _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
+
+        if (!TrySetDestination(targetPos))
         {
-            Log($"Gather refused: invalid destination spot={spot.spotId}");
+            Log($"Gather refused: invalid destination location={locationId}");
+            PublishTaskEvent("Gather failed: invalid destination", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
 
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
 
-        // 4) Do work (як зараз — таймером)
+        locations.AddVisit(locationId);
+        locations.RegisterWorker(locationId, agentId, task.taskId);
+
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
 
-        // 5) Add cargo (як було)
         if (task.baseAmount <= 0)
         {
+            locations.RemoveWorker(locationId, agentId, task.taskId);
             Log($"Gather produced nothing: baseAmount={task.baseAmount}");
-            // зазвичай це має бути fail, але якщо не хочеш чіпати дизайн — можеш лишити success
-            // я ставлю fail, бо інакше це дивно для gather:
+            PublishTaskEvent("Gather produced nothing", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
 
         _cargo.Add(task.resourceId, task.baseAmount);
+        locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
+        locations.AddTaskCompleted(locationId);
+        locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        PublishEconomyEvent($"+{task.baseAmount} {task.resourceId}");
+        PublishTaskEvent($"Gather success: {task.resourceId} x{task.baseAmount}");
+
+        _completedThisCycle = true;
         Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
     }
 
@@ -524,8 +633,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void Log(string msg)
     {
-        //Debug.Log($"[Agent {agentId}] {msg}");
-        //_log?.Push($"[Agent {agentId}] {msg}");
+        GameDebug.Info(
+            GameDebugChannel.Villager,
+            $"[{agentId}] {msg}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId
+        );
+
+        _log?.Push($"[{agentId}] {msg}");
     }
 
 
@@ -587,9 +703,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        {
+            GameInstaller.LocationService.AddVillagerDead(task.targetLocationId);
+            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+        }
+
         _cargo.Clear();
 
-        Log($"PENALTY: DEATH at {_lastWorkSpotId} escrow={task.wageGold}");
+        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={task.wageGold}");
 
         // cleanup board (без FinalizeTask, бо він робить refund/commit)
         _board.Release(task.taskId, agentId);
@@ -621,9 +743,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Lost?.AddLost(rec);
 
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        {
+            GameInstaller.LocationService.AddVillagerLost(task.targetLocationId);
+            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+        }
+
         _cargo.Clear();
 
-        Log($"PENALTY: LOST at {_lastWorkSpotId} hidden={hidden} escrow={task.wageGold}");
+        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={task.wageGold}");
 
         _board.Release(task.taskId, agentId);
         if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
@@ -637,11 +765,75 @@ public class VillagerAgentBrain : MonoBehaviour
     private int GetTaskLocationDanger(TaskInstance task)
     {
         if (task == null) return 0;
-        if (!string.IsNullOrWhiteSpace(task.targetSpotId))
-            return Mathf.Clamp(GameInstaller.ExploreRegistry.GetDangerTier(task.targetSpotId), 0, 5);
 
-        // fallback: якщо таска без targetSpotId, то беремо останню робочу
-        return Mathf.Clamp(_lastWorkSpotDangerTier, 0, 5);
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+            return Mathf.Clamp(GameInstaller.LocationService.GetDanger(task.targetLocationId), 0, 5);
+
+        return Mathf.Clamp(_lastWorkLocationDangerTier, 0, 5);
     }
+
+
+
+    private void PublishTaskEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Task,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishExploreEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Explore,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishSurveyEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Survey,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishEconomyEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Economy,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+
 
 }

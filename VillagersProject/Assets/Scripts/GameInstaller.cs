@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class GameInstaller : MonoBehaviour
 {
-
     public static TreasuryService Treasury { get; private set; }
     public static ExploreOutcomeService ExploreOutcome { get; private set; }
     public static TaskBoardService TaskBoard { get; private set; }
@@ -15,6 +14,11 @@ public class GameInstaller : MonoBehaviour
     public static CorpseService Corpses { get; private set; }
     public static LostService Lost { get; private set; }
     public static SettlementKnowledgeService Knowledge { get; private set; }
+    public static LocationRegistry Locations { get; private set; }
+    public static LocationService LocationService { get; private set; }
+    public static SurveyOutcomeService SurveyOutcome { get; private set; }
+    public static WorldDebugPopupService WorldDebugPopup { get; private set; }
+
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // ÿêùî âæå º â ñöåí³
 
@@ -22,6 +26,7 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
     [SerializeField] private TaskBoardUI taskBoardUI;
+    [SerializeField] private WorldDebugPopupService worldDebugPopup;
 
     private EventLogService _log;
 
@@ -40,11 +45,19 @@ public class GameInstaller : MonoBehaviour
         Inventory = new VillagerInventoryService();
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
+        SurveyOutcome = new SurveyOutcomeService();
+        WorldDebugPopup = worldDebugPopup;
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
         ExploreRegistry.Initialize();
 
+        Locations = new LocationRegistry();
+        LocationService = new LocationService(Locations);
+        LocationBootstrap.BuildFromScene(Locations);
+
+
+        LocationService.DumpAllLocationsToLog();
 
         Corpses = new CorpseService();
         Lost = new LostService();
@@ -78,7 +91,7 @@ public class GameInstaller : MonoBehaviour
         Debug.Log($"[Installer] Starting agents={brains.Length}");
 
         foreach (var b in brains)
-            b.Begin(TaskBoard, ExploreRegistry, Treasury, _log, Villagers);
+            b.Begin(TaskBoard, Treasury, _log, Villagers);
 
         Debug.Log("[Installer] Ready");
     }
