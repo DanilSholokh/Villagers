@@ -1,62 +1,53 @@
-﻿using System.Text;
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 
 public class EventLogPanelView : MonoBehaviour
 {
-    public TextMeshProUGUI logText;
+    [SerializeField] private TextMeshProUGUI logText;
 
     private EventLogService _log;
 
     public void Bind(EventLogService log)
     {
         if (_log != null)
-            _log.OnPushed -= HandlePushed;
+            _log.Changed -= Refresh;
 
         _log = log;
 
         if (_log != null)
-            _log.OnPushed += HandlePushed;
+            _log.Changed += Refresh;
 
-        Rebuild();
+        Refresh();
     }
-
 
     private void OnEnable()
     {
-        if (_log != null)
-        {
-            _log.OnPushed -= HandlePushed; // safety від дублю
-            _log.OnPushed += HandlePushed;
-        }
-
-        Rebuild();
+        Refresh();
     }
 
     private void OnDisable()
     {
         if (_log != null)
-            _log.OnPushed -= HandlePushed;
+            _log.Changed -= Refresh;
     }
 
-    private void HandlePushed(string _)
+    private void OnDestroy()
     {
-        Rebuild();
+        if (_log != null)
+            _log.Changed -= Refresh;
     }
 
-    private void Rebuild()
+    private void Refresh()
     {
-        if (logText == null) return;
+        if (logText == null)
+            return;
+
         if (_log == null)
         {
-            logText.text = "";
+            logText.text = "Event log not bound.";
             return;
         }
 
-        var sb = new StringBuilder(256);
-        foreach (var l in _log.Lines)
-            sb.AppendLine(l);
-
-        logText.text = sb.ToString();
+        logText.text = _log.BuildMultilineText();
     }
 }

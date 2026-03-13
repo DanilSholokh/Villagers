@@ -14,8 +14,6 @@ public class ExploreSpotRegistry
             Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None)
         );
 
-        Debug.Log($"[ExploreSpotRegistry] Found {Spots.Count} spots");
-
         foreach (var s in Spots)
         {
             Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");

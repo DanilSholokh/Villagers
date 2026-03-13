@@ -70,6 +70,13 @@ public class WorldDebugPopupService : MonoBehaviour
 
     private bool ShouldShow(GameDebugMessage msg)
     {
+        if (string.IsNullOrWhiteSpace(msg.Text))
+            return false;
+
+        // не показуємо "start" popup-и
+        if (msg.Text == "Gather" || msg.Text == "Explore" || msg.Text == "Survey")
+            return false;
+
         switch (msg.Channel)
         {
             case GameDebugChannel.Economy:

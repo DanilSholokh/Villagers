@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-11 05:22:59
+Time: 2026-03-13 05:31:15
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 45
+FilesCount: 56
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -129,8 +129,8 @@ public class ExploreSpotAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotRegistry.cs
-SIZE: 4369 bytes
-SHA256: 65fb32465acc6509361766e27139b8a14801cc2ac5f1335f20e19fd75da99613
+SIZE: 4295 bytes
+SHA256: 051750e6d29c191eb77e10336e4fe102f1e4f31063c95f2e3b549357f93f7ef8
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -147,8 +147,6 @@ public class ExploreSpotRegistry
         Spots = new List<ExploreSpotAuthoring>(
             Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None)
         );
-
-        Debug.Log($"[ExploreSpotRegistry] Found {Spots.Count} spots");
 
         foreach (var s in Spots)
         {
@@ -356,8 +354,8 @@ public class SurveyOutcomeService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Locations/LocationBootstrap.cs
-SIZE: 4371 bytes
-SHA256: df71b7c59f03c44fe0dbc699f29b710f30b18f7b8a4fc58ce649ba7c75729cf2
+SIZE: 3978 bytes
+SHA256: 981d933857ade4aeec23ee2219833b64f0963830242a1111b6b2471c2789d4a8
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -454,13 +452,6 @@ public static class LocationBootstrap
 
             registry.Add(model);
 
-            Debug.Log(
-            "[LocationBootstrap] " +
-            $"id={model.id}, name={model.name}, status={model.status}, " +
-            $"baseDanger={model.baseDanger}, currentDanger={model.currentDanger}, " +
-            $"baseResources=[{JoinResourceIds(model.resources)}], " +
-            $"potentialResources=[{JoinResourceIds(model.potentialResources)}]"
-            );
         }
     }
 
@@ -486,6 +477,48 @@ public static class LocationBootstrap
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationClickSelector.cs
+SIZE: 961 bytes
+SHA256: 486ad74e375931b6b93010ad65f72d79e144188daaf5d13895dc6e03d8c6ce22
+CONTENT:
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class LocationClickSelector : MonoBehaviour
+{
+    [SerializeField] private Camera targetCamera;
+    [SerializeField] private LayerMask layerMask = ~0;
+
+    private void Awake()
+    {
+        if (targetCamera == null)
+            targetCamera = Camera.main;
+    }
+
+    private void Update()
+    {
+        if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
+            return;
+
+        if (targetCamera == null)
+            return;
+
+        Ray ray = targetCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, layerMask))
+        {
+            var selectable = hit.collider.GetComponentInParent<LocationSelectable>();
+            if (selectable != null)
+            {
+                GameInstaller.SelectedLocation?.Set(selectable.LocationId);
+            }
+        }
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Domain/Locations/LocationMetrics.cs
 SIZE: 312 bytes
 SHA256: a2657d9f9e05a1f7c9a81321e36382e582d5275b6e44ce54c1d545e1f7c1ac4e
@@ -501,6 +534,173 @@ public class LocationMetrics
     public int villagersDead = 0;
     public int totalTasksCompleted = 0;
     public int totalVisits = 0;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationMetricsPanelView.cs
+SIZE: 4688 bytes
+SHA256: 48648450ce9dccdd226fef8caf3232781717f66dc1fd420cb574222bf14c801f
+CONTENT:
+using System.Text;
+using TMPro;
+using UnityEngine;
+
+public class LocationMetricsPanelView : MonoBehaviour
+{
+    [SerializeField] private GameObject panelRoot;
+    [SerializeField] private TextMeshProUGUI titleText;
+    [SerializeField] private TextMeshProUGUI bodyText;
+
+    private LocationService _locations;
+    private SelectedLocationService _selected;
+
+    public void Bind(LocationService locations, SelectedLocationService selected)
+    {
+        Unbind();
+
+        _locations = locations;
+        _selected = selected;
+
+        if (_locations != null)
+        {
+            _locations.OnLocationChanged += HandleLocationChanged;
+            _locations.OnLocationDiscovered += HandleLocationDiscovered;
+            _locations.OnLocationWorkersChanged += HandleLocationWorkersChanged;
+        }
+
+        if (_selected != null)
+            _selected.Changed += HandleSelectedLocationChanged;
+
+        Refresh();
+    }
+
+    private void OnEnable()
+    {
+        Refresh();
+    }
+
+    private void OnDisable()
+    {
+        Unbind();
+    }
+
+    private void OnDestroy()
+    {
+        Unbind();
+    }
+
+    private void Unbind()
+    {
+        if (_locations != null)
+        {
+            _locations.OnLocationChanged -= HandleLocationChanged;
+            _locations.OnLocationDiscovered -= HandleLocationDiscovered;
+            _locations.OnLocationWorkersChanged -= HandleLocationWorkersChanged;
+        }
+
+        if (_selected != null)
+            _selected.Changed -= HandleSelectedLocationChanged;
+
+        _locations = null;
+        _selected = null;
+    }
+
+    private void HandleSelectedLocationChanged(string _)
+    {
+        Refresh();
+    }
+
+    private void HandleLocationChanged(string locationId)
+    {
+        if (_selected != null && locationId == _selected.CurrentLocationId)
+            Refresh();
+    }
+
+    private void HandleLocationDiscovered(string locationId)
+    {
+        if (_selected != null && locationId == _selected.CurrentLocationId)
+            Refresh();
+    }
+
+    private void HandleLocationWorkersChanged(string locationId)
+    {
+        if (_selected != null && locationId == _selected.CurrentLocationId)
+            Refresh();
+    }
+
+    private void Refresh()
+    {
+        if (titleText == null || bodyText == null)
+            return;
+
+        if (_locations == null || _selected == null || string.IsNullOrWhiteSpace(_selected.CurrentLocationId))
+        {
+            if (panelRoot != null) panelRoot.SetActive(false);
+            titleText.text = "Location";
+            bodyText.text = "No location selected.";
+            return;
+        }
+
+        var loc = _locations.GetLocation(_selected.CurrentLocationId);
+        if (loc == null)
+        {
+            if (panelRoot != null) panelRoot.SetActive(false);
+            titleText.text = "Location";
+            bodyText.text = "Selected location not found.";
+            return;
+        }
+
+        if (panelRoot != null) panelRoot.SetActive(true);
+
+        titleText.text = string.IsNullOrWhiteSpace(loc.name) ? loc.id : loc.name;
+        bodyText.text = BuildBody(loc);
+    }
+
+    private string BuildBody(LocationModel loc)
+    {
+        var sb = new StringBuilder(256);
+
+        int workerCount = loc.currentWorkers != null ? loc.currentWorkers.Count : 0;
+        int taskCount = loc.currentTasks != null ? loc.currentTasks.Count : 0;
+
+        sb.AppendLine($"ID: {loc.id}");
+        sb.AppendLine($"Status: {loc.status}");
+        sb.AppendLine($"Danger: {loc.currentDanger}");
+        sb.AppendLine($"Workers: {workerCount}");
+        sb.AppendLine($"Active tasks: {taskCount}");
+        sb.AppendLine($"Visits: {loc.metrics.totalVisits}");
+        sb.AppendLine($"Completed: {loc.metrics.totalTasksCompleted}");
+        sb.AppendLine($"Lost: {loc.metrics.villagersLost}");
+        sb.AppendLine($"Dead: {loc.metrics.villagersDead}");
+        sb.AppendLine($"Gathered: {BuildGatheredResources(loc)}");
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private string BuildGatheredResources(LocationModel loc)
+    {
+        if (loc.metrics == null || loc.metrics.resourcesGathered == null || loc.metrics.resourcesGathered.Count == 0)
+            return "-";
+
+        var sb = new StringBuilder();
+        bool first = true;
+
+        foreach (var kv in loc.metrics.resourcesGathered)
+        {
+            if (!first)
+                sb.Append(", ");
+
+            sb.Append(kv.Key);
+            sb.Append(": ");
+            sb.Append(kv.Value);
+
+            first = false;
+        }
+
+        return sb.ToString();
+    }
 }
 
 ----- FILE END -----
@@ -651,9 +851,30 @@ public class LocationResource
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/LocationSelectable.cs
+SIZE: 258 bytes
+SHA256: 649b609d4e24a1fb2d2c5ec1553099d1912f39e4ed477f37bbace5774cf4352e
+CONTENT:
+using UnityEngine;
+
+public class LocationSelectable : MonoBehaviour
+{
+    [SerializeField] private string locationId;
+
+    public string LocationId => locationId;
+
+    public void SetLocationId(string id)
+    {
+        locationId = id;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Domain/Locations/LocationService.cs
-SIZE: 17272 bytes
-SHA256: 3b347e652b49c8576e9e3e1cfe43d562d9dffdd4b90a77b1fa970e44c79e8b96
+SIZE: 16607 bytes
+SHA256: ee1c9ced8d90defd3a1f692a2e0c5cb9c6a1e668f7e583f0234c7c30aef95f53
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -661,8 +882,6 @@ using UnityEngine;
 
 public class LocationService
 {
-
-    private const bool DEBUG_LOGS = true;
 
     private readonly LocationRegistry _registry;
 
@@ -1095,11 +1314,10 @@ public class LocationService
 
 
 
-    
-    private void Dbg(string message)
+
+    private void Dbg(string text)
     {
-        if (!DEBUG_LOGS) return;
-        Debug.Log("[LocationService] " + message);
+        GameDebug.Info(GameDebugChannel.Location, text);
     }
 
     private static string FormatResourceList(List<LocationResource> resources)
@@ -1167,44 +1385,40 @@ public class LocationService
         return false;
     }
 
+    [ContextMenu("Dump Locations")]
     public void DumpAllLocationsToLog()
     {
-        if (!DEBUG_LOGS) return;
+        if (!GameDebug.EnableLocationChannel)
+            return;
 
-        Debug.Log("[LocationService] ===== DUMP ALL LOCATIONS =====");
+        if (_registry == null)
+        {
+            GameDebug.Warning(
+                GameDebugChannel.Location,
+                "DumpAllLocationsToLog skipped: registry is null"
+            );
+            return;
+        }
+
+        GameDebug.Info(GameDebugChannel.Location, "=== Locations Dump Start ===");
 
         foreach (var loc in _registry.GetAll())
         {
-            if (loc == null) continue;
-
-            string metricsSummary =
-                $"visits={loc.metrics.totalVisits}, " +
-                $"tasks={loc.metrics.totalTasksCompleted}, " +
-                $"dead={loc.metrics.villagersDead}, " +
-                $"lost={loc.metrics.villagersLost}";
-
-            string gatheredSummary = "(none)";
-            if (loc.metrics.resourcesGathered != null && loc.metrics.resourcesGathered.Count > 0)
+            if (loc == null)
             {
-                var parts = new List<string>();
-                foreach (var kv in loc.metrics.resourcesGathered)
-                    parts.Add($"{kv.Key}:{kv.Value}");
-                gatheredSummary = string.Join(", ", parts);
+                GameDebug.Warning(GameDebugChannel.Location, "Null location entry");
+                continue;
             }
 
-            Debug.Log(
-                "[LocationService] " +
-                $"id={loc.id}, name={loc.name}, status={loc.status}, " +
-                $"baseDanger={loc.baseDanger}, currentDanger={loc.currentDanger}, " +
-                $"resources=[{FormatResourceList(loc.resources)}], " +
-                $"potential=[{FormatResourceList(loc.potentialResources)}], " +
-                $"workers=[{FormatStringList(loc.currentWorkers)}], " +
-                $"tasksActive=[{FormatStringList(loc.currentTasks)}], " +
-                $"metrics=({metricsSummary}), gathered=[{gatheredSummary}]"
+            int workerCount = loc.currentWorkers != null ? loc.currentWorkers.Count : 0;
+
+            GameDebug.Info(
+                GameDebugChannel.Location,
+                $"Location '{loc.id}' | workers={workerCount}"
             );
         }
 
-        Debug.Log("[LocationService] ===== END DUMP =====");
+        GameDebug.Info(GameDebugChannel.Location, "=== Locations Dump End ===");
     }
 
 }
@@ -1221,6 +1435,40 @@ public enum LocationStatus
     Unknown = 0,
     Discovered = 1,
     Blocked = 2
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Locations/SelectedLocationService.cs
+SIZE: 565 bytes
+SHA256: db2815c7098e43bc1fd7133b49aacbad69d943d10b061ab77a61ee56725718be
+CONTENT:
+using System;
+
+public sealed class SelectedLocationService
+{
+    public event Action<string> Changed;
+
+    public string CurrentLocationId { get; private set; }
+
+    public void Set(string locationId)
+    {
+        if (CurrentLocationId == locationId)
+            return;
+
+        CurrentLocationId = locationId;
+        Changed?.Invoke(CurrentLocationId);
+    }
+
+    public void Clear()
+    {
+        if (string.IsNullOrEmpty(CurrentLocationId))
+            return;
+
+        CurrentLocationId = null;
+        Changed?.Invoke(null);
+    }
 }
 
 ----- FILE END -----
@@ -1427,8 +1675,8 @@ public class TaskBoardAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardService.cs
-SIZE: 4409 bytes
-SHA256: d72bafab80e1b8b973180eb4c785a1d3db6dcc0f5caddf16091665f9bf90cabb
+SIZE: 4003 bytes
+SHA256: f8abbec5673beb2b150a86eccdbc23574e24b8d17e25711033356baa65571898
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -1455,7 +1703,6 @@ public class TaskBoardService
         foreach (var t in tasks)
             reservations[t.taskId] = new HashSet<string>();
 
-        Debug.Log($"[TaskBoard] Loaded tasks={tasks.Count}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();
@@ -1490,7 +1737,6 @@ public class TaskBoardService
 
         if (set.Add(agentId))
         {
-            Debug.Log($"[TaskBoard] Reserve task={taskId} agent={agentId} slots={set.Count}/{t.maxTakers}");
             OnReservationsChanged?.Invoke();
             return true;
         }
@@ -1505,7 +1751,6 @@ public class TaskBoardService
 
         if (set.Remove(agentId))
         {
-            Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
             OnReservationsChanged?.Invoke();
         }
     }
@@ -1541,7 +1786,6 @@ public class TaskBoardService
         if (!reservations.ContainsKey(task.taskId))
             reservations[task.taskId] = new HashSet<string>();
 
-        Debug.Log($"[TaskBoard] Added runtime task={task.taskId}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();
@@ -1560,8 +1804,6 @@ public class TaskBoardService
 
         tasks.Remove(t);
         reservations.Remove(taskId);
-
-        Debug.Log($"[TaskBoard] Removed runtime task={taskId}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();
@@ -1853,70 +2095,96 @@ public static class ProjectScriptsDumper
 ----- FILE END -----
 
 ----- FILE BEGIN -----
-PATH: Assets/Entety/DebugerSystem/EventLogPanelView.cs
-SIZE: 1202 bytes
-SHA256: c2a47b192567d3ee9c04df4d0d7366ceff95362b2eb068aaa1102c3de8f86ad2
+PATH: Assets/Entety/DebugerSystem/EventLogEntry.cs
+SIZE: 721 bytes
+SHA256: f9bd8aae7759cddd97f6faf908f4a8b7a36008eb2cc139ccdecc582d70ee2432
 CONTENT:
-using System.Text;
+using System;
+
+public readonly struct EventLogEntry
+{
+    public readonly DateTime TimeUtc;
+    public readonly GameDebugChannel Channel;
+    public readonly GameDebugSeverity Severity;
+    public readonly string Text;
+    public readonly string VillagerId;
+    public readonly string LocationId;
+
+    public EventLogEntry(
+        DateTime timeUtc,
+        GameDebugChannel channel,
+        GameDebugSeverity severity,
+        string text,
+        string villagerId = null,
+        string locationId = null)
+    {
+        TimeUtc = timeUtc;
+        Channel = channel;
+        Severity = severity;
+        Text = text;
+        VillagerId = villagerId;
+        LocationId = locationId;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/EventLogPanelView.cs
+SIZE: 978 bytes
+SHA256: e241afdaadef7c723412f00f34bb5fd44e2c8fb69ea5fa00f59797a942b6a04b
+CONTENT:
 using TMPro;
 using UnityEngine;
 
 public class EventLogPanelView : MonoBehaviour
 {
-    public TextMeshProUGUI logText;
+    [SerializeField] private TextMeshProUGUI logText;
 
     private EventLogService _log;
 
     public void Bind(EventLogService log)
     {
         if (_log != null)
-            _log.OnPushed -= HandlePushed;
+            _log.Changed -= Refresh;
 
         _log = log;
 
         if (_log != null)
-            _log.OnPushed += HandlePushed;
+            _log.Changed += Refresh;
 
-        Rebuild();
+        Refresh();
     }
-
 
     private void OnEnable()
     {
-        if (_log != null)
-        {
-            _log.OnPushed -= HandlePushed; // safety від дублю
-            _log.OnPushed += HandlePushed;
-        }
-
-        Rebuild();
+        Refresh();
     }
 
     private void OnDisable()
     {
         if (_log != null)
-            _log.OnPushed -= HandlePushed;
+            _log.Changed -= Refresh;
     }
 
-    private void HandlePushed(string _)
+    private void OnDestroy()
     {
-        Rebuild();
+        if (_log != null)
+            _log.Changed -= Refresh;
     }
 
-    private void Rebuild()
+    private void Refresh()
     {
-        if (logText == null) return;
+        if (logText == null)
+            return;
+
         if (_log == null)
         {
-            logText.text = "";
+            logText.text = "Event log not bound.";
             return;
         }
 
-        var sb = new StringBuilder(256);
-        foreach (var l in _log.Lines)
-            sb.AppendLine(l);
-
-        logText.text = sb.ToString();
+        logText.text = _log.BuildMultilineText();
     }
 }
 
@@ -1924,34 +2192,297 @@ public class EventLogPanelView : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/DebugerSystem/EventLogService.cs
-SIZE: 537 bytes
-SHA256: 632477726f5ff4f5d42d7f988f9eaa5d6d74afc4fe412128bc317f0e1739fcd6
+SIZE: 3238 bytes
+SHA256: 143cc127d71c26c4bfa8784fec4b2d529dbe421c8088b37bc715f7ea60bdd6d0
 CONTENT:
 using System;
 using System.Collections.Generic;
+using System.Text;
 
-public class EventLogService
+public sealed class EventLogService
 {
-    public event Action<string> OnPushed;
+    private readonly int _capacity;
+    private readonly Queue<EventLogEntry> _entries;
 
-    private readonly Queue<string> _lines = new();
-    private readonly int _cap;
+    public event Action Changed;
 
-    public EventLogService(int cap = 10)
+    public EventLogService(int capacity)
     {
-        _cap = cap;
+        _capacity = Math.Max(1, capacity);
+        _entries = new Queue<EventLogEntry>(_capacity);
+
+        GameDebug.OnMessage += HandleDebugMessage;
     }
 
-    public IReadOnlyCollection<string> Lines => _lines;
+    public IReadOnlyCollection<EventLogEntry> Entries => _entries;
 
-    public void Push(string msg)
+    public void Dispose()
     {
-        _lines.Enqueue(msg);
-        while (_lines.Count > _cap)
-            _lines.Dequeue();
-
-        OnPushed?.Invoke(msg);
+        GameDebug.OnMessage -= HandleDebugMessage;
     }
+
+    // legacy-compatible path
+    public void Push(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        AddEntry(new EventLogEntry(
+            DateTime.UtcNow,
+            GameDebugChannel.General,
+            GameDebugSeverity.Info,
+            text
+        ));
+    }
+
+    public string BuildMultilineText()
+    {
+        if (_entries.Count == 0)
+            return "No events yet.";
+
+        var sb = new StringBuilder(512);
+
+        foreach (var entry in _entries)
+        {
+            sb.AppendLine(FormatEntry(entry));
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private void HandleDebugMessage(GameDebugMessage msg)
+    {
+        if (!ShouldStore(msg))
+            return;
+
+        AddEntry(new EventLogEntry(
+            DateTime.UtcNow,
+            msg.Channel,
+            msg.Severity,
+            msg.Text,
+            msg.VillagerId,
+            msg.LocationId
+        ));
+    }
+
+    private bool ShouldStore(GameDebugMessage msg)
+    {
+        // 1) �� �������� ������ ���
+        if (msg.Channel == GameDebugChannel.Economy && msg.Severity == GameDebugSeverity.Info)
+            return false;
+
+        // 2) �� �������� ����� ����� 䳿
+        if (msg.Text != null && msg.Text.Contains("started", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // 3) �������� �������
+        switch (msg.Channel)
+        {
+            case GameDebugChannel.Task:
+                return true;
+
+            case GameDebugChannel.Explore:
+                return true;
+
+            case GameDebugChannel.Survey:
+                return true;
+
+            case GameDebugChannel.Location:
+                return msg.Severity != GameDebugSeverity.Info;
+
+            case GameDebugChannel.Economy:
+                return msg.Severity != GameDebugSeverity.Info;
+
+            case GameDebugChannel.Villager:
+                return msg.Severity != GameDebugSeverity.Info;
+
+            case GameDebugChannel.UI:
+                return msg.Severity != GameDebugSeverity.Info;
+
+            default:
+                return msg.Severity != GameDebugSeverity.Info;
+        }
+    }
+
+    private void AddEntry(EventLogEntry entry)
+    {
+        while (_entries.Count >= _capacity)
+            _entries.Dequeue();
+
+        _entries.Enqueue(entry);
+        Changed?.Invoke();
+    }
+
+    private string FormatEntry(EventLogEntry entry)
+    {
+        string time = entry.TimeUtc.ToLocalTime().ToString("HH:mm");
+        return $"[{time}] {entry.Text}";
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/GameDebug.cs
+SIZE: 3018 bytes
+SHA256: c18cd16477beb348eb5bcd426be7ff3cc08a1cb90fd3bb9a675b0559bda4326c
+CONTENT:
+using System;
+using UnityEngine;
+
+public static class GameDebug
+{
+    public static bool EnableConsoleLogs = true;
+
+    public static bool EnableUIChannel = true;
+    public static bool EnableTaskChannel = true;
+    public static bool EnableVillagerChannel = true;
+    public static bool EnableLocationChannel = true;
+    public static bool EnableExploreChannel = true;
+    public static bool EnableSurveyChannel = true;
+    public static bool EnableEconomyChannel = true;
+    public static bool EnableGeneralChannel = true;
+
+    public static event Action<GameDebugMessage> OnMessage;
+
+    public static void Info(GameDebugChannel channel, string text,
+        Vector3? worldPosition = null,
+        string locationId = null,
+        string villagerId = null,
+        float lifetime = 1.75f)
+    {
+        Publish(new GameDebugMessage(channel, GameDebugSeverity.Info, text, worldPosition, locationId, villagerId, lifetime));
+    }
+
+    public static void Warning(GameDebugChannel channel, string text,
+        Vector3? worldPosition = null,
+        string locationId = null,
+        string villagerId = null,
+        float lifetime = 2.0f)
+    {
+        Publish(new GameDebugMessage(channel, GameDebugSeverity.Warning, text, worldPosition, locationId, villagerId, lifetime));
+    }
+
+    public static void Error(GameDebugChannel channel, string text,
+        Vector3? worldPosition = null,
+        string locationId = null,
+        string villagerId = null,
+        float lifetime = 2.5f)
+    {
+        Publish(new GameDebugMessage(channel, GameDebugSeverity.Error, text, worldPosition, locationId, villagerId, lifetime));
+    }
+
+    public static void Publish(GameDebugMessage msg)
+    {
+        if (!IsChannelEnabled(msg.Channel))
+            return;
+
+        if (EnableConsoleLogs)
+        {
+            string prefix = $"[DBG][{msg.Channel}][{msg.Severity}] ";
+
+            switch (msg.Severity)
+            {
+                case GameDebugSeverity.Error:
+                    Debug.LogError(prefix + msg.Text);
+                    break;
+                case GameDebugSeverity.Warning:
+                    Debug.LogWarning(prefix + msg.Text);
+                    break;
+                default:
+                    Debug.Log(prefix + msg.Text);
+                    break;
+            }
+        }
+
+        OnMessage?.Invoke(msg);
+    }
+
+    private static bool IsChannelEnabled(GameDebugChannel channel)
+    {
+        return channel switch
+        {
+            GameDebugChannel.UI => EnableUIChannel,
+            GameDebugChannel.Task => EnableTaskChannel,
+            GameDebugChannel.Villager => EnableVillagerChannel,
+            GameDebugChannel.Location => EnableLocationChannel,
+            GameDebugChannel.Explore => EnableExploreChannel,
+            GameDebugChannel.Survey => EnableSurveyChannel,
+            GameDebugChannel.Economy => EnableEconomyChannel,
+            _ => EnableGeneralChannel
+        };
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/GameDebugChannel.cs
+SIZE: 172 bytes
+SHA256: 6ef509fb489e7f0d6d6f138c136530bbe2f74b3e29dd33c699d7fd585c32ead2
+CONTENT:
+public enum GameDebugChannel
+{
+    General = 0,
+    UI = 1,
+    Task = 2,
+    Villager = 3,
+    Location = 4,
+    Explore = 5,
+    Survey = 6,
+    Economy = 7
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/GameDebugMessage.cs
+SIZE: 863 bytes
+SHA256: 9f27bbba52b27e9908c4c53c117ab61fd2807192a1648297093d9534ffb5a07a
+CONTENT:
+using UnityEngine;
+
+public readonly struct GameDebugMessage
+{
+    public readonly GameDebugChannel Channel;
+    public readonly GameDebugSeverity Severity;
+    public readonly string Text;
+    public readonly Vector3? WorldPosition;
+    public readonly string LocationId;
+    public readonly string VillagerId;
+    public readonly float Lifetime;
+
+    public GameDebugMessage(
+        GameDebugChannel channel,
+        GameDebugSeverity severity,
+        string text,
+        Vector3? worldPosition = null,
+        string locationId = null,
+        string villagerId = null,
+        float lifetime = 1.75f)
+    {
+        Channel = channel;
+        Severity = severity;
+        Text = text;
+        WorldPosition = worldPosition;
+        LocationId = locationId;
+        VillagerId = villagerId;
+        Lifetime = lifetime;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/DebugerSystem/GameDebugSeverity.cs
+SIZE: 86 bytes
+SHA256: 7f47466abaa34e9350d2e5d8d81eac2df0c9cd21c786d35779b48764b9a88ff6
+CONTENT:
+public enum GameDebugSeverity
+{
+    Info = 0,
+    Warning = 1,
+    Error = 2
 }
 
 ----- FILE END -----
@@ -2131,8 +2662,8 @@ public class TreasuryPanelView : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryService.cs
-SIZE: 4873 bytes
-SHA256: 73d8d15b8a9d4533db016a3163e431591d90dd669ca3414561889da153991407
+SIZE: 4399 bytes
+SHA256: 83006933f1d47e5d85f59f25bb6d5486b0a64117f8d2c1de61cad4500ed3f1cd
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -2175,7 +2706,6 @@ public class TreasuryService
         storage[resourceId] = cur + amount;
 
         OnChanged?.Invoke(resourceId, storage[resourceId]);
-        Debug.Log($"[Treasury] +{amount} {resourceId} (total={storage[resourceId]})");
     }
 
     public bool TrySpend(string resourceId, int amount)
@@ -2234,7 +2764,6 @@ public class TreasuryService
         if (gainedGold > 0)
         {
             Add("gold", gainedGold);
-            Debug.Log($"[Treasury] SellAll -> +{gainedGold} gold");
         }
 
         return gainedGold;
@@ -2263,7 +2792,6 @@ public class TreasuryService
         lockedGold += amount;
 
         OnChanged?.Invoke("gold", storage["gold"]);
-        Debug.Log($"[Treasury] HOLD {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
         return true;
     }
 
@@ -2280,7 +2808,6 @@ public class TreasuryService
         storage["gold"] = cur + amount;
 
         OnChanged?.Invoke("gold", storage["gold"]);
-        Debug.Log($"[Treasury] REFUND {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
     }
 
     public void ConsumeLockedGold(int amount)
@@ -2292,7 +2819,6 @@ public class TreasuryService
         if (lockedGold < 0) lockedGold = 0;
 
         OnChanged?.Invoke("gold", GetAmount("gold"));
-        Debug.Log($"[Treasury] CONSUME_LOCKED {amount} gold (avail={GetAmount("gold")}, locked={lockedGold})");
     }
 
 
@@ -2536,8 +3062,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 25130 bytes
-SHA256: 6c3192e1f37a18b42880d90cafc3893c08ecddfc68fbb04a9e7249e70527af9d
+SIZE: 28107 bytes
+SHA256: c2465f18f727fbcf8585e4b4b6a5523297d39d1fe631e50e75039ad8587c7974
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -2678,6 +3204,7 @@ public class VillagerAgentBrain : MonoBehaviour
             // 3) Execute
             _completedThisCycle = false;
             _roster?.SetStatus(agentId, VillagerStatus.MovingToTarget, task.taskId, task.displayName);
+            PublishTaskEvent($"Task started: {task.taskId} ({task.type})");
 
             if (task.type == TaskType.Gather)
                 yield return DoGather(task);
@@ -2722,12 +3249,14 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 if (penalty == PenaltyType.Death)
                 {
+                    PublishTaskEvent($"Villager died on task {task.taskId}", GameDebugSeverity.Error);
                     HandleDeath(task);
                     yield break;
                 }
 
                 if (penalty == PenaltyType.Lost)
                 {
+                    PublishTaskEvent($"Villager lost on task {task.taskId}", GameDebugSeverity.Warning);
                     HandleLost(task);
                     yield break;
                 }
@@ -2739,7 +3268,13 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                Log($"Task FAILED. Penalty=None riskTier={task.riskTier} locDanger={locDanger}");
+                PublishTaskEvent(
+                $"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})",
+                GameDebugSeverity.Warning
+                );
+
+                PublishTaskEvent($"Task failed without severe penalty: {task.taskId}", GameDebugSeverity.Warning);
+
                 FinalizeTask(task, false);
 
                 _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -2751,6 +3286,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, task.displayName);
             yield return DoGoHome();
 
+            PublishTaskEvent($"Task completed: {task.taskId}");
             FinalizeTask(task, _completedThisCycle);
 
             _roster?.SetStatus(agentId, VillagerStatus.Idle);
@@ -2767,7 +3303,7 @@ public class VillagerAgentBrain : MonoBehaviour
         var locations = GameInstaller.LocationService;
         if (locations == null)
         {
-            Log("ExploreNew failed: LocationService is null");
+            PublishExploreEvent("Explore failed: LocationService is null", GameDebugSeverity.Error); ;
             _completedThisCycle = false;
             yield break;
         }
@@ -2788,7 +3324,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (loc == null)
         {
-            Log("ExploreNew failed: no unknown location found");
+            PublishExploreEvent("Explore failed: LocationService is null", GameDebugSeverity.Error);
             _completedThisCycle = false;
             yield break;
         }
@@ -2798,11 +3334,14 @@ public class VillagerAgentBrain : MonoBehaviour
 
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
+
+        PublishExploreEvent($"Explore started: {locationId}");
+
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
         if (!TrySetDestination(targetPos))
         {
-            Log($"ExploreNew refused: invalid destination location={locationId}");
+            PublishExploreEvent("Explore failed: no undiscovered location", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -2816,11 +3355,14 @@ public class VillagerAgentBrain : MonoBehaviour
             yield return new WaitForSeconds(task.durationSec);
 
         locations.DiscoverLocation(locationId);
+        PublishExploreEvent("Discovered");
+        PublishTaskEvent($"Explore success: {task.taskId}");
+
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
 
         _completedThisCycle = true;
-        Log($"ExploreNew success: discovered location={locationId}");
+
     }
 
 
@@ -2866,11 +3408,14 @@ public class VillagerAgentBrain : MonoBehaviour
 
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
+
+        PublishSurveyEvent($"Survey started: {locationId}");
+
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
         if (!TrySetDestination(targetPos))
         {
-            Log($"SurveyKnown refused: invalid destination location={locationId}");
+            PublishSurveyEvent("Survey: nothing found");
             _completedThisCycle = false;
             yield break;
         }
@@ -2897,25 +3442,24 @@ public class VillagerAgentBrain : MonoBehaviour
         if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
         {
             bool revealed = locations.TryRevealRandomPotentialResource(locationId);
-            Log(revealed
-                ? $"SurveyKnown: revealed hidden resource at location={locationId}"
-                : $"SurveyKnown: reveal rolled but no hidden resource at location={locationId}");
+            PublishSurveyEvent($"Survey: resource revealed at {locationId}");
         }
         else if (outcome.type == SurveyOutcomeType.BonusGold)
         {
             if (outcome.goldAmount > 0)
             {
                 _cargo.Add("gold", outcome.goldAmount);
-                Log($"SurveyKnown: found bonus gold +{outcome.goldAmount} at location={locationId}");
+                PublishEconomyEvent($"+{outcome.goldAmount} gold");
+                PublishSurveyEvent($"Survey: bonus gold {outcome.goldAmount}");
             }
         }
         else if (outcome.type == SurveyOutcomeType.Nothing)
         {
-            Log($"SurveyKnown: nothing found at location={locationId}");
+            PublishSurveyEvent("Nothing");
         }
         else if (outcome.type == SurveyOutcomeType.Danger)
         {
-            Log($"SurveyKnown: danger at location={locationId}");
+            PublishSurveyEvent("Survey: danger", GameDebugSeverity.Warning);
         }
 
         locations.AddTaskCompleted(locationId);
@@ -2931,7 +3475,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (string.IsNullOrEmpty(task.resourceId))
         {
-            Log($"Gather failed: empty resourceId for task={task.taskId}");
+            PublishTaskEvent("Gather blocked: missing resourceId", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -2939,7 +3483,7 @@ public class VillagerAgentBrain : MonoBehaviour
         var locations = GameInstaller.LocationService;
         if (locations == null)
         {
-            Log("Gather failed: LocationService is null");
+            PublishTaskEvent("Gather blocked: LocationService is null", GameDebugSeverity.Error);
             _completedThisCycle = false;
             yield break;
         }
@@ -2952,7 +3496,7 @@ public class VillagerAgentBrain : MonoBehaviour
             loc = locations.GetLocation(locationId);
             if (loc == null)
             {
-                Log($"Gather failed: targetLocationId not found={locationId}");
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
                 _completedThisCycle = false;
                 yield break;
             }
@@ -2962,7 +3506,7 @@ public class VillagerAgentBrain : MonoBehaviour
             locationId = locations.FindAnyLocationForResource(task.resourceId, onlyDiscovered: true, onlyUnlocked: true);
             if (string.IsNullOrWhiteSpace(locationId))
             {
-                Log($"Gather failed: no discovered location for resource={task.resourceId}");
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
                 _completedThisCycle = false;
                 yield break;
             }
@@ -2970,7 +3514,7 @@ public class VillagerAgentBrain : MonoBehaviour
             loc = locations.GetLocation(locationId);
             if (loc == null)
             {
-                Log($"Gather failed: location not found after pick id={locationId}");
+                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
                 _completedThisCycle = false;
                 yield break;
             }
@@ -2978,7 +3522,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (!locations.HasUnlockedResource(locationId, task.resourceId))
         {
-            Log($"Gather failed: resource '{task.resourceId}' is not unlocked in location={locationId}");
+            PublishTaskEvent($"Gather failed: resource locked {task.resourceId}", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -2989,11 +3533,14 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Gather {task.resourceId} at location={locationId} amount={task.baseAmount}");
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
+        PublishTaskEvent($"Gather started: {task.resourceId}");
+
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
         if (!TrySetDestination(targetPos))
         {
             Log($"Gather refused: invalid destination location={locationId}");
+            PublishTaskEvent("Gather failed: invalid destination", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -3010,6 +3557,7 @@ public class VillagerAgentBrain : MonoBehaviour
         {
             locations.RemoveWorker(locationId, agentId, task.taskId);
             Log($"Gather produced nothing: baseAmount={task.baseAmount}");
+            PublishTaskEvent("Gather produced nothing", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -3018,6 +3566,9 @@ public class VillagerAgentBrain : MonoBehaviour
         locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
+
+        PublishEconomyEvent($"+{task.baseAmount} {task.resourceId}");
+        PublishTaskEvent($"Gather success: {task.resourceId} x{task.baseAmount}");
 
         _completedThisCycle = true;
         Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
@@ -3149,8 +3700,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void Log(string msg)
     {
-        //Debug.Log($"[Agent {agentId}] {msg}");
-        //_log?.Push($"[Agent {agentId}] {msg}");
+        GameDebug.Info(
+            GameDebugChannel.Villager,
+            $"[{agentId}] {msg}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId
+        );
+
+        _log?.Push($"[{agentId}] {msg}");
     }
 
 
@@ -3280,6 +3838,70 @@ public class VillagerAgentBrain : MonoBehaviour
 
         return Mathf.Clamp(_lastWorkLocationDangerTier, 0, 5);
     }
+
+
+
+    private void PublishTaskEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Task,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishExploreEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Explore,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishSurveyEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Survey,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+    private void PublishEconomyEvent(string text, GameDebugSeverity severity = GameDebugSeverity.Info)
+    {
+        var msg = new GameDebugMessage(
+            GameDebugChannel.Economy,
+            severity,
+            $"{text}",
+            _lastWorkPos,
+            _lastWorkLocationId,
+            agentId,
+            1.6f
+        );
+
+        GameDebug.Publish(msg);
+    }
+
+
 
 }
 
@@ -3535,8 +4157,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 3696 bytes
-SHA256: 372d7221c051605910ac19efed00167af26493b04f6d4be9d7a3e07949864824
+SIZE: 4073 bytes
+SHA256: 46ee65133273746921485f35551d41fa300d259f9e4ebc6c7c3dcd09265263d7
 CONTENT:
 using UnityEngine;
 
@@ -3557,6 +4179,8 @@ public class GameInstaller : MonoBehaviour
     public static LocationRegistry Locations { get; private set; }
     public static LocationService LocationService { get; private set; }
     public static SurveyOutcomeService SurveyOutcome { get; private set; }
+    public static WorldDebugPopupService WorldDebugPopup { get; private set; }
+    public static SelectedLocationService SelectedLocation { get; private set; }
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
 
@@ -3564,12 +4188,15 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
     [SerializeField] private TaskBoardUI taskBoardUI;
+    [SerializeField] private WorldDebugPopupService worldDebugPopup;
+    [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
 
     private EventLogService _log;
 
     private void Awake()
     {
-        Debug.Log("[Installer] Awake INIT");
+
+        GameDebug.Info(GameDebugChannel.General, "Installer ready");
 
         // 1) ������ (���/���������) � ��� UI � OnEnable ��� �� �����
         TaskBoard = new TaskBoardService();
@@ -3583,6 +4210,9 @@ public class GameInstaller : MonoBehaviour
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
         SurveyOutcome = new SurveyOutcomeService();
+        SelectedLocation = new SelectedLocationService();
+
+        WorldDebugPopup = worldDebugPopup;
 
         // 2) Registry / world data
         ExploreRegistry = new ExploreSpotRegistry();
@@ -3604,35 +4234,34 @@ public class GameInstaller : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("[Installer] Start TRIGGERS");
-
         // 3) Bind UI (���� Awake, ��� ����������� ���� ���)
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
-   
+        if (locationMetricsPanel != null)
+            locationMetricsPanel.Bind(LocationService, SelectedLocation);
 
         // 4) ������������ �����
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
         if (authoring == null)
         {
-            Debug.LogError("[Installer] TaskBoardAuthoring not found in scene!");
             return;
         }
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
         // 5) ������ ������ (���� ���)
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-        Debug.Log($"[Installer] Starting agents={brains.Length}");
 
         foreach (var b in brains)
             b.Begin(TaskBoard, Treasury, _log, Villagers);
 
-        Debug.Log("[Installer] Ready");
     }
 
-
+    private void OnDestroy()
+    {
+        _log?.Dispose();
+    }
 
 }
 
@@ -3850,6 +4479,224 @@ public static class SceneFullDump
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/UI/DebugUI/WorldDebugPopupService.cs
+SIZE: 3529 bytes
+SHA256: bd10934b3196453ffa5d31cb962b6f478f9f6e4c597887f7816ae2bdff4b2aac
+CONTENT:
+using System.Collections.Generic;
+using UnityEngine;
+
+public class WorldDebugPopupService : MonoBehaviour
+{
+    [SerializeField] private WorldDebugPopupView popupPrefab;
+    [SerializeField] private RectTransform popupRoot;
+    [SerializeField] private Camera worldCamera;
+    [SerializeField] private int initialPoolSize = 12;
+
+    [Header("Channel filters")]
+    [SerializeField] private bool showEconomy = true;
+    [SerializeField] private bool showExplore = true;
+    [SerializeField] private bool showSurvey = true;
+    [SerializeField] private bool showTaskWarnings = true;
+
+    private readonly List<WorldDebugPopupView> _pool = new();
+
+    private void Awake()
+    {
+        if (worldCamera == null)
+            worldCamera = Camera.main;
+
+        Warmup();
+    }
+
+    private void OnEnable()
+    {
+        GameDebug.OnMessage += HandleMessage;
+    }
+
+    private void OnDisable()
+    {
+        GameDebug.OnMessage -= HandleMessage;
+    }
+
+    private void Warmup()
+    {
+        if (popupPrefab == null || popupRoot == null)
+            return;
+
+        for (int i = 0; i < initialPoolSize; i++)
+        {
+            var popup = Instantiate(popupPrefab, popupRoot);
+            popup.gameObject.SetActive(false);
+            _pool.Add(popup);
+        }
+    }
+
+    private void HandleMessage(GameDebugMessage msg)
+    {
+        if (!msg.WorldPosition.HasValue)
+            return;
+
+        if (!ShouldShow(msg))
+            return;
+
+        var popup = GetFreePopup();
+        if (popup == null)
+            return;
+
+        popup.Show(
+            worldCamera != null ? worldCamera : Camera.main,
+            msg.WorldPosition.Value,
+            msg.Text,
+            ResolveColor(msg),
+            msg.Lifetime
+        );
+    }
+
+    private bool ShouldShow(GameDebugMessage msg)
+    {
+        switch (msg.Channel)
+        {
+            case GameDebugChannel.Economy:
+                return showEconomy;
+
+            case GameDebugChannel.Explore:
+                return showExplore;
+
+            case GameDebugChannel.Survey:
+                return showSurvey;
+
+            case GameDebugChannel.Task:
+                return showTaskWarnings && msg.Severity != GameDebugSeverity.Info;
+
+            default:
+                return false;
+        }
+    }
+
+    private Color ResolveColor(GameDebugMessage msg)
+    {
+        switch (msg.Severity)
+        {
+            case GameDebugSeverity.Error:
+                return new Color(1f, 0.35f, 0.35f, 1f);
+
+            case GameDebugSeverity.Warning:
+                return new Color(1f, 0.82f, 0.25f, 1f);
+
+            default:
+                return msg.Channel switch
+                {
+                    GameDebugChannel.Economy => new Color(0.45f, 1f, 0.45f, 1f),
+                    GameDebugChannel.Explore => new Color(0.55f, 0.95f, 1f, 1f),
+                    GameDebugChannel.Survey => new Color(0.95f, 0.95f, 1f, 1f),
+                    _ => Color.white
+                };
+        }
+    }
+
+    private WorldDebugPopupView GetFreePopup()
+    {
+        for (int i = 0; i < _pool.Count; i++)
+        {
+            if (!_pool[i].gameObject.activeSelf)
+                return _pool[i];
+        }
+
+        if (popupPrefab == null || popupRoot == null)
+            return null;
+
+        var popup = Instantiate(popupPrefab, popupRoot);
+        popup.gameObject.SetActive(false);
+        _pool.Add(popup);
+        return popup;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/UI/DebugUI/WorldDebugPopupView.cs
+SIZE: 1824 bytes
+SHA256: 2a9f0d33b948e7ddf571619d87b9d3116a65d36c8d9410b7a34047ed41410e50
+CONTENT:
+using TMPro;
+using UnityEngine;
+
+public class WorldDebugPopupView : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI text;
+    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.8f, 0f);
+    [SerializeField] private float riseSpeed = 0.75f;
+    [SerializeField] private float lifetime = 1.5f;
+
+    private Camera _cam;
+    private float _timeLeft;
+    private Vector3 _worldAnchor;
+    private Color _baseColor;
+
+    public void Show(Camera cam, Vector3 worldPos, string message, Color color, float customLifetime)
+    {
+        _cam = cam;
+        _worldAnchor = worldPos + worldOffset;
+        _timeLeft = customLifetime > 0f ? customLifetime : lifetime;
+
+        if (text != null)
+        {
+            text.text = message;
+            text.color = color;
+            _baseColor = color;
+        }
+
+        UpdatePosition();
+        gameObject.SetActive(true);
+    }
+
+    private void Update()
+    {
+        if (_cam == null)
+            _cam = Camera.main;
+
+        _timeLeft -= Time.deltaTime;
+        _worldAnchor += Vector3.up * (riseSpeed * Time.deltaTime);
+
+        float t = Mathf.Clamp01(_timeLeft / Mathf.Max(0.01f, lifetime));
+        if (text != null)
+        {
+            var c = _baseColor;
+            c.a = t;
+            text.color = c;
+        }
+
+        UpdatePosition();
+
+        if (_timeLeft <= 0f)
+            Hide();
+    }
+
+    private void UpdatePosition()
+    {
+        if (_cam == null) return;
+
+        Vector3 screenPos = _cam.WorldToScreenPoint(_worldAnchor);
+        if (screenPos.z <= 0f)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
+        transform.position = screenPos;
+    }
+
+    public void Hide()
+    {
+        gameObject.SetActive(false);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/UI/SelectedVillagerService.cs
 SIZE: 462 bytes
 SHA256: 047dec4ed1baade5fa8520b3fb557017642cd292dd743d56510409f71e43c42f
@@ -3880,8 +4727,8 @@ public class SelectedVillagerService
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskBoardUI.cs
-SIZE: 2877 bytes
-SHA256: f72ca2735f324ecb7122ec526d00ea307132f54a2f4be55335794f81657d039d
+SIZE: 2700 bytes
+SHA256: 1207ab6c6cc90741eac90c9ba844474f2239fc99647268f69e2b56b065dfcc97
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -3959,7 +4806,6 @@ public class TaskBoardUI : MonoBehaviour
 
     public void Rebuild()
     {
-        Debug.Log($"[TaskBoardUI] Rebuild board={(_board == null ? "NULL" : "OK")} root={(rowsRoot ? rowsRoot.name : "NULL")} prefab={(rowPrefab ? rowPrefab.name : "NULL")}");
 
         if (rowsRoot == null || rowPrefab == null) return;
         if (_board == null) return;
@@ -3992,8 +4838,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 8868 bytes
-SHA256: 4a25664e3c5ffa4aa2f96f91ea4a62ad732659fdba5fde0d607d32440fa09617
+SIZE: 8301 bytes
+SHA256: 507728493a169dc09868fafe188cab21237c80b306168c7b0e75f7c6b8bd5124
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -4090,30 +4936,6 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
 
-    private void WireButtons()
-    {
-        if (publishButtons == null) return;
-
-        foreach (var def in publishButtons)
-        {
-            if (def == null || def.button == null) continue;
-
-            def.button.onClick.RemoveListener(() => Publish(def));
-            def.button.onClick.AddListener(() => Publish(def));
-        }
-    }
-
-    private void UnwireButtons()
-    {
-        if (publishButtons == null) return;
-
-        foreach (var def in publishButtons)
-        {
-            if (def == null || def.button == null) continue;
-            def.button.onClick.RemoveListener(() => Publish(def));
-        }
-    }
-
     private void Publish(PublishDef def)
     {
         if (def == null) return;
@@ -4123,7 +4945,8 @@ public class TaskPublisherPanel : MonoBehaviour
 
         if (_board == null)
         {
-            Debug.LogError("[TaskPublisherPanel] TaskBoardService is null (GameInstaller not ready?)");
+            GameDebug.Error(GameDebugChannel.UI,
+            "TaskBoardService is null (GameInstaller not ready?)");
             return;
         }
 
@@ -4144,7 +4967,8 @@ public class TaskPublisherPanel : MonoBehaviour
             bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
             if (!hasKnown)
             {
-                Debug.Log("[Publisher] Locked: no discovered locations yet for SurveyKnownLocation");
+                GameDebug.Warning(GameDebugChannel.Task,
+                "Locked: no discovered locations yet for SurveyKnownLocation");
                 return;
             }
         }
@@ -4177,7 +5001,8 @@ public class TaskPublisherPanel : MonoBehaviour
                 !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(resId, true, true));
             if (!unlocked)
             {
-                Debug.Log($"[Publisher] Locked: resource '{resId}' not discovered yet");
+                GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{resId}' not discovered yet");
                 return;
             }
         }
@@ -4940,7 +5765,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 45
+Written: 56
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

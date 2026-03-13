@@ -23,7 +23,6 @@ public class TaskBoardService
         foreach (var t in tasks)
             reservations[t.taskId] = new HashSet<string>();
 
-        Debug.Log($"[TaskBoard] Loaded tasks={tasks.Count}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();
@@ -58,7 +57,6 @@ public class TaskBoardService
 
         if (set.Add(agentId))
         {
-            Debug.Log($"[TaskBoard] Reserve task={taskId} agent={agentId} slots={set.Count}/{t.maxTakers}");
             OnReservationsChanged?.Invoke();
             return true;
         }
@@ -73,7 +71,6 @@ public class TaskBoardService
 
         if (set.Remove(agentId))
         {
-            Debug.Log($"[TaskBoard] Release task={taskId} agent={agentId} slots={set.Count}");
             OnReservationsChanged?.Invoke();
         }
     }
@@ -109,7 +106,6 @@ public class TaskBoardService
         if (!reservations.ContainsKey(task.taskId))
             reservations[task.taskId] = new HashSet<string>();
 
-        Debug.Log($"[TaskBoard] Added runtime task={task.taskId}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();
@@ -128,8 +124,6 @@ public class TaskBoardService
 
         tasks.Remove(t);
         reservations.Remove(taskId);
-
-        Debug.Log($"[TaskBoard] Removed runtime task={taskId}");
 
         OnTasksChanged?.Invoke();
         OnReservationsChanged?.Invoke();

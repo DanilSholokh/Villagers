@@ -59,7 +59,6 @@ public class WorldDebugPopupView : MonoBehaviour
         Vector3 screenPos = _cam.WorldToScreenPoint(_worldAnchor);
         if (screenPos.z <= 0f)
         {
-            gameObject.SetActive(false);
             return;
         }
 

@@ -74,7 +74,6 @@ public class TaskBoardUI : MonoBehaviour
 
     public void Rebuild()
     {
-        Debug.Log($"[TaskBoardUI] Rebuild board={(_board == null ? "NULL" : "OK")} root={(rowsRoot ? rowsRoot.name : "NULL")} prefab={(rowPrefab ? rowPrefab.name : "NULL")}");
 
         if (rowsRoot == null || rowPrefab == null) return;
         if (_board == null) return;

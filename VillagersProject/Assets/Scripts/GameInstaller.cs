@@ -18,7 +18,7 @@ public class GameInstaller : MonoBehaviour
     public static LocationService LocationService { get; private set; }
     public static SurveyOutcomeService SurveyOutcome { get; private set; }
     public static WorldDebugPopupService WorldDebugPopup { get; private set; }
-
+    public static SelectedLocationService SelectedLocation { get; private set; }
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // якщо вже є в сцені
 
@@ -27,12 +27,14 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
     [SerializeField] private TaskBoardUI taskBoardUI;
     [SerializeField] private WorldDebugPopupService worldDebugPopup;
+    [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
 
     private EventLogService _log;
 
     private void Awake()
     {
-        Debug.Log("[Installer] Awake INIT");
+
+        GameDebug.Info(GameDebugChannel.General, "Installer ready");
 
         // 1) Сервіси (дані/синглтони) — щоб UI в OnEnable вже їх бачив
         TaskBoard = new TaskBoardService();
@@ -46,6 +48,8 @@ public class GameInstaller : MonoBehaviour
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
         SurveyOutcome = new SurveyOutcomeService();
+        SelectedLocation = new SelectedLocationService();
+
         WorldDebugPopup = worldDebugPopup;
 
         // 2) Registry / world data
@@ -68,35 +72,34 @@ public class GameInstaller : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("[Installer] Start TRIGGERS");
-
         // 3) Bind UI (після Awake, але гарантовано один раз)
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
-   
+        if (locationMetricsPanel != null)
+            locationMetricsPanel.Bind(LocationService, SelectedLocation);
 
         // 4) Завантаження тасків
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
         if (authoring == null)
         {
-            Debug.LogError("[Installer] TaskBoardAuthoring not found in scene!");
             return;
         }
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
         // 5) Запуск агентів (саме тут)
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-        Debug.Log($"[Installer] Starting agents={brains.Length}");
 
         foreach (var b in brains)
             b.Begin(TaskBoard, Treasury, _log, Villagers);
 
-        Debug.Log("[Installer] Ready");
     }
 
-
+    private void OnDestroy()
+    {
+        _log?.Dispose();
+    }
 
 }
 

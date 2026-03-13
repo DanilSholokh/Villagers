@@ -43,6 +43,13 @@ public class VillagerAgentBrain : MonoBehaviour
 
     public string AgentId => agentId;
 
+    public System.Collections.Generic.Dictionary<string, int> GetCargoSnapshot()
+    {
+        return _cargo != null
+            ? _cargo.Snapshot()
+            : new System.Collections.Generic.Dictionary<string, int>();
+    }
+
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -182,7 +189,8 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 if (penalty == PenaltyType.Death)
                 {
-                    PublishTaskEvent($"Villager died on task {task.taskId}", GameDebugSeverity.Error);
+                    Log($"Villager died on task {task.taskId}");
+                    PublishTaskEvent("Dead", GameDebugSeverity.Error);
                     HandleDeath(task);
                     yield break;
                 }
@@ -201,12 +209,11 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                PublishTaskEvent(
-                $"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})",
-                GameDebugSeverity.Warning
-                );
+                Log($"Villager lost on task {task.taskId}");
+                PublishTaskEvent("Lost", GameDebugSeverity.Warning);
 
-                PublishTaskEvent($"Task failed without severe penalty: {task.taskId}", GameDebugSeverity.Warning);
+                Log($"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})");
+                PublishTaskEvent("Failed", GameDebugSeverity.Warning);
 
                 FinalizeTask(task, false);
 
@@ -268,7 +275,7 @@ public class VillagerAgentBrain : MonoBehaviour
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
 
-        PublishExploreEvent($"Explore started: {locationId}");
+        PublishExploreEvent("Explore");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -289,7 +296,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         locations.DiscoverLocation(locationId);
         PublishExploreEvent("Discovered");
-        PublishTaskEvent($"Explore success: {task.taskId}");
+        Log($"Explore success: {task.taskId}");
 
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
@@ -342,7 +349,7 @@ public class VillagerAgentBrain : MonoBehaviour
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
 
-        PublishSurveyEvent($"Survey started: {locationId}");
+        PublishSurveyEvent("Survey");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -375,7 +382,7 @@ public class VillagerAgentBrain : MonoBehaviour
         if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
         {
             bool revealed = locations.TryRevealRandomPotentialResource(locationId);
-            PublishSurveyEvent($"Survey: resource revealed at {locationId}");
+            PublishSurveyEvent("Resource found");
         }
         else if (outcome.type == SurveyOutcomeType.BonusGold)
         {
@@ -383,7 +390,7 @@ public class VillagerAgentBrain : MonoBehaviour
             {
                 _cargo.Add("gold", outcome.goldAmount);
                 PublishEconomyEvent($"+{outcome.goldAmount} gold");
-                PublishSurveyEvent($"Survey: bonus gold {outcome.goldAmount}");
+                PublishSurveyEvent("Bonus gold");
             }
         }
         else if (outcome.type == SurveyOutcomeType.Nothing)
@@ -392,7 +399,7 @@ public class VillagerAgentBrain : MonoBehaviour
         }
         else if (outcome.type == SurveyOutcomeType.Danger)
         {
-            PublishSurveyEvent("Survey: danger", GameDebugSeverity.Warning);
+            PublishSurveyEvent("Danger", GameDebugSeverity.Warning);
         }
 
         locations.AddTaskCompleted(locationId);
@@ -466,7 +473,7 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Gather {task.resourceId} at location={locationId} amount={task.baseAmount}");
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
-        PublishTaskEvent($"Gather started: {task.resourceId}");
+        PublishTaskEvent("Gather");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -501,7 +508,7 @@ public class VillagerAgentBrain : MonoBehaviour
         locations.RemoveWorker(locationId, agentId, task.taskId);
 
         PublishEconomyEvent($"+{task.baseAmount} {task.resourceId}");
-        PublishTaskEvent($"Gather success: {task.resourceId} x{task.baseAmount}");
+        Log($"Gather success: {task.resourceId} x{task.baseAmount}");
 
         _completedThisCycle = true;
         Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");

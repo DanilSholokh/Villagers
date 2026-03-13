@@ -39,7 +39,6 @@ public class TreasuryService
         storage[resourceId] = cur + amount;
 
         OnChanged?.Invoke(resourceId, storage[resourceId]);
-        Debug.Log($"[Treasury] +{amount} {resourceId} (total={storage[resourceId]})");
     }
 
     public bool TrySpend(string resourceId, int amount)
@@ -98,7 +97,6 @@ public class TreasuryService
         if (gainedGold > 0)
         {
             Add("gold", gainedGold);
-            Debug.Log($"[Treasury] SellAll -> +{gainedGold} gold");
         }
 
         return gainedGold;
@@ -127,7 +125,6 @@ public class TreasuryService
         lockedGold += amount;
 
         OnChanged?.Invoke("gold", storage["gold"]);
-        Debug.Log($"[Treasury] HOLD {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
         return true;
     }
 
@@ -144,7 +141,6 @@ public class TreasuryService
         storage["gold"] = cur + amount;
 
         OnChanged?.Invoke("gold", storage["gold"]);
-        Debug.Log($"[Treasury] REFUND {amount} gold (avail={storage["gold"]}, locked={lockedGold})");
     }
 
     public void ConsumeLockedGold(int amount)
@@ -156,7 +152,6 @@ public class TreasuryService
         if (lockedGold < 0) lockedGold = 0;
 
         OnChanged?.Invoke("gold", GetAmount("gold"));
-        Debug.Log($"[Treasury] CONSUME_LOCKED {amount} gold (avail={GetAmount("gold")}, locked={lockedGold})");
     }
 
 

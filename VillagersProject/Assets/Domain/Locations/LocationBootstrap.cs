@@ -93,13 +93,6 @@ public static class LocationBootstrap
 
             registry.Add(model);
 
-            Debug.Log(
-            "[LocationBootstrap] " +
-            $"id={model.id}, name={model.name}, status={model.status}, " +
-            $"baseDanger={model.baseDanger}, currentDanger={model.currentDanger}, " +
-            $"baseResources=[{JoinResourceIds(model.resources)}], " +
-            $"potentialResources=[{JoinResourceIds(model.potentialResources)}]"
-            );
         }
     }
 
