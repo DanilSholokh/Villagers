@@ -29,6 +29,7 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private WorldDebugPopupService worldDebugPopup;
     [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
 
+
     private EventLogService _log;
 
     private void Awake()
@@ -77,8 +78,10 @@ public class GameInstaller : MonoBehaviour
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+        
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
+
 
         // 4) Завантаження тасків
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();

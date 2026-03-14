@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-13 05:31:15
+Time: 2026-03-14 00:18:07
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -3062,8 +3062,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 28107 bytes
-SHA256: c2465f18f727fbcf8585e4b4b6a5523297d39d1fe631e50e75039ad8587c7974
+SIZE: 28205 bytes
+SHA256: 69db7e3be80eb580e492c5beca1d41a0c1db9c18801af29a271d9e3f00593049
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -3109,6 +3109,13 @@ public class VillagerAgentBrain : MonoBehaviour
     private VillagerRosterService _roster;
 
     public string AgentId => agentId;
+
+    public System.Collections.Generic.Dictionary<string, int> GetCargoSnapshot()
+    {
+        return _cargo != null
+            ? _cargo.Snapshot()
+            : new System.Collections.Generic.Dictionary<string, int>();
+    }
 
     private void Awake()
     {
@@ -3249,7 +3256,8 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 if (penalty == PenaltyType.Death)
                 {
-                    PublishTaskEvent($"Villager died on task {task.taskId}", GameDebugSeverity.Error);
+                    Log($"Villager died on task {task.taskId}");
+                    PublishTaskEvent("Dead", GameDebugSeverity.Error);
                     HandleDeath(task);
                     yield break;
                 }
@@ -3268,12 +3276,11 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _cargo.Clear();
 
-                PublishTaskEvent(
-                $"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})",
-                GameDebugSeverity.Warning
-                );
+                Log($"Villager lost on task {task.taskId}");
+                PublishTaskEvent("Lost", GameDebugSeverity.Warning);
 
-                PublishTaskEvent($"Task failed without severe penalty: {task.taskId}", GameDebugSeverity.Warning);
+                Log($"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})");
+                PublishTaskEvent("Failed", GameDebugSeverity.Warning);
 
                 FinalizeTask(task, false);
 
@@ -3335,7 +3342,7 @@ public class VillagerAgentBrain : MonoBehaviour
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
 
-        PublishExploreEvent($"Explore started: {locationId}");
+        PublishExploreEvent("Explore");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -3356,7 +3363,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         locations.DiscoverLocation(locationId);
         PublishExploreEvent("Discovered");
-        PublishTaskEvent($"Explore success: {task.taskId}");
+        Log($"Explore success: {task.taskId}");
 
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
@@ -3409,7 +3416,7 @@ public class VillagerAgentBrain : MonoBehaviour
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
 
-        PublishSurveyEvent($"Survey started: {locationId}");
+        PublishSurveyEvent("Survey");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -3442,7 +3449,7 @@ public class VillagerAgentBrain : MonoBehaviour
         if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
         {
             bool revealed = locations.TryRevealRandomPotentialResource(locationId);
-            PublishSurveyEvent($"Survey: resource revealed at {locationId}");
+            PublishSurveyEvent("Resource found");
         }
         else if (outcome.type == SurveyOutcomeType.BonusGold)
         {
@@ -3450,7 +3457,7 @@ public class VillagerAgentBrain : MonoBehaviour
             {
                 _cargo.Add("gold", outcome.goldAmount);
                 PublishEconomyEvent($"+{outcome.goldAmount} gold");
-                PublishSurveyEvent($"Survey: bonus gold {outcome.goldAmount}");
+                PublishSurveyEvent("Bonus gold");
             }
         }
         else if (outcome.type == SurveyOutcomeType.Nothing)
@@ -3459,7 +3466,7 @@ public class VillagerAgentBrain : MonoBehaviour
         }
         else if (outcome.type == SurveyOutcomeType.Danger)
         {
-            PublishSurveyEvent("Survey: danger", GameDebugSeverity.Warning);
+            PublishSurveyEvent("Danger", GameDebugSeverity.Warning);
         }
 
         locations.AddTaskCompleted(locationId);
@@ -3533,7 +3540,7 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Gather {task.resourceId} at location={locationId} amount={task.baseAmount}");
         _lastWorkPos = targetPos;
         _lastWorkLocationId = locationId;
-        PublishTaskEvent($"Gather started: {task.resourceId}");
+        PublishTaskEvent("Gather");
 
         _lastWorkLocationDangerTier = Mathf.Clamp(locDanger, 0, 5);
 
@@ -3568,7 +3575,7 @@ public class VillagerAgentBrain : MonoBehaviour
         locations.RemoveWorker(locationId, agentId, task.taskId);
 
         PublishEconomyEvent($"+{task.baseAmount} {task.resourceId}");
-        PublishTaskEvent($"Gather success: {task.resourceId} x{task.baseAmount}");
+        Log($"Gather success: {task.resourceId} x{task.baseAmount}");
 
         _completedThisCycle = true;
         Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
@@ -4050,8 +4057,8 @@ public class GatherLocationAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/ExploreWalker.cs
-SIZE: 3056 bytes
-SHA256: 46b2084e0771b93c5e7ef91f118f6e9324c07fef9a3371961db6ecc39760d7d9
+SIZE: 2463 bytes
+SHA256: 9df11180873d6908b02825c2a5e19115e3d296b65f262a566bdb8466d04b721f
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -4093,7 +4100,6 @@ public class ExploreWalker : MonoBehaviour
             var spot = GameInstaller.ExploreRegistry.GetRandomSpotWeighted();
             if (spot == null)
             {
-                Debug.LogError("[ExploreWalker] No explore spots in registry.");
                 yield break;
             }
 
@@ -4103,7 +4109,6 @@ public class ExploreWalker : MonoBehaviour
             agent.SetDestination(spot.transform.position);
             yield return WaitUntilArrived();
 
-            Debug.Log($"[ExploreWalker] Arrived spot={spot.spotId}, working {workDurationSec:0.0}s");
             yield return new WaitForSeconds(workDurationSec);
 
 
@@ -4111,27 +4116,23 @@ public class ExploreWalker : MonoBehaviour
 
             if (outcome.type == ExploreOutcomeType.Nothing)
             {
-                Debug.Log("[ExploreWalker] Outcome: Nothing");
+                
             }
             else if (outcome.type == ExploreOutcomeType.Reward)
             {
-                Debug.Log($"[ExploreWalker] Outcome: Reward +{outcome.amount} {outcome.resourceId}");
                 GameInstaller.Treasury.Add(outcome.resourceId, outcome.amount);
             }
             else // Danger
             {
-                Debug.Log($"[ExploreWalker] Outcome: Danger, return delayed +{outcome.returnDelaySec:0.0}s");
                 yield return new WaitForSeconds(outcome.returnDelaySec);
             }
 
 
 
             // 3) Return home
-            Debug.Log("[ExploreWalker] Returning home");
             agent.SetDestination(homePoint.position);
             yield return WaitUntilArrived();
 
-            Debug.Log($"[ExploreWalker] Home. Next trip in {idleBetweenTripsSec:0.0}s");
             yield return new WaitForSeconds(idleBetweenTripsSec);
         }
     }
@@ -4157,8 +4158,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 4073 bytes
-SHA256: 46ee65133273746921485f35551d41fa300d259f9e4ebc6c7c3dcd09265263d7
+SIZE: 4087 bytes
+SHA256: 8f888d648c87a4c183928843b23af65334a8bc20ca6e0b4d9c2da4c1a02e8044
 CONTENT:
 using UnityEngine;
 
@@ -4190,6 +4191,7 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private TaskBoardUI taskBoardUI;
     [SerializeField] private WorldDebugPopupService worldDebugPopup;
     [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
+
 
     private EventLogService _log;
 
@@ -4239,8 +4241,10 @@ public class GameInstaller : MonoBehaviour
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+        
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
+
 
         // 4) ������������ �����
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
@@ -4480,8 +4484,8 @@ public static class SceneFullDump
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/DebugUI/WorldDebugPopupService.cs
-SIZE: 3529 bytes
-SHA256: bd10934b3196453ffa5d31cb962b6f478f9f6e4c597887f7816ae2bdff4b2aac
+SIZE: 3774 bytes
+SHA256: 1aec1a58fdc1233237b3944910cf2931c5d3d93e647f5bd5903f79ebf0a71f7c
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -4555,6 +4559,13 @@ public class WorldDebugPopupService : MonoBehaviour
 
     private bool ShouldShow(GameDebugMessage msg)
     {
+        if (string.IsNullOrWhiteSpace(msg.Text))
+            return false;
+
+        // не показуємо "start" popup-и
+        if (msg.Text == "Gather" || msg.Text == "Explore" || msg.Text == "Survey")
+            return false;
+
         switch (msg.Channel)
         {
             case GameDebugChannel.Economy:
@@ -4617,8 +4628,8 @@ public class WorldDebugPopupService : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/DebugUI/WorldDebugPopupView.cs
-SIZE: 1824 bytes
-SHA256: 2a9f0d33b948e7ddf571619d87b9d3116a65d36c8d9410b7a34047ed41410e50
+SIZE: 1782 bytes
+SHA256: d36371be8b0db22f986e0b11900efe8a2a1f800593af20ad2da2d71454301d9b
 CONTENT:
 using TMPro;
 using UnityEngine;
@@ -4681,7 +4692,6 @@ public class WorldDebugPopupView : MonoBehaviour
         Vector3 screenPos = _cam.WorldToScreenPoint(_worldAnchor);
         if (screenPos.z <= 0f)
         {
-            gameObject.SetActive(false);
             return;
         }
 
@@ -5273,8 +5283,8 @@ public class TreasuryUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/VillagerClickSelector.cs
-SIZE: 1460 bytes
-SHA256: cdf29e3e65a63eb6709e55b19f3a9e3d0c9a5d97c11b756cc6d252c259de466f
+SIZE: 1336 bytes
+SHA256: 3484d76f01ff683f6fb6196be8263e884c30b2a6dfa04a689d973ad204d4fa31
 CONTENT:
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -5286,7 +5296,7 @@ public class VillagerClickSelector : MonoBehaviour
     [SerializeField] private LayerMask hitMask = ~0; // все
     [SerializeField] private float maxDistance = 500f;
 
-    
+
 
     private void Awake()
     {
@@ -5298,27 +5308,23 @@ public class VillagerClickSelector : MonoBehaviour
     {
         if (cam == null || inspectPanel == null) return;
         if (Mouse.current == null) return;
-
-        // М1 клік
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
 
         Vector2 screenPos = Mouse.current.position.ReadValue();
         Ray ray = cam.ScreenPointToRay(screenPos);
-
-        // Для дебага (можеш потім прибрати)
-        Debug.DrawRay(ray.origin, ray.direction * 100f, Color.yellow, 1f);
 
         if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, hitMask, QueryTriggerInteraction.Ignore))
         {
             var brain = hit.collider.GetComponentInParent<VillagerAgentBrain>();
             if (brain != null)
             {
+                GameInstaller.SelectedVillager?.SetSelected(brain.AgentId);
                 inspectPanel.Show(brain);
                 return;
             }
         }
 
-        // клік не по віліджеру → закрити
+        GameInstaller.SelectedVillager?.Clear();
         inspectPanel.Hide();
     }
 }
@@ -5327,8 +5333,8 @@ public class VillagerClickSelector : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/VillagerInspectPanelView.cs
-SIZE: 7751 bytes
-SHA256: 5a7a592114113a7a4a6516789ec931dd3c1ad03ee40fb44be4bb5336085c5ad8
+SIZE: 9682 bytes
+SHA256: d33a47009525ff5b9bcf2a8238195f58dc6c20fa933318f76a5d44b7705f57c5
 CONTENT:
 using System.Text;
 using TMPro;
@@ -5337,6 +5343,9 @@ using UnityEngine.UI;
 
 public class VillagerInspectPanelView : MonoBehaviour
 {
+
+    private string _selectedAgentId;
+
     [Header("UI")]
     [SerializeField] private GameObject root;
     [SerializeField] private Button closeButton;
@@ -5345,11 +5354,6 @@ public class VillagerInspectPanelView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI statsText;
     [SerializeField] private TextMeshProUGUI perksText;
     [SerializeField] private TextMeshProUGUI inventoryText;
-
-
-    [Header("Auto Refresh")]
-    [SerializeField] private bool autoRefresh = true;            // <- ДОДАЙ
-    [SerializeField] private float refreshInterval = 0.25f;
 
     [Header("3D Preview")]
     [SerializeField] private RawImage previewImage;       // показує RenderTexture
@@ -5373,41 +5377,70 @@ public class VillagerInspectPanelView : MonoBehaviour
             closeButton.onClick.AddListener(Hide);
     }
 
-    private void Update()
-    {
-        if (!autoRefresh) return;
-        if (_target == null) return;
-        if (Time.unscaledTime < _nextRefreshAt) return;
-
-        _nextRefreshAt = Time.unscaledTime + refreshInterval;
-        RebuildAll_IfChanged();
-    }
 
     private void OnEnable()
     {
+        if (GameInstaller.SelectedVillager != null)
+            GameInstaller.SelectedVillager.OnSelectedChanged += HandleSelectedChanged;
+
+        if (GameInstaller.Villagers != null)
+            GameInstaller.Villagers.OnVillagerChanged += HandleVillagerChanged;
+
+        if (GameInstaller.Progression != null)
+            GameInstaller.Progression.OnProgressChanged += HandleProgressChanged;
+
         if (GameInstaller.Inventory != null)
             GameInstaller.Inventory.OnInventoryChanged += HandleInventoryChanged;
     }
 
     private void OnDisable()
     {
+        if (GameInstaller.SelectedVillager != null)
+            GameInstaller.SelectedVillager.OnSelectedChanged -= HandleSelectedChanged;
+
+        if (GameInstaller.Villagers != null)
+            GameInstaller.Villagers.OnVillagerChanged -= HandleVillagerChanged;
+
+        if (GameInstaller.Progression != null)
+            GameInstaller.Progression.OnProgressChanged -= HandleProgressChanged;
+
         if (GameInstaller.Inventory != null)
             GameInstaller.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+
+
     }
+
+    private void OnDestroy()
+    {
+        if (GameInstaller.SelectedVillager != null)
+            GameInstaller.SelectedVillager.OnSelectedChanged -= HandleSelectedChanged;
+
+        if (GameInstaller.Villagers != null)
+            GameInstaller.Villagers.OnVillagerChanged -= HandleVillagerChanged;
+
+        if (GameInstaller.Progression != null)
+            GameInstaller.Progression.OnProgressChanged -= HandleProgressChanged;
+
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+
+    }
+
+
 
     public void Show(VillagerAgentBrain brain)
     {
         if (brain == null) return;
 
+        bool targetChanged = _target != brain;
         _target = brain;
 
         if (root != null) root.SetActive(true);
 
-        _nextRefreshAt = 0f;
-        _lastSnapshot = null;
-
         RebuildAll();
-        BuildPreviewModel();
+
+        if (targetChanged)
+            BuildPreviewModel();
     }
 
     public void Hide()
@@ -5417,48 +5450,6 @@ public class VillagerInspectPanelView : MonoBehaviour
         ClearPreviewModel();
     }
 
-    private void HandleInventoryChanged(string agentId)
-    {
-        if (_target == null) return;
-        if (_target.AgentId != agentId) return;
-        RebuildInventory();
-    }
-
-
-    private void RebuildAll_IfChanged()
-    {
-        // Знімаємо “знімок” даних з сервісів.
-        // Якщо нічого не змінилось — не чіпаємо TMP/лейаути.
-        var snap = BuildSnapshotString();
-        if (snap == _lastSnapshot) return;
-
-        _lastSnapshot = snap;
-        RebuildAll();
-    }
-
-
-    private string BuildSnapshotString()
-    {
-        if (_target == null) return "";
-
-        var agentId = _target.AgentId;
-        var roster = GameInstaller.Villagers;
-        var prog = GameInstaller.Progression;
-
-        var s = roster?.GetOrCreate(agentId);
-        var p = prog?.Get(agentId);
-
-        // Мінімальний набір, який реально міняється під час гри:
-        // статус/таск/level/перки + можна розширити.
-        var sb = new StringBuilder(128);
-        sb.Append(agentId).Append('|');
-        sb.Append(s != null ? s.status.ToString() : "null").Append('|');
-        sb.Append(s != null ? s.taskName : "null").Append('|');
-        sb.Append(p != null ? p.level.ToString() : "null").Append('|');
-        if (p != null && p.perks != null)
-            sb.Append(string.Join(",", p.perks));
-        return sb.ToString();
-    }
 
     private void RebuildAll()
     {
@@ -5472,55 +5463,21 @@ public class VillagerInspectPanelView : MonoBehaviour
         var s = roster?.GetOrCreate(agentId);
         var p = prog?.Get(agentId);
 
-        if (titleText) titleText.text = s != null ? s.displayName : agentId;
+        if (titleText != null)
+            titleText.text = s != null ? s.displayName : agentId;
 
-        if (statusText)
-        {
-            string task = (s == null || string.IsNullOrWhiteSpace(s.taskName)) ? "-" : s.taskName;
-            string st = s != null ? s.status.ToString() : "Unknown";
-            statusText.text = $"Status: {st}\nTask: {task}";
-        }
+        if (statusText != null)
+            statusText.text = BuildStatusText(s);
 
-        if (statsText)
-        {
-            if (p == null) statsText.text = "Lv.? (AP:?)\nSTR - | SPD - | ING -";
-            else statsText.text = $"Lv.{p.level} (AP:{p.achievementPoints})\nSTR {p.strength} | SPD {p.speed} | ING {p.ingenuity}";
-        }
+        if (statsText != null)
+            statsText.text = BuildStatsText(p);
 
-        if (perksText)
-        {
-            if (p == null || p.perks == null || p.perks.Count == 0) perksText.text = "Perks: (none)";
-            else perksText.text = "Perks: " + string.Join(", ", p.perks);
-        }
+        if (perksText != null)
+            perksText.text = BuildPerksText(p);
 
-        RebuildInventory();
+        RebuildInventory(_target);
     }
 
-    private void RebuildInventory()
-    {
-        if (inventoryText == null) return;
-        if (_target == null) { inventoryText.text = ""; return; }
-
-        var inv = GameInstaller.Inventory;
-        if (inv == null)
-        {
-            inventoryText.text = "Inventory: (service missing)";
-            return;
-        }
-
-        var items = inv.Get(_target.AgentId);
-        if (items == null || items.Count == 0)
-        {
-            inventoryText.text = "Inventory: (empty)";
-            return;
-        }
-
-        var sb = new StringBuilder(128);
-        sb.AppendLine("Inventory:");
-        for (int i = 0; i < items.Count; i++)
-            sb.AppendLine($"- {items[i].itemId} x{items[i].amount}");
-        inventoryText.text = sb.ToString();
-    }
 
     // ----- 3D Preview (твій код лишаємо) -----
 
@@ -5547,6 +5504,84 @@ public class VillagerInspectPanelView : MonoBehaviour
             previewCamera.targetTexture = rt;
     }
 
+
+    private string BuildStatusText(VillagerState state)
+    {
+        if (state == null)
+            return "No villager state.";
+
+        string updated = state.lastChangeUtc.ToLocalTime().ToString("HH:mm:ss");
+
+        var sb = new StringBuilder(128);
+        sb.AppendLine($"Status: {state.status}");
+        sb.AppendLine($"Task: {Safe(state.taskName)}");
+        sb.AppendLine($"TaskId: {Safe(state.taskId)}");
+        sb.AppendLine($"Updated: {updated}");
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private string BuildStatsText(ProgressionService.VillagerProgress prog)
+    {
+        if (prog == null)
+            return "No progression data.";
+
+        var sb = new StringBuilder(128);
+        sb.AppendLine($"Level: {prog.level}");
+        sb.AppendLine($"AP: {prog.achievementPoints}");
+        sb.AppendLine($"STR: {prog.strength}");
+        sb.AppendLine($"SPD: {prog.speed}");
+        sb.AppendLine($"ING: {prog.ingenuity}");
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private string BuildPerksText(ProgressionService.VillagerProgress prog)
+    {
+        if (prog == null || prog.perks == null || prog.perks.Count == 0)
+            return "Perks: -";
+
+        return "Perks: " + string.Join(", ", prog.perks);
+    }
+
+    private void RebuildInventory(VillagerAgentBrain brain)
+    {
+        if (inventoryText == null)
+            return;
+
+        string agentId = brain.AgentId;
+        var inv = GameInstaller.Inventory != null ? GameInstaller.Inventory.Get(agentId) : null;
+        var cargo = brain.GetCargoSnapshot();
+
+        var sb = new StringBuilder(256);
+
+        sb.AppendLine("Cargo:");
+        if (cargo == null || cargo.Count == 0)
+        {
+            sb.AppendLine("-");
+        }
+        else
+        {
+            foreach (var kv in cargo)
+                sb.AppendLine($"{kv.Key} x{kv.Value}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Inventory:");
+
+        if (inv == null || inv.Count == 0)
+        {
+            sb.AppendLine("-");
+        }
+        else
+        {
+            foreach (var item in inv)
+                sb.AppendLine($"{item.itemId} x{item.amount}");
+        }
+
+        inventoryText.text = sb.ToString().TrimEnd();
+    }
+
     private void ClearPreviewModel()
     {
         if (_previewInstance != null)
@@ -5567,6 +5602,67 @@ public class VillagerInspectPanelView : MonoBehaviour
         for (int i = 0; i < 32; i++)
             if ((v & (1 << i)) != 0) return i;
         return 0;
+    }
+
+
+    private void HandleSelectedChanged(string agentId)
+    {
+        _selectedAgentId = agentId;
+
+        if (string.IsNullOrWhiteSpace(agentId))
+        {
+            Hide();
+            return;
+        }
+
+        var brain = FindBrain(agentId);
+        if (brain == null)
+        {
+            Hide();
+            return;
+        }
+
+        Show(brain);
+    }
+
+    private void HandleVillagerChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
+    private void HandleProgressChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
+    private void HandleInventoryChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
+
+    private VillagerAgentBrain FindBrain(string agentId)
+    {
+        var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
+
+        for (int i = 0; i < brains.Length; i++)
+        {
+            if (brains[i] != null && brains[i].AgentId == agentId)
+                return brains[i];
+        }
+
+        return null;
+    }
+
+    private string Safe(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
     }
 
 }

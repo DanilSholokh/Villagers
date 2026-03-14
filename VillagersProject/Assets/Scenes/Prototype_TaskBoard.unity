@@ -4359,7 +4359,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9835ddc8950ef3944a7fd89486db4656, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LocationMetricsPanelView
-  panelRoot: {fileID: 312940837}
+  panelRoot: {fileID: 1724584374}
   titleText: {fileID: 1447956998}
   bodyText: {fileID: 1879367813}
 --- !u!224 &1750834205 stripped

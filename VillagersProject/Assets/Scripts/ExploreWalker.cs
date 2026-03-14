@@ -38,7 +38,6 @@ public class ExploreWalker : MonoBehaviour
             var spot = GameInstaller.ExploreRegistry.GetRandomSpotWeighted();
             if (spot == null)
             {
-                Debug.LogError("[ExploreWalker] No explore spots in registry.");
                 yield break;
             }
 
@@ -48,7 +47,6 @@ public class ExploreWalker : MonoBehaviour
             agent.SetDestination(spot.transform.position);
             yield return WaitUntilArrived();
 
-            Debug.Log($"[ExploreWalker] Arrived spot={spot.spotId}, working {workDurationSec:0.0}s");
             yield return new WaitForSeconds(workDurationSec);
 
 
@@ -56,27 +54,23 @@ public class ExploreWalker : MonoBehaviour
 
             if (outcome.type == ExploreOutcomeType.Nothing)
             {
-                Debug.Log("[ExploreWalker] Outcome: Nothing");
+                
             }
             else if (outcome.type == ExploreOutcomeType.Reward)
             {
-                Debug.Log($"[ExploreWalker] Outcome: Reward +{outcome.amount} {outcome.resourceId}");
                 GameInstaller.Treasury.Add(outcome.resourceId, outcome.amount);
             }
             else // Danger
             {
-                Debug.Log($"[ExploreWalker] Outcome: Danger, return delayed +{outcome.returnDelaySec:0.0}s");
                 yield return new WaitForSeconds(outcome.returnDelaySec);
             }
 
 
 
             // 3) Return home
-            Debug.Log("[ExploreWalker] Returning home");
             agent.SetDestination(homePoint.position);
             yield return WaitUntilArrived();
 
-            Debug.Log($"[ExploreWalker] Home. Next trip in {idleBetweenTripsSec:0.0}s");
             yield return new WaitForSeconds(idleBetweenTripsSec);
         }
     }

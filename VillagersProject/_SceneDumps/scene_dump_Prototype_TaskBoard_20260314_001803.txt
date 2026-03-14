@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-03-13 05:31:38
+Time: 2026-03-14 00:18:03
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -717,7 +717,7 @@ Root objects: 9
             - RectTransform
             - CanvasRenderer
             - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Explore Quest\n" pref(w,h)=(457,12,86,27)
-    - VillagerRosterPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    - VillagerRosterPanel (activeSelf=False, activeInHierarchy=False) [tag=Untagged, layer=Default]
       Transform: pos=(454.00, -210.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
                    anchoredPos=(454.00, 329.50) sizeDelta=(420.00, 600.00) offsetMin=(244.00, 29.50) offsetMax=(664.00, 629.50)
@@ -727,7 +727,7 @@ Root objects: 9
       - CanvasRenderer
       - Image (raycast=True, type=Sliced, color=RGBA(1.000, 0.855, 0.725, 1.000))
       - VillagerRosterPanelView
-      - Title (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      - Title (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
         Transform: pos=(-124.94, 272.07, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                      anchoredPos=(85.06, -27.93) sizeDelta=(127.82, 37.87) offsetMin=(21.15, -46.87) offsetMax=(148.97, -9.00)
@@ -736,7 +736,7 @@ Root objects: 9
         - RectTransform
         - CanvasRenderer
         - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(274,99,37,37)
-      - RosterScroll (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      - RosterScroll (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
         Transform: pos=(0.55, -21.13, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
                      anchoredPos=(0.55, -21.13) sizeDelta=(378.79, 524.30) offsetMin=(-188.85, -283.27) offsetMax=(189.94, 241.02)
@@ -746,7 +746,7 @@ Root objects: 9
         - CanvasRenderer
         - Image (raycast=True, type=Sliced, color=RGBA(0.980, 0.941, 0.902, 1.000))
         - ScrollRect (H=False, V=True, move=Elastic, inertia=True, sens=1) viewport=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport content=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport/Content
-        - Viewport (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        - Viewport (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
           Transform: pos=(-189.40, 262.15, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.00, 1.00)
                        anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
@@ -756,7 +756,7 @@ Root objects: 9
           - CanvasRenderer
           - Image (raycast=True, type=Sliced, color=RGBA(0.830, 0.708, 0.443, 1.000))
           - Mask (showMaskGraphic=False)
-          - Content (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          - Content (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
             Transform: pos=(189.40, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 1.00)
                          anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 10.00) offsetMin=(0.00, -10.00) offsetMax=(0.00, 0.00)

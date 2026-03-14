@@ -17,11 +17,6 @@ public class VillagerInspectPanelView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI perksText;
     [SerializeField] private TextMeshProUGUI inventoryText;
 
-
-    [Header("Auto Refresh")]
-    [SerializeField] private bool autoRefresh = true;            // <- ДОДАЙ
-    [SerializeField] private float refreshInterval = 0.25f;
-
     [Header("3D Preview")]
     [SerializeField] private RawImage previewImage;       // показує RenderTexture
     [SerializeField] private Camera previewCamera;        // рендерить тільки preview layer
@@ -44,15 +39,6 @@ public class VillagerInspectPanelView : MonoBehaviour
             closeButton.onClick.AddListener(Hide);
     }
 
-    private void Update()
-    {
-        if (!autoRefresh) return;
-        if (_target == null) return;
-        if (Time.unscaledTime < _nextRefreshAt) return;
-
-        _nextRefreshAt = Time.unscaledTime + refreshInterval;
-        RebuildAll_IfChanged();
-    }
 
     private void OnEnable()
     {
@@ -65,7 +51,8 @@ public class VillagerInspectPanelView : MonoBehaviour
         if (GameInstaller.Progression != null)
             GameInstaller.Progression.OnProgressChanged += HandleProgressChanged;
 
-        RefreshFromService();
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged += HandleInventoryChanged;
     }
 
     private void OnDisable()
@@ -78,6 +65,11 @@ public class VillagerInspectPanelView : MonoBehaviour
 
         if (GameInstaller.Progression != null)
             GameInstaller.Progression.OnProgressChanged -= HandleProgressChanged;
+
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+
+
     }
 
     private void OnDestroy()
@@ -90,21 +82,27 @@ public class VillagerInspectPanelView : MonoBehaviour
 
         if (GameInstaller.Progression != null)
             GameInstaller.Progression.OnProgressChanged -= HandleProgressChanged;
+
+        if (GameInstaller.Inventory != null)
+            GameInstaller.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+
     }
+
+
 
     public void Show(VillagerAgentBrain brain)
     {
         if (brain == null) return;
 
+        bool targetChanged = _target != brain;
         _target = brain;
 
         if (root != null) root.SetActive(true);
 
-        _nextRefreshAt = 0f;
-        _lastSnapshot = null;
-
         RebuildAll();
-        BuildPreviewModel();
+
+        if (targetChanged)
+            BuildPreviewModel();
     }
 
     public void Hide()
@@ -114,60 +112,6 @@ public class VillagerInspectPanelView : MonoBehaviour
         ClearPreviewModel();
     }
 
-
-
-
-    private void RebuildAll_IfChanged()
-    {
-        // Знімаємо “знімок” даних з сервісів.
-        // Якщо нічого не змінилось — не чіпаємо TMP/лейаути.
-        var snap = BuildSnapshotString();
-        if (snap == _lastSnapshot) return;
-
-        _lastSnapshot = snap;
-        RebuildAll();
-    }
-
-
-    private string BuildSnapshotString()
-    {
-        if (_target == null) return "";
-
-        var agentId = _target.AgentId;
-        var roster = GameInstaller.Villagers;
-        var prog = GameInstaller.Progression;
-        var inv = GameInstaller.Inventory != null ? GameInstaller.Inventory.Get(agentId) : null;
-        var cargo = _target.GetCargoSnapshot();
-
-        var s = roster?.GetOrCreate(agentId);
-        var p = prog?.Get(agentId);
-
-        var sb = new StringBuilder(256);
-        sb.Append(agentId).Append('|');
-        sb.Append(s != null ? s.status.ToString() : "null").Append('|');
-        sb.Append(s != null ? s.taskName : "null").Append('|');
-        sb.Append(s != null ? s.taskId : "null").Append('|');
-        sb.Append(p != null ? p.level.ToString() : "null").Append('|');
-
-        if (p != null && p.perks != null)
-            sb.Append(string.Join(",", p.perks));
-        sb.Append('|');
-
-        if (cargo != null && cargo.Count > 0)
-        {
-            foreach (var kv in cargo)
-                sb.Append(kv.Key).Append(':').Append(kv.Value).Append(',');
-        }
-        sb.Append('|');
-
-        if (inv != null && inv.Count > 0)
-        {
-            for (int i = 0; i < inv.Count; i++)
-                sb.Append(inv[i].itemId).Append(':').Append(inv[i].amount).Append(',');
-        }
-
-        return sb.ToString();
-    }
 
     private void RebuildAll()
     {
@@ -326,34 +270,14 @@ public class VillagerInspectPanelView : MonoBehaviour
     private void HandleSelectedChanged(string agentId)
     {
         _selectedAgentId = agentId;
-        RefreshFromService();
-    }
 
-    private void HandleVillagerChanged(string agentId)
-    {
-        if (!string.IsNullOrWhiteSpace(_selectedAgentId) && _selectedAgentId == agentId)
-            RefreshFromService();
-    }
-
-    private void HandleProgressChanged(string agentId)
-    {
-        if (!string.IsNullOrWhiteSpace(_selectedAgentId) && _selectedAgentId == agentId)
-            RefreshFromService();
-    }
-
-    private void RefreshFromService()
-    {
-        _selectedAgentId = GameInstaller.SelectedVillager != null
-            ? GameInstaller.SelectedVillager.SelectedId
-            : _selectedAgentId;
-
-        if (string.IsNullOrWhiteSpace(_selectedAgentId))
+        if (string.IsNullOrWhiteSpace(agentId))
         {
             Hide();
             return;
         }
 
-        var brain = FindBrain(_selectedAgentId);
+        var brain = FindBrain(agentId);
         if (brain == null)
         {
             Hide();
@@ -362,6 +286,28 @@ public class VillagerInspectPanelView : MonoBehaviour
 
         Show(brain);
     }
+
+    private void HandleVillagerChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
+    private void HandleProgressChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
+    private void HandleInventoryChanged(string agentId)
+    {
+        if (_target == null) return;
+        if (_target.AgentId != agentId) return;
+        RebuildAll();
+    }
+
 
     private VillagerAgentBrain FindBrain(string agentId)
     {

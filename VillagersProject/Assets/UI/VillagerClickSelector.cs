@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 public class VillagerClickSelector : MonoBehaviour
 {
     [SerializeField] private Camera cam;
+    [SerializeField] private VillagerInspectPanelView inspectPanel;
     [SerializeField] private LayerMask hitMask = ~0; // все
     [SerializeField] private float maxDistance = 500f;
 
@@ -17,15 +18,12 @@ public class VillagerClickSelector : MonoBehaviour
 
     private void Update()
     {
-        if (cam == null) return;
+        if (cam == null || inspectPanel == null) return;
         if (Mouse.current == null) return;
-
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
 
         Vector2 screenPos = Mouse.current.position.ReadValue();
         Ray ray = cam.ScreenPointToRay(screenPos);
-
-        Debug.DrawRay(ray.origin, ray.direction * 100f, Color.yellow, 1f);
 
         if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, hitMask, QueryTriggerInteraction.Ignore))
         {
@@ -33,10 +31,12 @@ public class VillagerClickSelector : MonoBehaviour
             if (brain != null)
             {
                 GameInstaller.SelectedVillager?.SetSelected(brain.AgentId);
+                inspectPanel.Show(brain);
                 return;
             }
         }
 
         GameInstaller.SelectedVillager?.Clear();
+        inspectPanel.Hide();
     }
 }
