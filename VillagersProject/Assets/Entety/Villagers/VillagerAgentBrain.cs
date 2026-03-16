@@ -42,8 +42,6 @@ public class VillagerAgentBrain : MonoBehaviour
     private VillagerRosterService _roster;
     private readonly VillagerTaskSettlementService _taskSettlement = new();
 
-    private readonly TaskEscrowService _taskEscrow = new();
-    private TaskEscrowReservation _activeEscrow;
 
     public string AgentId => agentId;
 
@@ -132,9 +130,33 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            if (!TryReserveTaskStartCost(task))
+            // ✅ PATCH 11: generic upfront task cost first, legacy gold escrow fallback second
+            var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+
+            if (_treasury != null && upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
             {
+                if (!_treasury.CanAfford(upfrontCostBundle))
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: not enough upfront bundle cost for task={task.taskId}");
+                    yield return null;
+                    continue;
+                }
+
+                var upfrontSpendResult = _treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
+                if (!upfrontSpendResult.success)
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: upfront bundle spend failed for task={task.taskId} reason={upfrontSpendResult.message}");
+                    yield return null;
+                    continue;
+                }
+            }
+            else if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            {
+                // якщо грошей нема — відпускаємо слот назад
                 _board.Release(task.taskId, agentId);
+                Log($"Reserve failed: not enough gold for wage={task.wageGold}");
                 yield return null;
                 continue;
             }
@@ -656,22 +678,6 @@ public class VillagerAgentBrain : MonoBehaviour
         _log?.Push($"[{agentId}] {msg}");
     }
 
-    private bool TryReserveTaskStartCost(TaskInstance task)
-    {
-        _activeEscrow = null;
-
-        if (!_taskEscrow.TryReserve(task, agentId, _treasury, out var reservation, out var errorMessage))
-        {
-            if (!string.IsNullOrWhiteSpace(errorMessage))
-                Log($"Reserve failed: {errorMessage}");
-
-            return false;
-        }
-
-        _activeEscrow = reservation;
-        return true;
-    }
-
 
     private void FinalizeTask(TaskInstance task, bool success)
     {
@@ -683,9 +689,21 @@ public class VillagerAgentBrain : MonoBehaviour
         {
             _taskSettlement.ApplySuccess(task, _cargo, _treasury);
             CommitCargoToTreasury();
+
+            if (_treasury != null && task.wageGold > 0)
+            {
+                _treasury.ConsumeLockedGold(task.wageGold);
+                Log($"Wage paid: +{task.wageGold} gold");
+            }
         }
         else
         {
+            if (_treasury != null && task.wageGold > 0)
+            {
+                _treasury.RefundGold(task.wageGold);
+                Log($"Task failed -> wage refunded: {task.wageGold} gold");
+            }
+
             _taskSettlement.ApplyFailure(task, _cargo, _treasury);
         }
 
@@ -702,93 +720,75 @@ public class VillagerAgentBrain : MonoBehaviour
     {
         _completedThisCycle = false;
 
-        int escrowGold = _activeEscrow != null ? _activeEscrow.lockedGold : 0;
+        // escrow: забираємо з locked у record
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
 
         var rec = new CorpseRecord
         {
             agentId = agentId,
             worldPos = _lastWorkPos,
-            escrowGold = escrowGold,
+            escrowGold = task.wageGold,
             cargo = _cargo.Snapshot()
         };
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerDead(task.targetLocationId);
             GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
         }
 
-        _taskSettlement.ApplyDeath(task, _cargo, _treasury);
+        _cargo.Clear();
 
-        _taskEscrow.SettleDeath(_activeEscrow, _treasury);
-        _activeEscrow = null;
+        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={task.wageGold}");
 
-        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={escrowGold}");
+        // cleanup board (без FinalizeTask, бо він робить refund/commit)
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
 
-        if (task != null)
-        {
-            _board.Release(task.taskId, agentId);
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
 
-            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-                _board.RemoveTaskRuntime(task.taskId);
-
-            _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
-        }
-        else
-        {
-            _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "DEAD");
-        }
-
-        StopBrain();
+        StopBrain(); // зупиняємо корутину цього агента
     }
 
     private void HandleLost(TaskInstance task)
     {
         _completedThisCycle = false;
 
-        int riskTier = task != null ? task.riskTier : 0;
-        int escrowGold = _activeEscrow != null ? _activeEscrow.lockedGold : 0;
-        var hidden = PenaltyRoll.RollLostHidden(riskTier);
+        if (_treasury != null && task.wageGold > 0)
+            _treasury.ConsumeLockedGold(task.wageGold);
+
+        var hidden = PenaltyRoll.RollLostHidden(task.riskTier);
 
         var rec = new LostRecord
         {
             agentId = agentId,
             lastSeenPos = _lastWorkPos,
-            escrowGold = escrowGold,
+            escrowGold = task.wageGold,
             cargo = _cargo.Snapshot(),
             hiddenOutcome = hidden
         };
 
         GameInstaller.Lost?.AddLost(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerLost(task.targetLocationId);
             GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
         }
 
-        _taskSettlement.ApplyLost(task, _cargo, _treasury);
+        _cargo.Clear();
 
-        _taskEscrow.SettleLost(_activeEscrow, _treasury);
-        _activeEscrow = null;
+        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={task.wageGold}");
 
-        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={escrowGold}");
+        _board.Release(task.taskId, agentId);
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
 
-        if (task != null)
-        {
-            _board.Release(task.taskId, agentId);
-
-            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-                _board.RemoveTaskRuntime(task.taskId);
-
-            _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
-        }
-        else
-        {
-            _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "LOST");
-        }
+        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
 
         StopBrain();
     }
