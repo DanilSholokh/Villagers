@@ -14,10 +14,6 @@ public class ExploreSpotRegistry
             Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None)
         );
 
-        foreach (var s in Spots)
-        {
-            Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");
-        }
 
 
         Locations = new Dictionary<string, LocationEntity>();

@@ -1,11 +1,1363 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-14 00:18:07
+Time: 2026-03-16 06:01:43
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 56
+FilesCount: 88
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Categories/Registries/ResourceCategoryRegistry.cs
+SIZE: 1805 bytes
+SHA256: ce868cc9ef5a8e77c68f8a6e744f73a67b2d767e7d2ec61f062c590d32eb03f9
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ResourceCategoryRegistry
+{
+    private readonly Dictionary<string, ResourceCategoryData> _byId =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public int Count => _byId.Count;
+
+    public void Clear()
+    {
+        _byId.Clear();
+    }
+
+    public void LoadFromAssets(IEnumerable<ResourceCategoryDataSO> assets)
+    {
+        Clear();
+
+        if (assets == null)
+            return;
+
+        foreach (var asset in assets)
+        {
+            if (asset == null)
+                continue;
+
+            Register(asset.Data);
+        }
+    }
+
+    public void Register(ResourceCategoryData data)
+    {
+        if (data == null)
+            return;
+
+        var id = NormalizeId(data.categoryId);
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            Debug.LogWarning("[ResourceCategoryRegistry] Skip category with empty categoryId.");
+            return;
+        }
+
+        data.categoryId = id;
+        _byId[id] = data;
+    }
+
+    public bool Has(string categoryId)
+    {
+        return _byId.ContainsKey(NormalizeId(categoryId));
+    }
+
+    public bool TryGet(string categoryId, out ResourceCategoryData data)
+    {
+        return _byId.TryGetValue(NormalizeId(categoryId), out data);
+    }
+
+    public ResourceCategoryData Get(string categoryId)
+    {
+        return _byId.TryGetValue(NormalizeId(categoryId), out var data) ? data : null;
+    }
+
+    public IReadOnlyCollection<ResourceCategoryData> GetAll()
+    {
+        return _byId.Values;
+    }
+
+    private static string NormalizeId(string id)
+    {
+        return string.IsNullOrWhiteSpace(id)
+            ? string.Empty
+            : id.Trim().ToLowerInvariant();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Categories/Services/ResourceCategoryService.cs
+SIZE: 1427 bytes
+SHA256: b464ee2508faa25c65d5dabca355b63da8480e07612b9108cbb8ebebcdc15e67
+CONTENT:
+using UnityEngine;
+
+public class ResourceCategoryService
+{
+    private readonly ResourceCategoryRegistry _registry;
+
+    public ResourceCategoryService(ResourceCategoryRegistry registry)
+    {
+        _registry = registry;
+    }
+
+    public bool HasCategory(string categoryId)
+    {
+        return _registry != null && _registry.Has(categoryId);
+    }
+
+    public ResourceCategoryData GetCategory(string categoryId)
+    {
+        return _registry != null ? _registry.Get(categoryId) : null;
+    }
+
+    public float GetTradeMultiplier(string categoryId)
+    {
+        var category = GetCategory(categoryId);
+        return category != null ? Mathf.Max(0f, category.tradeMultiplier) : 0f;
+    }
+
+    public float GetTradeMultiplierByResourceId(string resourceId)
+    {
+        if (GameInstaller.Resources == null || string.IsNullOrWhiteSpace(resourceId))
+            return 0f;
+
+        var resource = GameInstaller.Resources.Get(resourceId);
+        if (resource == null)
+            return 0f;
+
+        return GetTradeMultiplier(resource.categoryId);
+    }
+
+    public bool ResourceHasValidCategory(string resourceId)
+    {
+        if (GameInstaller.Resources == null || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        var resource = GameInstaller.Resources.Get(resourceId);
+        return resource != null && HasCategory(resource.categoryId);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Bundles/CategoryValueRequirement.cs
+SIZE: 585 bytes
+SHA256: 0c37bb548743f305543faa0494a116ec966981ecb6ec0f2fde8a2cbc8b338738
+CONTENT:
+using System;
+
+[Serializable]
+public struct CategoryValueRequirement
+{
+    public string categoryId;
+    public int value;
+
+    public CategoryValueRequirement(string categoryId, int value)
+    {
+        this.categoryId = Normalize(categoryId);
+        this.value = value;
+    }
+
+    public bool IsValid => !string.IsNullOrWhiteSpace(categoryId) && value > 0;
+
+    public static string Normalize(string categoryId)
+    {
+        return string.IsNullOrWhiteSpace(categoryId)
+            ? string.Empty
+            : categoryId.Trim().ToLowerInvariant();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Bundles/ResourceBundle.cs
+SIZE: 5179 bytes
+SHA256: 3c41d7456204ae9b2963dfc8f5477e6c21626eb6fc8de6de917cbce552fe2c9a
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[Serializable]
+public class ResourceBundle
+{
+    [SerializeField] private List<ResourceStack> exactResources = new();
+    [SerializeField] private List<CategoryValueRequirement> categoryValues = new();
+
+    public List<ResourceStack> ExactResources => exactResources;
+    public List<CategoryValueRequirement> CategoryValues => categoryValues;
+
+    public bool IsEmpty
+    {
+        get
+        {
+            return (exactResources == null || exactResources.Count == 0)
+                && (categoryValues == null || categoryValues.Count == 0);
+        }
+    }
+
+    public void Clear()
+    {
+        exactResources.Clear();
+        categoryValues.Clear();
+    }
+
+    public void AddExact(string resourceId, int amount)
+    {
+        var stack = new ResourceStack(resourceId, amount);
+        if (!stack.IsValid)
+            return;
+
+        for (int i = 0; i < exactResources.Count; i++)
+        {
+            if (string.Equals(exactResources[i].resourceId, stack.resourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                var merged = exactResources[i];
+                merged.amount += stack.amount;
+                exactResources[i] = merged;
+                return;
+            }
+        }
+
+        exactResources.Add(stack);
+    }
+
+    public void AddCategoryValue(string categoryId, int value)
+    {
+        var entry = new CategoryValueRequirement(categoryId, value);
+        if (!entry.IsValid)
+            return;
+
+        for (int i = 0; i < categoryValues.Count; i++)
+        {
+            if (string.Equals(categoryValues[i].categoryId, entry.categoryId, StringComparison.OrdinalIgnoreCase))
+            {
+                var merged = categoryValues[i];
+                merged.value += entry.value;
+                categoryValues[i] = merged;
+                return;
+            }
+        }
+
+        categoryValues.Add(entry);
+    }
+
+    public int GetExactAmount(string resourceId)
+    {
+        resourceId = ResourceStack.Normalize(resourceId);
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < exactResources.Count; i++)
+        {
+            if (exactResources[i].resourceId == resourceId)
+                total += exactResources[i].amount;
+        }
+
+        return total;
+    }
+
+    public int GetCategoryValue(string categoryId)
+    {
+        categoryId = CategoryValueRequirement.Normalize(categoryId);
+        if (string.IsNullOrWhiteSpace(categoryId))
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < categoryValues.Count; i++)
+        {
+            if (categoryValues[i].categoryId == categoryId)
+                total += categoryValues[i].value;
+        }
+
+        return total;
+    }
+
+    public ResourceBundle Clone()
+    {
+        var clone = new ResourceBundle();
+
+        for (int i = 0; i < exactResources.Count; i++)
+        {
+            var s = exactResources[i];
+            if (s.IsValid)
+                clone.exactResources.Add(new ResourceStack(s.resourceId, s.amount));
+        }
+
+        for (int i = 0; i < categoryValues.Count; i++)
+        {
+            var c = categoryValues[i];
+            if (c.IsValid)
+                clone.categoryValues.Add(new CategoryValueRequirement(c.categoryId, c.value));
+        }
+
+        return clone;
+    }
+
+    public void Normalize()
+    {
+        var normalizedExact = new List<ResourceStack>();
+        var normalizedCategories = new List<CategoryValueRequirement>();
+
+        foreach (var stack in exactResources)
+        {
+            if (!stack.IsValid)
+                continue;
+
+            bool merged = false;
+            for (int i = 0; i < normalizedExact.Count; i++)
+            {
+                if (normalizedExact[i].resourceId == stack.resourceId)
+                {
+                    var s = normalizedExact[i];
+                    s.amount += stack.amount;
+                    normalizedExact[i] = s;
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged)
+                normalizedExact.Add(new ResourceStack(stack.resourceId, stack.amount));
+        }
+
+        foreach (var entry in categoryValues)
+        {
+            if (!entry.IsValid)
+                continue;
+
+            bool merged = false;
+            for (int i = 0; i < normalizedCategories.Count; i++)
+            {
+                if (normalizedCategories[i].categoryId == entry.categoryId)
+                {
+                    var c = normalizedCategories[i];
+                    c.value += entry.value;
+                    normalizedCategories[i] = c;
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged)
+                normalizedCategories.Add(new CategoryValueRequirement(entry.categoryId, entry.value));
+        }
+
+        exactResources = normalizedExact;
+        categoryValues = normalizedCategories;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Bundles/ResourceCost.cs
+SIZE: 421 bytes
+SHA256: 2cabc454bb76d19f122d9206e22fdc7aff539dd1e849a6accdf0c77b7a850f7e
+CONTENT:
+using System;
+using UnityEngine;
+
+[Serializable]
+public class ResourceCost
+{
+    [SerializeField] private ResourceBundle bundle = new();
+
+    public ResourceBundle Bundle => bundle;
+
+    public bool IsEmpty => bundle == null || bundle.IsEmpty;
+
+    public ResourceCost()
+    {
+    }
+
+    public ResourceCost(ResourceBundle bundle)
+    {
+        this.bundle = bundle ?? new ResourceBundle();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Bundles/ResourceReward.cs
+SIZE: 427 bytes
+SHA256: a3b11bad257400602e843c8783b2e8cff058ec582845263e5bc36e3274f11da1
+CONTENT:
+using System;
+using UnityEngine;
+
+[Serializable]
+public class ResourceReward
+{
+    [SerializeField] private ResourceBundle bundle = new();
+
+    public ResourceBundle Bundle => bundle;
+
+    public bool IsEmpty => bundle == null || bundle.IsEmpty;
+
+    public ResourceReward()
+    {
+    }
+
+    public ResourceReward(ResourceBundle bundle)
+    {
+        this.bundle = bundle ?? new ResourceBundle();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/CategoryValue/CategoryQueryService.cs
+SIZE: 2145 bytes
+SHA256: 9ec03d78ff0824698b47d0e7589ed6e7bbf559f5b0e40ca979bdbf8710d69e2b
+CONTENT:
+using System.Collections.Generic;
+
+public class CategoryQueryService
+{
+    private readonly CategoryValueService _valueService;
+
+    public CategoryQueryService(CategoryValueService valueService)
+    {
+        _valueService = valueService;
+    }
+
+    public int GetCategoryValue(IResourceContainer container, string categoryId)
+    {
+        if (_valueService == null)
+            return 0;
+
+        return _valueService.GetContainerCategoryValue(container, categoryId);
+    }
+
+    public bool HasEnoughCategoryValue(IResourceContainer container, string categoryId, int requiredValue)
+    {
+        if (_valueService == null)
+            return false;
+
+        return _valueService.HasCategoryValue(container, categoryId, requiredValue);
+    }
+
+    // Base selection path only.
+    // This PATCH does not spend yet; it only determines a deterministic candidate order.
+    public List<ResourceStack> BuildSpendSelectionPath(IResourceContainer container, string categoryId)
+    {
+        var result = new List<ResourceStack>();
+
+        if (_valueService == null || container == null)
+            return result;
+
+        categoryId = CategoryValueStack.Normalize(categoryId);
+        if (string.IsNullOrWhiteSpace(categoryId))
+            return result;
+
+        var stacks = container.GetStacks();
+
+        for (int i = 0; i < stacks.Count; i++)
+        {
+            var stack = stacks[i];
+            if (!stack.IsValid)
+                continue;
+
+            var stackCategoryId = _valueService.GetResourceCategoryId(stack.resourceId);
+            if (stackCategoryId != categoryId)
+                continue;
+
+            result.Add(stack);
+        }
+
+        result.Sort((a, b) =>
+        {
+            int av = _valueService.GetResourceValue(a.resourceId);
+            int bv = _valueService.GetResourceValue(b.resourceId);
+
+            int byUnitValueDesc = bv.CompareTo(av);
+            if (byUnitValueDesc != 0)
+                return byUnitValueDesc;
+
+            return string.CompareOrdinal(a.resourceId, b.resourceId);
+        });
+
+        return result;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/CategoryValue/CategoryValueService.cs
+SIZE: 3288 bytes
+SHA256: 076c2453444abcad07e880badf24b28fe21abeb1cc789deac4c4e765e8434d1e
+CONTENT:
+using System.Collections.Generic;
+
+public class CategoryValueService
+{
+    public int GetResourceValue(string resourceId)
+    {
+        if (GameInstaller.Resources == null || string.IsNullOrWhiteSpace(resourceId))
+            return 0;
+
+        var resource = GameInstaller.Resources.Get(resourceId);
+        if (resource == null)
+            return 0;
+
+        return resource.baseValue < 0 ? 0 : resource.baseValue;
+    }
+
+    public string GetResourceCategoryId(string resourceId)
+    {
+        if (GameInstaller.Resources == null || string.IsNullOrWhiteSpace(resourceId))
+            return string.Empty;
+
+        var resource = GameInstaller.Resources.Get(resourceId);
+        if (resource == null || string.IsNullOrWhiteSpace(resource.categoryId))
+            return string.Empty;
+
+        return CategoryValueStack.Normalize(resource.categoryId);
+    }
+
+    public int GetStackCategoryValue(ResourceStack stack)
+    {
+        if (!stack.IsValid)
+            return 0;
+
+        int unitValue = GetResourceValue(stack.resourceId);
+        if (unitValue <= 0)
+            return 0;
+
+        return stack.amount * unitValue;
+    }
+
+    public int GetContainerCategoryValue(IResourceContainer container, string categoryId)
+    {
+        if (container == null)
+            return 0;
+
+        categoryId = CategoryValueStack.Normalize(categoryId);
+        if (string.IsNullOrWhiteSpace(categoryId))
+            return 0;
+
+        int total = 0;
+        var stacks = container.GetStacks();
+
+        for (int i = 0; i < stacks.Count; i++)
+        {
+            var stack = stacks[i];
+            if (!stack.IsValid)
+                continue;
+
+            var resourceCategoryId = GetResourceCategoryId(stack.resourceId);
+            if (resourceCategoryId != categoryId)
+                continue;
+
+            total += GetStackCategoryValue(stack);
+        }
+
+        return total;
+    }
+
+    public List<CategoryValueStack> BuildCategoryValueStacks(IResourceContainer container)
+    {
+        var result = new Dictionary<string, int>();
+
+        if (container == null)
+            return new List<CategoryValueStack>();
+
+        var stacks = container.GetStacks();
+        for (int i = 0; i < stacks.Count; i++)
+        {
+            var stack = stacks[i];
+            if (!stack.IsValid)
+                continue;
+
+            var categoryId = GetResourceCategoryId(stack.resourceId);
+            if (string.IsNullOrWhiteSpace(categoryId))
+                continue;
+
+            int stackValue = GetStackCategoryValue(stack);
+            if (stackValue <= 0)
+                continue;
+
+            if (!result.ContainsKey(categoryId))
+                result[categoryId] = 0;
+
+            result[categoryId] += stackValue;
+        }
+
+        var list = new List<CategoryValueStack>(result.Count);
+        foreach (var kv in result)
+            list.Add(new CategoryValueStack(kv.Key, kv.Value));
+
+        return list;
+    }
+
+    public bool HasCategoryValue(IResourceContainer container, string categoryId, int requiredValue)
+    {
+        if (requiredValue <= 0)
+            return true;
+
+        return GetContainerCategoryValue(container, categoryId) >= requiredValue;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/CategoryValue/CategoryValueStack.cs
+SIZE: 570 bytes
+SHA256: 8bb8d9b8916a15f7d78283c9c65545f033d2409c417aa93773bf813ce391b5fc
+CONTENT:
+using System;
+
+[Serializable]
+public struct CategoryValueStack
+{
+    public string categoryId;
+    public int value;
+
+    public CategoryValueStack(string categoryId, int value)
+    {
+        this.categoryId = Normalize(categoryId);
+        this.value = value;
+    }
+
+    public bool IsValid => !string.IsNullOrWhiteSpace(categoryId) && value > 0;
+
+    public static string Normalize(string categoryId)
+    {
+        return string.IsNullOrWhiteSpace(categoryId)
+            ? string.Empty
+            : categoryId.Trim().ToLowerInvariant();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Recipes/EconomicCondition.cs
+SIZE: 1271 bytes
+SHA256: 794ddbc90fc2ca16989ecbe6d2060ddf6898749aca20ecb82f516a455580b42d
+CONTENT:
+using System;
+using UnityEngine;
+
+public enum EconomicConditionType
+{
+    None = 0,
+    HasExactResources = 1,
+    HasCategoryValue = 2,
+}
+
+[Serializable]
+public class EconomicCondition
+{
+    [SerializeField] private EconomicConditionType type = EconomicConditionType.None;
+    [SerializeField] private string resourceId;
+    [SerializeField] private string categoryId;
+    [SerializeField] private int amount;
+
+    public EconomicConditionType Type => type;
+    public string ResourceId => resourceId;
+    public string CategoryId => categoryId;
+    public int Amount => amount;
+
+    public static EconomicCondition RequireExact(string resourceId, int amount)
+    {
+        return new EconomicCondition
+        {
+            type = EconomicConditionType.HasExactResources,
+            resourceId = ResourceStack.Normalize(resourceId),
+            amount = Mathf.Max(0, amount)
+        };
+    }
+
+    public static EconomicCondition RequireCategoryValue(string categoryId, int amount)
+    {
+        return new EconomicCondition
+        {
+            type = EconomicConditionType.HasCategoryValue,
+            categoryId = CategoryValueRequirement.Normalize(categoryId),
+            amount = Mathf.Max(0, amount)
+        };
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Recipes/EconomicRecipe.cs
+SIZE: 917 bytes
+SHA256: 8623eba8285c93e9b99ddadbb21fe4ccaf4785e7513c323291b18b2afa331766
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[Serializable]
+public class EconomicRecipe
+{
+    [Header("Identity")]
+    [SerializeField] private string recipeId;
+    [SerializeField] private string displayName;
+
+    [Header("Payloads")]
+    [SerializeField] private ResourceCost inputCost = new();
+    [SerializeField] private ResourceReward outputReward = new();
+
+    [Header("Conditions")]
+    [SerializeField] private List<EconomicCondition> conditions = new();
+
+    public string RecipeId => recipeId;
+    public string DisplayName => displayName;
+    public ResourceCost InputCost => inputCost;
+    public ResourceReward OutputReward => outputReward;
+    public List<EconomicCondition> Conditions => conditions;
+
+    public bool HasInputs => inputCost != null && !inputCost.IsEmpty;
+    public bool HasOutputs => outputReward != null && !outputReward.IsEmpty;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Recipes/EconomicRecipeBuilder.cs
+SIZE: 1904 bytes
+SHA256: d59b0b18e215dd0799a353a08be22cce81221e7604c86a69dbc96a69e9a1f81e
+CONTENT:
+using System.Collections.Generic;
+using System.Reflection;
+
+public class EconomicRecipeBuilder
+{
+    private string _id = string.Empty;
+    private string _displayName = string.Empty;
+    private ResourceBundle _input;
+    private ResourceBundle _output;
+    private readonly List<EconomicCondition> _conditions = new();
+
+    public EconomicRecipeBuilder WithId(string id)
+    {
+        _id = id ?? string.Empty;
+        return this;
+    }
+
+    public EconomicRecipeBuilder WithDisplayName(string displayName)
+    {
+        _displayName = displayName ?? string.Empty;
+        return this;
+    }
+
+    public EconomicRecipeBuilder WithInput(ResourceBundle bundle)
+    {
+        _input = bundle != null ? bundle.Clone() : null;
+        return this;
+    }
+
+    public EconomicRecipeBuilder WithOutput(ResourceBundle bundle)
+    {
+        _output = bundle != null ? bundle.Clone() : null;
+        return this;
+    }
+
+    public EconomicRecipeBuilder AddCondition(EconomicCondition condition)
+    {
+        if (condition != null)
+            _conditions.Add(condition);
+
+        return this;
+    }
+
+    public EconomicRecipe Build()
+    {
+        var recipe = new EconomicRecipe();
+
+        SetField(recipe, "recipeId", _id);
+        SetField(recipe, "displayName", _displayName);
+        SetField(recipe, "inputCost", new ResourceCost(_input ?? new ResourceBundle()));
+        SetField(recipe, "outputReward", new ResourceReward(_output ?? new ResourceBundle()));
+        SetField(recipe, "conditions", new List<EconomicCondition>(_conditions));
+
+        return recipe;
+    }
+
+    private static void SetField(object target, string fieldName, object value)
+    {
+        var field = target.GetType().GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        field?.SetValue(target, value);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Recipes/EconomicRecipeSO.cs
+SIZE: 296 bytes
+SHA256: 513a72a2ba049f708427a4ad01581faa9b891df8a1f7475e7fe7d8d4177939cd
+CONTENT:
+using UnityEngine;
+
+[CreateAssetMenu(
+    fileName = "EconomicRecipe",
+    menuName = "Villagers/Economy/Economic Recipe"
+)]
+public class EconomicRecipeSO : ScriptableObject
+{
+    [SerializeField] private EconomicRecipe recipe = new();
+
+    public EconomicRecipe Recipe => recipe;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Runtime/EconomicContext.cs
+SIZE: 205 bytes
+SHA256: 37325b16e9c59bc26afcd9b7388e00266cc7c448114ab2a852ea862af47351c6
+CONTENT:
+using System;
+
+[Serializable]
+public class EconomicContext
+{
+    public IResourceContainer source;
+    public IResourceContainer target;
+
+    public string actorId;
+    public string reason;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Runtime/EconomicResult.cs
+SIZE: 746 bytes
+SHA256: d42f2219c883b211cf37422f3b9fa2a64f532b97b149623e08276a7b55785d05
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+[Serializable]
+public class EconomicResult
+{
+    public bool success;
+    public string message;
+
+    public ResourceBundle consumed = new();
+    public ResourceBundle produced = new();
+
+    public List<ResourceStack> categorySpendSelection = new();
+
+    public static EconomicResult Ok(string message = "")
+    {
+        return new EconomicResult
+        {
+            success = true,
+            message = message ?? string.Empty
+        };
+    }
+
+    public static EconomicResult Fail(string message)
+    {
+        return new EconomicResult
+        {
+            success = false,
+            message = message ?? "Economic operation failed."
+        };
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Runtime/EconomicTreasuryContextFactory.cs
+SIZE: 430 bytes
+SHA256: 97e39dd41fa904bfcbdffae89ed827b5e9b994ca0ed5a8c889f26c2cb34083e1
+CONTENT:
+public static class EconomicTreasuryContextFactory
+{
+    public static EconomicContext Create(
+        TreasuryService treasury,
+        string actorId = null,
+        string reason = null)
+    {
+        return new EconomicContext
+        {
+            source = treasury,
+            target = treasury,
+            actorId = actorId ?? string.Empty,
+            reason = reason ?? string.Empty
+        };
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Services/EconomicExecutionService.cs
+SIZE: 2156 bytes
+SHA256: 60ed6dbb8145930ca70fd90edaee0644d375d6c490791a518a0697f6893b9d46
+CONTENT:
+public class EconomicExecutionService
+{
+    private readonly EconomicValidationService _validation;
+
+    public EconomicExecutionService(EconomicValidationService validation)
+    {
+        _validation = validation;
+    }
+
+    public EconomicResult Execute(EconomicRecipe recipe, EconomicContext context)
+    {
+        var validation = _validation.Validate(recipe, context);
+        if (!validation.success)
+            return validation;
+
+        ApplyConsumed(validation, context);
+        ApplyProduced(recipe, validation, context);
+
+        validation.success = true;
+        validation.message = "Recipe executed successfully.";
+        return validation;
+    }
+
+    private void ApplyConsumed(EconomicResult result, EconomicContext context)
+    {
+        var consumed = result.consumed;
+        if (consumed == null || consumed.IsEmpty)
+            return;
+
+        var exact = consumed.ExactResources;
+        for (int i = 0; i < exact.Count; i++)
+        {
+            var stack = exact[i];
+            if (!stack.IsValid)
+                continue;
+
+            context.source.TrySpend(stack.resourceId, stack.amount);
+        }
+    }
+
+    private void ApplyProduced(EconomicRecipe recipe, EconomicResult result, EconomicContext context)
+    {
+        var reward = recipe.OutputReward != null ? recipe.OutputReward.Bundle : null;
+        if (reward == null || reward.IsEmpty)
+            return;
+
+        var receiver = context.target ?? context.source;
+        var exact = reward.ExactResources;
+
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                receiver.Add(stack.resourceId, stack.amount);
+                result.produced.AddExact(stack.resourceId, stack.amount);
+            }
+        }
+
+        // Category-value rewards are not applied directly in PATCH 6.
+        // They are allowed as payload format, but concrete reward materialization
+        // will come in later integrations if needed.
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Services/EconomicSelectionService.cs
+SIZE: 1968 bytes
+SHA256: 13c38d4e136f2ab61e5c79e86d2266fda299aab032f0e1db4264b6121bcc8b90
+CONTENT:
+using System.Collections.Generic;
+
+public class EconomicSelectionService
+{
+    private readonly CategoryValueService _categoryValues;
+    private readonly CategoryQueryService _categoryQueries;
+
+    public EconomicSelectionService(
+        CategoryValueService categoryValues,
+        CategoryQueryService categoryQueries)
+    {
+        _categoryValues = categoryValues;
+        _categoryQueries = categoryQueries;
+    }
+
+    public List<ResourceStack> SelectCategorySpend(
+        IResourceContainer container,
+        string categoryId,
+        int requiredValue)
+    {
+        var result = new List<ResourceStack>();
+
+        if (container == null || _categoryValues == null || _categoryQueries == null)
+            return result;
+
+        if (requiredValue <= 0)
+            return result;
+
+        var ordered = _categoryQueries.BuildSpendSelectionPath(container, categoryId);
+        int remaining = requiredValue;
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var stack = ordered[i];
+            if (!stack.IsValid)
+                continue;
+
+            int unitValue = _categoryValues.GetResourceValue(stack.resourceId);
+            if (unitValue <= 0)
+                continue;
+
+            int maxStackValue = stack.amount * unitValue;
+            if (maxStackValue <= 0)
+                continue;
+
+            int amountToTake = remaining / unitValue;
+            if (remaining % unitValue != 0)
+                amountToTake++;
+
+            if (amountToTake <= 0)
+                continue;
+
+            if (amountToTake > stack.amount)
+                amountToTake = stack.amount;
+
+            result.Add(new ResourceStack(stack.resourceId, amountToTake));
+            remaining -= amountToTake * unitValue;
+
+            if (remaining <= 0)
+                break;
+        }
+
+        if (remaining > 0)
+            result.Clear();
+
+        return result;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Services/EconomicSellService.cs
+SIZE: 2609 bytes
+SHA256: 1eb0f19e2c32588753335105585a78d777bb69cdedfd01a395b6ed1cd80abd0d
+CONTENT:
+using UnityEngine;
+
+public class EconomicSellService
+{
+    public int ComputeSellGold(IResourceContainer container)
+    {
+        if (container == null || GameInstaller.Resources == null || GameInstaller.ResourceCategoryService == null)
+            return 0;
+
+        float totalGold = 0f;
+        var stacks = container.GetStacks();
+
+        for (int i = 0; i < stacks.Count; i++)
+        {
+            var stack = stacks[i];
+            if (!stack.IsValid)
+                continue;
+
+            if (stack.resourceId == "gold")
+                continue;
+
+            var resource = GameInstaller.Resources.Get(stack.resourceId);
+            if (resource == null)
+                continue;
+
+            int baseValue = Mathf.Max(0, resource.baseValue);
+            if (baseValue <= 0)
+                continue;
+
+            float tradeMultiplier = Mathf.Max(
+                0f,
+                GameInstaller.ResourceCategoryService.GetTradeMultiplier(resource.categoryId)
+            );
+
+            if (tradeMultiplier <= 0f)
+                continue;
+
+            float resourceValue = stack.amount * baseValue;
+            totalGold += resourceValue * tradeMultiplier;
+        }
+
+        return Mathf.FloorToInt(totalGold);
+    }
+
+    public ResourceBundle BuildSellInputBundle(IResourceContainer container)
+    {
+        var bundle = new ResourceBundle();
+
+        if (container == null)
+            return bundle;
+
+        var stacks = container.GetStacks();
+        for (int i = 0; i < stacks.Count; i++)
+        {
+            var stack = stacks[i];
+            if (!stack.IsValid)
+                continue;
+
+            if (stack.resourceId == "gold")
+                continue;
+
+            bundle.AddExact(stack.resourceId, stack.amount);
+        }
+
+        bundle.Normalize();
+        return bundle;
+    }
+
+    public ResourceBundle BuildSellOutputBundle(IResourceContainer container)
+    {
+        var bundle = new ResourceBundle();
+
+        int gold = ComputeSellGold(container);
+        if (gold > 0)
+            bundle.AddExact("gold", gold);
+
+        bundle.Normalize();
+        return bundle;
+    }
+
+    public EconomicRecipe BuildSellAllRecipe(IResourceContainer container)
+    {
+        var input = BuildSellInputBundle(container);
+        var output = BuildSellOutputBundle(container);
+
+        return new EconomicRecipeBuilder()
+            .WithId("sell_all")
+            .WithDisplayName("Sell All")
+            .WithInput(input)
+            .WithOutput(output)
+            .Build();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Services/EconomicSimulationService.cs
+SIZE: 1161 bytes
+SHA256: 9b05ad68c40ee85d852122e6af38315bb933073097a7b439fd44f47c6490a402
+CONTENT:
+public class EconomicSimulationService
+{
+    private readonly EconomicValidationService _validation;
+
+    public EconomicSimulationService(EconomicValidationService validation)
+    {
+        _validation = validation;
+    }
+
+    public EconomicResult Simulate(EconomicRecipe recipe, EconomicContext context)
+    {
+        var validation = _validation.Validate(recipe, context);
+        if (!validation.success)
+            return validation;
+
+        var reward = recipe.OutputReward != null ? recipe.OutputReward.Bundle : null;
+        if (reward != null && !reward.IsEmpty)
+        {
+            var exact = reward.ExactResources;
+            if (exact != null)
+            {
+                for (int i = 0; i < exact.Count; i++)
+                {
+                    var stack = exact[i];
+                    if (!stack.IsValid)
+                        continue;
+
+                    validation.produced.AddExact(stack.resourceId, stack.amount);
+                }
+            }
+        }
+
+        validation.success = true;
+        validation.message = "Recipe simulation successful.";
+        return validation;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Economy/Services/EconomicValidationService.cs
+SIZE: 5211 bytes
+SHA256: 8c15011ad14ff3dd9eacd92c06b383b6693011ae22ba3939ef3b4a478e56d8d2
+CONTENT:
+using System.Collections.Generic;
+
+public class EconomicValidationService
+{
+    private readonly CategoryValueService _categoryValues;
+    private readonly CategoryQueryService _categoryQueries;
+    private readonly EconomicSelectionService _selectionService;
+
+    public EconomicValidationService(
+        CategoryValueService categoryValues,
+        CategoryQueryService categoryQueries,
+        EconomicSelectionService selectionService)
+    {
+        _categoryValues = categoryValues;
+        _categoryQueries = categoryQueries;
+        _selectionService = selectionService;
+    }
+
+    public EconomicResult Validate(EconomicRecipe recipe, EconomicContext context)
+    {
+        if (recipe == null)
+            return EconomicResult.Fail("Recipe is null.");
+
+        if (context == null)
+            return EconomicResult.Fail("Economic context is null.");
+
+        if (context.source == null)
+            return EconomicResult.Fail("Economic source container is null.");
+
+        var result = EconomicResult.Ok("Recipe validation passed.");
+
+        if (!ValidateConditions(recipe, context, result))
+            return result;
+
+        if (!ValidateInputs(recipe, context, result))
+            return result;
+
+        return result;
+    }
+
+    private bool ValidateConditions(EconomicRecipe recipe, EconomicContext context, EconomicResult result)
+    {
+        var conditions = recipe.Conditions;
+        if (conditions == null || conditions.Count == 0)
+            return true;
+
+        for (int i = 0; i < conditions.Count; i++)
+        {
+            var cond = conditions[i];
+            if (cond == null)
+                continue;
+
+            switch (cond.Type)
+            {
+                case EconomicConditionType.HasExactResources:
+                    if (!context.source.Has(cond.ResourceId, cond.Amount))
+                    {
+                        result.success = false;
+                        result.message = $"Missing exact resource: {cond.ResourceId} x{cond.Amount}";
+                        return false;
+                    }
+                    break;
+
+                case EconomicConditionType.HasCategoryValue:
+                    if (_categoryQueries == null ||
+                        !_categoryQueries.HasEnoughCategoryValue(context.source, cond.CategoryId, cond.Amount))
+                    {
+                        result.success = false;
+                        result.message = $"Missing category value: {cond.CategoryId} value {cond.Amount}";
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    private bool ValidateInputs(EconomicRecipe recipe, EconomicContext context, EconomicResult result)
+    {
+        var bundle = recipe.InputCost != null ? recipe.InputCost.Bundle : null;
+        if (bundle == null || bundle.IsEmpty)
+            return true;
+
+        var exact = bundle.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                if (!context.source.Has(stack.resourceId, stack.amount))
+                {
+                    result.success = false;
+                    result.message = $"Missing exact input: {stack.resourceId} x{stack.amount}";
+                    return false;
+                }
+
+                result.consumed.AddExact(stack.resourceId, stack.amount);
+            }
+        }
+
+        var categories = bundle.CategoryValues;
+        if (categories != null)
+        {
+            for (int i = 0; i < categories.Count; i++)
+            {
+                var req = categories[i];
+                if (!req.IsValid)
+                    continue;
+
+                if (_categoryQueries == null ||
+                    !_categoryQueries.HasEnoughCategoryValue(context.source, req.categoryId, req.value))
+                {
+                    result.success = false;
+                    result.message = $"Missing category input: {req.categoryId} value {req.value}";
+                    return false;
+                }
+
+                var selection = _selectionService != null
+                    ? _selectionService.SelectCategorySpend(context.source, req.categoryId, req.value)
+                    : new List<ResourceStack>();
+
+                if (selection == null || selection.Count == 0)
+                {
+                    result.success = false;
+                    result.message = $"Unable to build category spend selection: {req.categoryId} value {req.value}";
+                    return false;
+                }
+
+                for (int s = 0; s < selection.Count; s++)
+                {
+                    var pick = selection[s];
+                    if (!pick.IsValid)
+                        continue;
+
+                    result.categorySpendSelection.Add(pick);
+                    result.consumed.AddExact(pick.resourceId, pick.amount);
+                }
+            }
+        }
+
+        return true;
+    }
+}
+
+----- FILE END -----
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
@@ -129,8 +1481,8 @@ public class ExploreSpotAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreSpotRegistry.cs
-SIZE: 4295 bytes
-SHA256: 051750e6d29c191eb77e10336e4fe102f1e4f31063c95f2e3b549357f93f7ef8
+SIZE: 4152 bytes
+SHA256: a25d867204ff14d151e95a661b8da9a22f5e929d3b88d0bb1099423939e18ba7
 CONTENT:
 using System.Collections.Generic;
 using UnityEngine;
@@ -148,10 +1500,6 @@ public class ExploreSpotRegistry
             Object.FindObjectsByType<ExploreSpotAuthoring>(FindObjectsSortMode.None)
         );
 
-        foreach (var s in Spots)
-        {
-            Debug.Log($" - {s.spotId} weight={s.weight} pos={s.transform.position}");
-        }
 
 
         Locations = new Dictionary<string, LocationEntity>();
@@ -1474,6 +2822,431 @@ public sealed class SelectedLocationService
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Containers/IResourceContainer.cs
+SIZE: 418 bytes
+SHA256: 6d5e77ca5d041ea397164fdf15246f3c3b41e1195fcaa40e4c712bf8f74df0b4
+CONTENT:
+using System.Collections.Generic;
+
+public interface IResourceContainer
+{
+    int GetAmount(string resourceId);
+    bool Has(string resourceId, int amount);
+    void Add(string resourceId, int amount);
+    bool TrySpend(string resourceId, int amount);
+    void Clear();
+
+    IReadOnlyDictionary<string, int> ReadOnlySnapshot();
+    Dictionary<string, int> Snapshot();
+    List<ResourceStack> GetStacks();
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Containers/ResourceContainer.cs
+SIZE: 2874 bytes
+SHA256: d4da39f42d66ebe19bd0bfb5213cc92ab90923e7626d5ce2b56e6c8da9dbbd49
+CONTENT:
+using System;
+using System.Collections.Generic;
+
+[Serializable]
+public class ResourceContainer : IResourceContainer
+{
+    private readonly Dictionary<string, int> _storage =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public ResourceContainer()
+    {
+    }
+
+    public ResourceContainer(Dictionary<string, int> initial)
+    {
+        LoadFrom(initial);
+    }
+
+    public int GetAmount(string resourceId)
+    {
+        resourceId = ResourceStack.Normalize(resourceId);
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return 0;
+
+        return _storage.TryGetValue(resourceId, out var amount) ? amount : 0;
+    }
+
+    public bool Has(string resourceId, int amount)
+    {
+        if (amount <= 0)
+            return true;
+
+        return GetAmount(resourceId) >= amount;
+    }
+
+    public void Add(string resourceId, int amount)
+    {
+        resourceId = ResourceStack.Normalize(resourceId);
+        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+            return;
+
+        _storage.TryGetValue(resourceId, out var current);
+        _storage[resourceId] = current + amount;
+    }
+
+    public bool TrySpend(string resourceId, int amount)
+    {
+        resourceId = ResourceStack.Normalize(resourceId);
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        if (amount <= 0)
+            return true;
+
+        if (!_storage.TryGetValue(resourceId, out var current))
+            return false;
+
+        if (current < amount)
+            return false;
+
+        current -= amount;
+
+        if (current <= 0)
+            _storage.Remove(resourceId);
+        else
+            _storage[resourceId] = current;
+
+        return true;
+    }
+
+    public void Clear()
+    {
+        _storage.Clear();
+    }
+
+    public IReadOnlyDictionary<string, int> ReadOnlySnapshot()
+    {
+        return _storage;
+    }
+
+    public Dictionary<string, int> Snapshot()
+    {
+        return new Dictionary<string, int>(_storage, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public List<ResourceStack> GetStacks()
+    {
+        var result = new List<ResourceStack>(_storage.Count);
+
+        foreach (var kv in _storage)
+        {
+            if (kv.Value <= 0)
+                continue;
+
+            result.Add(new ResourceStack(kv.Key, kv.Value));
+        }
+
+        return result;
+    }
+
+
+    public void LoadFrom(Dictionary<string, int> snapshot)
+    {
+        _storage.Clear();
+
+        if (snapshot == null)
+            return;
+
+        foreach (var kv in snapshot)
+        {
+            var id = ResourceStack.Normalize(kv.Key);
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            if (kv.Value <= 0)
+                continue;
+
+            _storage[id] = kv.Value;
+        }
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Containers/ResourceService.cs
+SIZE: 1280 bytes
+SHA256: e5f9322c47c50dbfba85db41ae60c87d894dca6c4cbd4acc7a72f7c6b18098de
+CONTENT:
+using System.Collections.Generic;
+
+public class ResourceService
+{
+    public void Add(IResourceContainer container, string resourceId, int amount)
+    {
+        if (container == null)
+            return;
+
+        container.Add(resourceId, amount);
+    }
+
+    public bool TrySpend(IResourceContainer container, string resourceId, int amount)
+    {
+        if (container == null)
+            return false;
+
+        return container.TrySpend(resourceId, amount);
+    }
+
+    public int GetAmount(IResourceContainer container, string resourceId)
+    {
+        if (container == null)
+            return 0;
+
+        return container.GetAmount(resourceId);
+    }
+
+    public void TransferAll(IResourceContainer from, IResourceContainer to)
+    {
+        if (from == null || to == null)
+            return;
+
+        var snapshot = from.Snapshot();
+        foreach (var kv in snapshot)
+        {
+            if (kv.Value <= 0)
+                continue;
+
+            to.Add(kv.Key, kv.Value);
+        }
+
+        from.Clear();
+    }
+
+    public Dictionary<string, int> Snapshot(IResourceContainer container)
+    {
+        if (container == null)
+            return new Dictionary<string, int>();
+
+        return container.Snapshot();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Containers/ResourceStack.cs
+SIZE: 565 bytes
+SHA256: fa41f2915178b84e50cbdb49cf934f47e65f3e4fb9fca5e9f0c43cb91bffdbbf
+CONTENT:
+using System;
+
+[Serializable]
+public struct ResourceStack
+{
+    public string resourceId;
+    public int amount;
+
+    public ResourceStack(string resourceId, int amount)
+    {
+        this.resourceId = Normalize(resourceId);
+        this.amount = amount;
+    }
+
+    public bool IsValid => !string.IsNullOrWhiteSpace(resourceId) && amount > 0;
+
+    public static string Normalize(string resourceId)
+    {
+        return string.IsNullOrWhiteSpace(resourceId)
+            ? string.Empty
+            : resourceId.Trim().ToLowerInvariant();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Definitions/ResourceCategoryData.cs
+SIZE: 374 bytes
+SHA256: bef8ca1b2bbfea40cea33de14abceb8b7909989cbd51ec3397ed1bbcc0c90d99
+CONTENT:
+using System;
+using UnityEngine;
+
+[Serializable]
+public class ResourceCategoryData
+{
+    [Header("Core")]
+    public string categoryId;
+    public string displayName;
+    [Min(0f)] public float tradeMultiplier = 1f;
+
+    public string NormalizedCategoryId =>
+        string.IsNullOrWhiteSpace(categoryId) ? string.Empty : categoryId.Trim().ToLowerInvariant();
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Definitions/ResourceCategoryDataSO.cs
+SIZE: 323 bytes
+SHA256: 0a61b379a6cb2e5a4feb1ba425b197779785adf0127711d65cfacefa6872d50e
+CONTENT:
+using UnityEngine;
+
+[CreateAssetMenu(
+    fileName = "ResourceCategoryData",
+    menuName = "Villagers/Resources/Resource Category Data"
+)]
+public class ResourceCategoryDataSO : ScriptableObject
+{
+    [SerializeField] private ResourceCategoryData data = new();
+
+    public ResourceCategoryData Data => data;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Definitions/ResourceData.cs
+SIZE: 699 bytes
+SHA256: bbd33518e7b6dca8ac8e174c9b0e83dc87ad57ad0eb235c1144f1817f4345bff
+CONTENT:
+using System;
+using UnityEngine;
+
+[Serializable]
+public class ResourceData
+{
+    [Header("Core")]
+    public string resourceId;
+    public string displayName;
+    public string categoryId;
+    public int baseValue;
+    public Sprite icon;
+
+    [Header("Optional")]
+    public string description;
+    public string[] tags;
+    public int sortOrder = 0;
+    public bool isHidden = false;
+
+    public string NormalizedResourceId =>
+        string.IsNullOrWhiteSpace(resourceId) ? string.Empty : resourceId.Trim().ToLowerInvariant();
+
+    public string NormalizedCategoryId =>
+        string.IsNullOrWhiteSpace(categoryId) ? string.Empty : categoryId.Trim().ToLowerInvariant();
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Definitions/ResourceDataSO.cs
+SIZE: 279 bytes
+SHA256: 7ef543f70dfad90bd76857aa29485beae28d9ec6a82b0e47be9d6834c629ab4a
+CONTENT:
+using UnityEngine;
+
+[CreateAssetMenu(
+    fileName = "ResourceData",
+    menuName = "Villagers/Resources/Resource Data"
+)]
+public class ResourceDataSO : ScriptableObject
+{
+    [SerializeField] private ResourceData data = new();
+
+    public ResourceData Data => data;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Resources/Definitions/ResourceRegistry.cs
+SIZE: 1861 bytes
+SHA256: bc62e7308150b504e099e1d0ea99000fc431f043d9d85bfb7a7b74cdc8d40e12
+CONTENT:
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ResourceRegistry
+{
+    private readonly Dictionary<string, ResourceData> _byId =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public int Count => _byId.Count;
+
+    public void Clear()
+    {
+        _byId.Clear();
+    }
+
+    public void LoadFromAssets(IEnumerable<ResourceDataSO> assets)
+    {
+        Clear();
+
+        if (assets == null)
+            return;
+
+        foreach (var asset in assets)
+        {
+            if (asset == null)
+                continue;
+
+            Register(asset.Data);
+        }
+    }
+
+    public void Register(ResourceData data)
+    {
+        if (data == null)
+            return;
+
+        var id = NormalizeId(data.resourceId);
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            Debug.LogWarning("[ResourceRegistry] Skip resource with empty resourceId.");
+            return;
+        }
+
+        data.resourceId = id;
+
+        if (!string.IsNullOrWhiteSpace(data.categoryId))
+            data.categoryId = NormalizeId(data.categoryId);
+
+        _byId[id] = data;
+    }
+
+    public bool Has(string resourceId)
+    {
+        return _byId.ContainsKey(NormalizeId(resourceId));
+    }
+
+    public bool TryGet(string resourceId, out ResourceData data)
+    {
+        return _byId.TryGetValue(NormalizeId(resourceId), out data);
+    }
+
+    public ResourceData Get(string resourceId)
+    {
+        return _byId.TryGetValue(NormalizeId(resourceId), out var data) ? data : null;
+    }
+
+    public IReadOnlyCollection<ResourceData> GetAll()
+    {
+        return _byId.Values;
+    }
+
+    private static string NormalizeId(string id)
+    {
+        return string.IsNullOrWhiteSpace(id)
+            ? string.Empty
+            : id.Trim().ToLowerInvariant();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Domain/Risk/CorpseService.cs
 SIZE: 748 bytes
 SHA256: a176c720e303ebeeed1934580e940623006aaee7520fd983e088605364ecf48d
@@ -1612,8 +3385,8 @@ public enum LostHiddenOutcome
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
-SIZE: 1468 bytes
-SHA256: 9119e81fead9d409e4bca2c5e2070e7ddcdf29d16167fd9c166dec286befaf5a
+SIZE: 2244 bytes
+SHA256: 8fb303598abeb4837daac9b9184346b5ebd7ae8ceb8987f27abf015489c1c1d1
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -1649,6 +3422,22 @@ public class TaskBoardAuthoring : MonoBehaviour
         var list = new List<TaskInstance>(tasks.Count);
         foreach (var t in tasks)
         {
+            var workBundle = new ResourceBundle();
+            if (t.type == TaskType.Gather &&
+                !string.IsNullOrWhiteSpace(t.resourceId) &&
+                t.baseAmount > 0)
+            {
+                workBundle.AddExact(t.resourceId, t.baseAmount);
+                workBundle.Normalize();
+            }
+
+            var rewardBundle = new ResourceBundle();
+            if (t.wageGold > 0)
+            {
+                rewardBundle.AddExact("gold", t.wageGold);
+                rewardBundle.Normalize();
+            }
+
             list.Add(new TaskInstance
             {
                 taskId = t.taskId,
@@ -1659,10 +3448,15 @@ public class TaskBoardAuthoring : MonoBehaviour
                 maxTakers = t.maxTakers,
                 durationSec = t.durationSec,
 
+                // legacy back-compat
                 wageGold = t.wageGold,
-
                 resourceId = t.resourceId,
                 baseAmount = t.baseAmount,
+
+                // PATCH 9
+                workOutputBundle = workBundle,
+                taskRewardBundle = rewardBundle,
+                taskCostBundle = new ResourceBundle(),
 
                 baseFailChance = t.baseFailChance
             });
@@ -1675,8 +3469,8 @@ public class TaskBoardAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardService.cs
-SIZE: 4003 bytes
-SHA256: f8abbec5673beb2b150a86eccdbc23574e24b8d17e25711033356baa65571898
+SIZE: 4265 bytes
+SHA256: 896fd009881937d5276340e94479065f781d35da18ff857c4449c901da89d7f4
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -1776,6 +3570,10 @@ public class TaskBoardService
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
 
+            existing.workOutputBundle = task.workOutputBundle ?? new ResourceBundle();
+            existing.taskRewardBundle = task.taskRewardBundle ?? new ResourceBundle();
+            existing.taskCostBundle = task.taskCostBundle ?? new ResourceBundle();
+
             OnTasksChanged?.Invoke();
             OnReservationsChanged?.Invoke();
             return;
@@ -1816,8 +3614,8 @@ public class TaskBoardService
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskInstance.cs
-SIZE: 939 bytes
-SHA256: bb7998cdbbc8752554bb42204aedcdc578d95516ef56311666a774e0b43f7361
+SIZE: 2065 bytes
+SHA256: 69ef53dc7690c5abad12cab4818b572264a0c455d0cfde9e98bc18ab98102b6c
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -1853,7 +3651,41 @@ public class TaskInstance
     public string resourceId;
     public int baseAmount;
 
-    // ��� Explore: ������������� ExploreSpotRegistry + OutcomeService
+    // PATCH 9 � universal task payloads
+    public ResourceBundle workOutputBundle = new();
+    public ResourceBundle taskRewardBundle = new();
+    public ResourceBundle taskCostBundle = new();
+
+    public ResourceBundle GetResolvedWorkOutputBundle()
+    {
+        if (workOutputBundle != null && !workOutputBundle.IsEmpty)
+            return workOutputBundle;
+
+        return TaskBundleMapper.BuildLegacyWorkOutputBundle(this);
+    }
+
+    public ResourceBundle GetResolvedTaskRewardBundle()
+    {
+        if (taskRewardBundle != null && !taskRewardBundle.IsEmpty)
+            return taskRewardBundle;
+
+        return TaskBundleMapper.BuildLegacyTaskRewardBundle(this);
+    }
+
+    public ResourceBundle GetResolvedTaskCostBundle()
+    {
+        if (taskCostBundle != null && !taskCostBundle.IsEmpty)
+            return taskCostBundle;
+
+        return TaskBundleMapper.BuildLegacyTaskCostBundle(this);
+    }
+
+    public bool HasBundleModel()
+    {
+        return (workOutputBundle != null && !workOutputBundle.IsEmpty)
+            || (taskRewardBundle != null && !taskRewardBundle.IsEmpty)
+            || (taskCostBundle != null && !taskCostBundle.IsEmpty);
+    }
 
 }
 
@@ -1882,6 +3714,50 @@ public static class TaskSelectionLogic
             .ToList();
 
         return available.Count > 0 ? available[0] : null;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Tasks/TaskBundleMapper.cs
+SIZE: 969 bytes
+SHA256: e6d34d4359974222048c71676d33b57eb0c78aebd2cd5ea7044c9646fb8ef067
+CONTENT:
+public static class TaskBundleMapper
+{
+    public static ResourceBundle BuildLegacyWorkOutputBundle(TaskInstance task)
+    {
+        var bundle = new ResourceBundle();
+
+        if (task == null)
+            return bundle;
+
+        if (!string.IsNullOrWhiteSpace(task.resourceId) && task.baseAmount > 0)
+            bundle.AddExact(task.resourceId, task.baseAmount);
+
+        bundle.Normalize();
+        return bundle;
+    }
+
+    public static ResourceBundle BuildLegacyTaskRewardBundle(TaskInstance task)
+    {
+        var bundle = new ResourceBundle();
+
+        if (task == null)
+            return bundle;
+
+        if (task.wageGold > 0)
+            bundle.AddExact("gold", task.wageGold);
+
+        bundle.Normalize();
+        return bundle;
+    }
+
+    public static ResourceBundle BuildLegacyTaskCostBundle(TaskInstance task)
+    {
+        // PATCH 9: optional now, empty by default.
+        return new ResourceBundle();
     }
 }
 
@@ -2532,8 +4408,8 @@ public class LocationEntity
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
-SIZE: 3242 bytes
-SHA256: 3e44690592aaff0aa8a998a3d67468e6160e65812834ae6bef4611e87561df25
+SIZE: 3046 bytes
+SHA256: 6826f91cf3c3b83aa48c394cd2259c013c15028c3bea53a5c6ba55abda853c1a
 CONTENT:
 using System.Collections.Generic;
 using TMPro;
@@ -2565,14 +4441,6 @@ public class TreasuryPanelView : MonoBehaviour
             _treasury.InitializeGold(startGold);
     }
 
-
-    // v0.01 фіксовані ціни (MVP)
-    private static readonly Dictionary<string, int> PRICE = new()
-    {
-        { "wood", 1 },
-        { "stone", 2 },
-        { "fish", 3 }
-    };
 
 
     public void Bind(TreasuryService treasury)
@@ -2648,9 +4516,10 @@ public class TreasuryPanelView : MonoBehaviour
 
     private void OnSellAllClicked()
     {
-        if (_treasury == null) return;
+        if (_treasury == null)
+            return;
 
-        _treasury.SellAllToGold(PRICE);
+        _treasury.SellAllToGold();
         RefreshAll();
     }
 
@@ -2662,175 +4531,313 @@ public class TreasuryPanelView : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryService.cs
-SIZE: 4399 bytes
-SHA256: 83006933f1d47e5d85f59f25bb6d5486b0a64117f8d2c1de61cad4500ed3f1cd
+SIZE: 8231 bytes
+SHA256: 985c53b60b54ae8480ed6cc69e05a0eea1439f953dd1457c338b00614e059670
 CONTENT:
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
-public class TreasuryService
+public class TreasuryService : IResourceContainer
 {
-    // Єдине джерело істини
-    private readonly Dictionary<string, int> storage = new();
-
     public event Action<string, int> OnChanged;
 
+    private readonly ResourceContainer _container = new();
+    private readonly ResourceService _resourceService = new();
 
     private int lockedGold = 0;
 
-    public int GoldAvailable => GetAmount("gold");
-    public int GoldLocked => Mathf.Max(0, lockedGold);
-
-
+    public int LockedGold => lockedGold;
 
     public int GetAmount(string resourceId)
     {
-        if (string.IsNullOrWhiteSpace(resourceId)) return 0;
-        resourceId = resourceId.ToLowerInvariant();
-
-        return storage.TryGetValue(resourceId, out var v) ? v : 0;
+        return _resourceService.GetAmount(_container, resourceId);
     }
 
-    // Back-compat: щоб існуючий UI/код, який викликає Get("wood"), працював
-    public int Get(string resId) => GetAmount(resId);
+    public bool Has(string resourceId, int amount)
+    {
+        return _container.Has(resourceId, amount);
+    }
 
     public void Add(string resourceId, int amount)
     {
-        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+        if (amount <= 0)
             return;
 
-        resourceId = resourceId.ToLowerInvariant();
-
-        storage.TryGetValue(resourceId, out var cur);
-        storage[resourceId] = cur + amount;
-
-        OnChanged?.Invoke(resourceId, storage[resourceId]);
+        _resourceService.Add(_container, resourceId, amount);
+        NotifyChanged(resourceId);
     }
 
     public bool TrySpend(string resourceId, int amount)
     {
-        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+        if (amount <= 0)
+            return true;
+
+        bool ok = _resourceService.TrySpend(_container, resourceId, amount);
+        if (ok)
+            NotifyChanged(resourceId);
+
+        return ok;
+    }
+
+    public void Clear()
+    {
+        ClearAll();
+    }
+
+    public Dictionary<string, int> Snapshot()
+    {
+        return _resourceService.Snapshot(_container);
+    }
+
+    public IReadOnlyDictionary<string, int> ReadOnlySnapshot()
+    {
+        return _container.ReadOnlySnapshot();
+    }
+
+    public List<ResourceStack> GetStacks()
+    {
+        return _container.GetStacks();
+    }
+
+    // -------------------------
+    // PATCH 7: Treasury Economy Endpoint
+    // -------------------------
+
+    public EconomicResult ValidateRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicValidation == null)
+            return EconomicResult.Fail("EconomicValidationService is not ready.");
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        return GameInstaller.EconomicValidation.Validate(recipe, ctx);
+    }
+
+    public EconomicResult SimulateRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicSimulation == null)
+            return EconomicResult.Fail("EconomicSimulationService is not ready.");
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        return GameInstaller.EconomicSimulation.Simulate(recipe, ctx);
+    }
+
+    public EconomicResult ExecuteRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicExecution == null)
+            return EconomicResult.Fail("EconomicExecutionService is not ready.");
+
+        var before = Snapshot();
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        var result = GameInstaller.EconomicExecution.Execute(recipe, ctx);
+
+        if (result.success)
+            NotifyDiff(before);
+
+        return result;
+    }
+
+    public bool CanAfford(ResourceBundle bundle)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return true;
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_can_afford")
+            .WithDisplayName("Treasury CanAfford Check")
+            .WithInput(bundle)
+            .Build();
+
+        var result = ValidateRecipe(recipe, reason: "treasury_can_afford");
+        return result.success;
+    }
+
+    public EconomicResult SpendBundle(ResourceBundle bundle, string reason = null)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return EconomicResult.Ok("Bundle is empty.");
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_spend_bundle")
+            .WithDisplayName("Treasury Spend Bundle")
+            .WithInput(bundle)
+            .Build();
+
+        return ExecuteRecipe(recipe, reason: reason ?? "treasury_spend_bundle");
+    }
+
+    public EconomicResult GrantBundle(ResourceBundle bundle, string reason = null)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return EconomicResult.Ok("Bundle is empty.");
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_grant_bundle")
+            .WithDisplayName("Treasury Grant Bundle")
+            .WithOutput(bundle)
+            .Build();
+
+        return ExecuteRecipe(recipe, reason: reason ?? "treasury_grant_bundle");
+    }
+
+    public int GetCategoryValue(string categoryId)
+    {
+        if (GameInstaller.CategoryQueries == null)
+            return 0;
+
+        return GameInstaller.CategoryQueries.GetCategoryValue(this, categoryId);
+    }
+
+    public bool HasCategoryValue(string categoryId, int requiredValue)
+    {
+        if (GameInstaller.CategoryQueries == null)
             return false;
 
-        resourceId = resourceId.ToLowerInvariant();
-        int cur = GetAmount(resourceId);
-
-        if (cur < amount) return false;
-
-        storage[resourceId] = cur - amount;
-        OnChanged?.Invoke(resourceId, storage[resourceId]);
-        return true;
+        return GameInstaller.CategoryQueries.HasEnoughCategoryValue(this, categoryId, requiredValue);
     }
 
-    public void SetAmount(string resourceId, int newAmount)
+    // -------------------------
+    // Back-compat API
+    // -------------------------
+
+    public int SellAllToGold()
     {
-        if (string.IsNullOrWhiteSpace(resourceId)) return;
+        if (GameInstaller.EconomicSell == null)
+            return 0;
 
-        resourceId = resourceId.ToLowerInvariant();
-        newAmount = Mathf.Max(0, newAmount);
+        int gainedGold = GameInstaller.EconomicSell.ComputeSellGold(this);
+        if (gainedGold <= 0)
+            return 0;
 
-        storage[resourceId] = newAmount;
-        OnChanged?.Invoke(resourceId, newAmount);
+        var recipe = GameInstaller.EconomicSell.BuildSellAllRecipe(this);
+        var result = ExecuteRecipe(recipe, reason: "sell_all");
+
+        return result.success ? gainedGold : 0;
     }
 
-
-
-
-    public int SellAllToGold(Dictionary<string, int> priceByResId)
+    // Back-compat overload.
+    // UI більше не повинен передавати локальний price dictionary.
+    public int SellAllToGold(Dictionary<string, int> _legacyPriceByResId)
     {
-        if (priceByResId == null) return 0;
-
-        int gainedGold = 0;
-
-        foreach (var kv in priceByResId)
-        {
-            var resId = kv.Key?.ToLowerInvariant();
-            int price = kv.Value;
-
-            if (string.IsNullOrWhiteSpace(resId)) continue;
-            if (price <= 0) continue;
-
-            int amount = GetAmount(resId);
-            if (amount <= 0) continue;
-
-            gainedGold += amount * price;
-
-            // обнуляємо ресурс
-            storage[resId] = 0;
-            OnChanged?.Invoke(resId, 0);
-        }
-
-        if (gainedGold > 0)
-        {
-            Add("gold", gainedGold);
-        }
-
-        return gainedGold;
+        return SellAllToGold();
     }
 
+    public void ClearAll()
+    {
+        var snapshot = _container.Snapshot();
+        _container.Clear();
+
+        foreach (var kv in snapshot)
+            NotifyChanged(kv.Key);
+    }
+
+    public int GetAvailableGold()
+    {
+        return GetAmount("gold");
+    }
+
+    public int GetLockedGold()
+    {
+        return lockedGold;
+    }
+
+    public string GetGoldDisplayText()
+    {
+        int avail = GetAvailableGold();
+        int locked = GetLockedGold();
+
+        return locked > 0
+            ? $"Gold {avail} (🔒{locked})"
+            : $"Gold {avail}";
+    }
 
     public string GetGoldUi()
     {
-        var avail = GoldAvailable;
-        var locked = GoldLocked;
-        return locked > 0 ? $"Gold {avail} (🔒{locked})" : $"Gold {avail}";
+        return GetGoldDisplayText();
     }
-
 
     public bool TryHoldGold(int amount)
     {
-        if (amount <= 0) return true;
+        if (amount <= 0)
+            return true;
 
-        var avail = GetAmount("gold");
-        if (avail < amount) return false;
+        int avail = GetAmount("gold");
+        if (avail < amount)
+            return false;
 
-        // зменшуємо available gold
-        storage["gold"] = avail - amount;
-
-        // збільшуємо locked
+        _container.TrySpend("gold", amount);
         lockedGold += amount;
 
-        OnChanged?.Invoke("gold", storage["gold"]);
+        NotifyChanged("gold");
         return true;
     }
 
     public void RefundGold(int amount)
     {
-        if (amount <= 0) return;
+        if (amount <= 0)
+            return;
 
-        // зменшуємо locked
         lockedGold -= amount;
-        if (lockedGold < 0) lockedGold = 0;
+        if (lockedGold < 0)
+            lockedGold = 0;
 
-        // додаємо в available (через storage напряму, щоб не логати як “дохід”, або можна через Add)
-        storage.TryGetValue("gold", out var cur);
-        storage["gold"] = cur + amount;
-
-        OnChanged?.Invoke("gold", storage["gold"]);
+        _container.Add("gold", amount);
+        NotifyChanged("gold");
     }
 
     public void ConsumeLockedGold(int amount)
     {
-        // використовується коли золото переходить у corpse або виплачується віледжеру
-        if (amount <= 0) return;
+        if (amount <= 0)
+            return;
 
         lockedGold -= amount;
-        if (lockedGold < 0) lockedGold = 0;
+        if (lockedGold < 0)
+            lockedGold = 0;
 
-        OnChanged?.Invoke("gold", GetAmount("gold"));
+        NotifyChanged("gold");
     }
 
-
-
-    public void InitializeGold(int amaunt)
+    public void InitializeGold(int amount)
     {
-        Add("gold", amaunt);
+        Add("gold", amount);
     }
 
+    private void NotifyChanged(string resourceId)
+    {
+        OnChanged?.Invoke(resourceId, GetAmount(resourceId));
+    }
 
+    private void NotifyDiff(Dictionary<string, int> before)
+    {
+        var after = Snapshot();
+
+        var touched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kv in before)
+            touched.Add(kv.Key);
+
+        foreach (var kv in after)
+            touched.Add(kv.Key);
+
+        foreach (var id in touched)
+        {
+            int beforeAmount = before.TryGetValue(id, out var b) ? b : 0;
+            int afterAmount = after.TryGetValue(id, out var a) ? a : 0;
+
+            if (beforeAmount != afterAmount)
+                NotifyChanged(id);
+        }
+    }
 }
-
 
 ----- FILE END -----
 
@@ -3062,8 +5069,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 28205 bytes
-SHA256: 69db7e3be80eb580e492c5beca1d41a0c1db9c18801af29a271d9e3f00593049
+SIZE: 29175 bytes
+SHA256: 379143924b0ff7047eca7f4e4ef25e6ecdd7df0ee443fcf167401edd8adf693b
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -3107,6 +5114,8 @@ public class VillagerAgentBrain : MonoBehaviour
     private string _lastWorkLocationId;
 
     private VillagerRosterService _roster;
+    private readonly VillagerTaskSettlementService _taskSettlement = new();
+
 
     public string AgentId => agentId;
 
@@ -3569,7 +5578,13 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        _cargo.Add(task.resourceId, task.baseAmount);
+        var workBundle = task.GetResolvedWorkOutputBundle();
+
+        if (workBundle == null || workBundle.IsEmpty)
+        {
+            _cargo.Add(task.resourceId, task.baseAmount);
+        }
+
         locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
@@ -3726,28 +5741,48 @@ public class VillagerAgentBrain : MonoBehaviour
         {
             if (success)
             {
-                // Commit rewards ONLY on success
-                CommitCargoToTreasury();
+                if (task != null && task.HasBundleModel())
+                {
+                    _taskSettlement.ApplySuccess(task, _cargo, _treasury);
+                    CommitCargoToTreasury();
 
-                // Pay wage from locked escrow
-                _treasury.ConsumeLockedGold(task.wageGold);
-                Log($"Wage paid: +{task.wageGold} gold");
+                    _treasury.ConsumeLockedGold(task.wageGold);
+                    Log($"Wage paid: +{task.wageGold} gold");
+                }
+                else
+                {
+                    CommitCargoToTreasury();
+
+                    _treasury.ConsumeLockedGold(task.wageGold);
+                    Log($"Wage paid: +{task.wageGold} gold");
+                }
             }
             else
             {
-                // Refund escrow back to available
-                _treasury.RefundGold(task.wageGold);
+                if (task != null && task.HasBundleModel())
+                {
+                    _treasury.RefundGold(task.wageGold);
+                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
+                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
+                }
+                else
+                {
+                    _treasury.RefundGold(task.wageGold);
 
-                // Fail cannot yield profit
-                _cargo.Clear();
-                Log($"Task failed -> wage refunded: {task.wageGold} gold");
+                    _cargo.Clear();
+                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
+                }
             }
         }
         else
         {
-            // Even if wage=0, fail should not keep cargo
             if (!success)
-                _cargo.Clear();
+            {
+                if (task != null && task.HasBundleModel())
+                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
+                else
+                    _cargo.Clear();
+            }
         }
 
         // --- Board cleanup ALWAYS (exactly once) ---
@@ -3916,69 +5951,140 @@ public class VillagerAgentBrain : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerCargo.cs
-SIZE: 1471 bytes
-SHA256: 4272d4bf4a7be0919e97ae78d5c6b9970ede4470616c623715038bf6a35154d4
+SIZE: 3139 bytes
+SHA256: 9c8feef01eb49549d4df860f9e05ee132bd1b841163e6a3887a9d869e99785dd
 CONTENT:
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public class VillagerCargo
+public class VillagerCargo : ISerializationCallbackReceiver, IResourceContainer
 {
     [SerializeField] private List<string> keys = new();
     [SerializeField] private List<int> values = new();
 
-    // runtime map
-    private Dictionary<string, int> _map;
+    [NonSerialized] private ResourceContainer _container;
 
-    private Dictionary<string, int> Map
+    private ResourceContainer Container
     {
         get
         {
-            if (_map == null)
-            {
-                _map = new Dictionary<string, int>();
-                for (int i = 0; i < Mathf.Min(keys.Count, values.Count); i++)
-                    _map[keys[i]] = values[i];
-            }
-            return _map;
+            if (_container == null)
+                RebuildRuntimeContainerFromSerialized();
+
+            return _container;
         }
     }
 
-    public void Add(string resId, int amount)
+    public int Get(string resourceId)
     {
-        if (string.IsNullOrEmpty(resId) || amount <= 0) return;
-        Map.TryGetValue(resId, out var cur);
-        Map[resId] = cur + amount;
-        SyncLists();
+        return GetAmount(resourceId);
     }
 
-    public int Get(string resId)
+    public int GetAmount(string resourceId)
     {
-        if (string.IsNullOrEmpty(resId)) return 0;
-        return Map.TryGetValue(resId, out var cur) ? cur : 0;
+        return Container.GetAmount(resourceId);
     }
 
-    public Dictionary<string, int> Snapshot()
+    public bool Has(string resourceId, int amount)
     {
-        return new Dictionary<string, int>(Map);
+        return Container.Has(resourceId, amount);
+    }
+
+    public void Add(string resourceId, int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        Container.Add(resourceId, amount);
+        SyncSerializedFromContainer();
+    }
+
+    public bool TrySpend(string resourceId, int amount)
+    {
+        var ok = Container.TrySpend(resourceId, amount);
+        if (ok)
+            SyncSerializedFromContainer();
+
+        return ok;
     }
 
     public void Clear()
     {
-        Map.Clear();
-        SyncLists();
+        Container.Clear();
+        SyncSerializedFromContainer();
     }
 
-    private void SyncLists()
+    public Dictionary<string, int> Snapshot()
     {
+        return Container.Snapshot();
+    }
+
+    public IReadOnlyDictionary<string, int> ReadOnlySnapshot()
+    {
+        return Container.ReadOnlySnapshot();
+    }
+
+    public List<ResourceStack> GetStacks()
+    {
+        return Container.GetStacks();
+    }
+
+    public void LoadFrom(Dictionary<string, int> snapshot)
+    {
+        Container.LoadFrom(snapshot);
+        SyncSerializedFromContainer();
+    }
+
+    public void OnBeforeSerialize()
+    {
+        SyncSerializedFromContainer();
+    }
+
+    public void OnAfterDeserialize()
+    {
+        RebuildRuntimeContainerFromSerialized();
+    }
+
+    private void RebuildRuntimeContainerFromSerialized()
+    {
+        _container = new ResourceContainer();
+
+        int count = Mathf.Min(keys != null ? keys.Count : 0, values != null ? values.Count : 0);
+        for (int i = 0; i < count; i++)
+        {
+            var id = keys[i];
+            var amount = values[i];
+
+            if (string.IsNullOrWhiteSpace(id) || amount <= 0)
+                continue;
+
+            _container.Add(id, amount);
+        }
+
+        SyncSerializedFromContainer();
+    }
+
+    private void SyncSerializedFromContainer()
+    {
+        keys ??= new List<string>();
+        values ??= new List<int>();
+
         keys.Clear();
         values.Clear();
-        foreach (var kv in Map)
+
+        if (_container == null)
+            return;
+
+        var stacks = _container.GetStacks();
+        for (int i = 0; i < stacks.Count; i++)
         {
-            keys.Add(kv.Key);
-            values.Add(kv.Value);
+            if (!stacks[i].IsValid)
+                continue;
+
+            keys.Add(stacks[i].resourceId);
+            values.Add(stacks[i].amount);
         }
     }
 }
@@ -4033,6 +6139,61 @@ public class VillagerInventoryService
         else list.Add(new ItemStack { itemId = itemId, amount = amount });
 
         OnInventoryChanged?.Invoke(agentId);
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Entety/Villagers/VillagerTaskSettlementService.cs
+SIZE: 1655 bytes
+SHA256: a2ad713f5524899ada7952f643dafef535266b80e44bb526c5721f2ba35f4f7b
+CONTENT:
+public class VillagerTaskSettlementService
+{
+    public void ApplySuccess(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (task == null || cargo == null || treasury == null)
+            return;
+
+        // 1. Commit gathered / produced work output via cargo path.
+        //    In current prototype only exact resource work output is supported here.
+        var workBundle = task.GetResolvedWorkOutputBundle();
+        if (workBundle != null && !workBundle.IsEmpty)
+        {
+            var exact = workBundle.ExactResources;
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                cargo.Add(stack.resourceId, stack.amount);
+            }
+        }
+
+        // 2. Apply reward bundle directly to treasury through economy endpoint.
+        var rewardBundle = task.GetResolvedTaskRewardBundle();
+        if (rewardBundle != null && !rewardBundle.IsEmpty)
+        {
+            treasury.GrantBundle(rewardBundle, "task_reward_bundle");
+        }
+
+        // 3. Spend task cost bundle if present.
+        var costBundle = task.GetResolvedTaskCostBundle();
+        if (costBundle != null && !costBundle.IsEmpty)
+        {
+            treasury.SpendBundle(costBundle, "task_cost_bundle");
+        }
+    }
+
+    public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo == null)
+            return;
+
+        // Fail path in current prototype still clears cargo.
+        cargo.Clear();
     }
 }
 
@@ -4158,8 +6319,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 4087 bytes
-SHA256: 8f888d648c87a4c183928843b23af65334a8bc20ca6e0b4d9c2da4c1a02e8044
+SIZE: 7504 bytes
+SHA256: 5dbdd7233e8639203aa2609809bf4b19654ecbabba45932caf90786dbc7aef38
 CONTENT:
 using UnityEngine;
 
@@ -4182,6 +6343,16 @@ public class GameInstaller : MonoBehaviour
     public static SurveyOutcomeService SurveyOutcome { get; private set; }
     public static WorldDebugPopupService WorldDebugPopup { get; private set; }
     public static SelectedLocationService SelectedLocation { get; private set; }
+    public static ResourceRegistry Resources { get; private set; }
+    public static ResourceCategoryRegistry ResourceCategories { get; private set; }
+    public static ResourceCategoryService ResourceCategoryService { get; private set; }
+    public static CategoryValueService CategoryValues { get; private set; }
+    public static CategoryQueryService CategoryQueries { get; private set; }
+    public static EconomicSelectionService EconomicSelection { get; private set; }
+    public static EconomicValidationService EconomicValidation { get; private set; }
+    public static EconomicExecutionService EconomicExecution { get; private set; }
+    public static EconomicSimulationService EconomicSimulation { get; private set; }
+    public static EconomicSellService EconomicSell { get; private set; }
 
     [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
 
@@ -4191,7 +6362,8 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private TaskBoardUI taskBoardUI;
     [SerializeField] private WorldDebugPopupService worldDebugPopup;
     [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
-
+    [SerializeField] private ResourceDataSO[] resourceAssets;
+    [SerializeField] private ResourceCategoryDataSO[] resourceCategoryAssets;
 
     private EventLogService _log;
 
@@ -4213,6 +6385,51 @@ public class GameInstaller : MonoBehaviour
         Knowledge = new SettlementKnowledgeService();
         SurveyOutcome = new SurveyOutcomeService();
         SelectedLocation = new SelectedLocationService();
+
+        Resources = new ResourceRegistry();
+        Resources.LoadFromAssets(resourceAssets);
+
+        GameDebug.Info(
+        GameDebugChannel.General,
+        $"ResourceRegistry loaded: {Resources.Count} resources"
+        );
+
+        ResourceCategories = new ResourceCategoryRegistry();
+        ResourceCategories.LoadFromAssets(resourceCategoryAssets);
+
+        ResourceCategoryService = new ResourceCategoryService(ResourceCategories);
+
+        GameDebug.Info(
+            GameDebugChannel.General,
+            $"ResourceCategoryRegistry loaded: {ResourceCategories.Count} categories"
+        );
+
+        ValidateResourceCategories();
+
+        CategoryValues = new CategoryValueService();
+        CategoryQueries = new CategoryQueryService(CategoryValues);
+
+        GameDebug.Info(
+            GameDebugChannel.General,
+            "Category value layer ready"
+        );
+
+        EconomicSelection = new EconomicSelectionService(CategoryValues, CategoryQueries);
+        EconomicValidation = new EconomicValidationService(CategoryValues, CategoryQueries, EconomicSelection);
+        EconomicExecution = new EconomicExecutionService(EconomicValidation);
+        EconomicSimulation = new EconomicSimulationService(EconomicValidation);
+
+        GameDebug.Info(
+            GameDebugChannel.General,
+            "Economic recipe layer ready"
+        );
+
+        EconomicSell = new EconomicSellService();
+
+        GameDebug.Info(
+            GameDebugChannel.General,
+            "Economic sell layer ready"
+        );
 
         WorldDebugPopup = worldDebugPopup;
 
@@ -4265,6 +6482,36 @@ public class GameInstaller : MonoBehaviour
     private void OnDestroy()
     {
         _log?.Dispose();
+    }
+
+
+    private void ValidateResourceCategories()
+    {
+        if (Resources == null || ResourceCategories == null)
+            return;
+
+        foreach (var resource in Resources.GetAll())
+        {
+            if (resource == null)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(resource.categoryId))
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"Resource '{resource.resourceId}' has empty categoryId"
+                );
+                continue;
+            }
+
+            if (!ResourceCategories.Has(resource.categoryId))
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"Resource '{resource.resourceId}' references missing category '{resource.categoryId}'"
+                );
+            }
+        }
     }
 
 }
@@ -4848,8 +7095,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 8301 bytes
-SHA256: 507728493a169dc09868fafe188cab21237c80b306168c7b0e75f7c6b8bd5124
+SIZE: 8989 bytes
+SHA256: 28a096ff1553f14651c64bcc020d1dcc551899967b9107ccf47938404fc546a3
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -4983,6 +7230,22 @@ public class TaskPublisherPanel : MonoBehaviour
             }
         }
 
+        var workBundle = new ResourceBundle();
+        if (def.type == TaskType.Gather &&
+            !string.IsNullOrWhiteSpace(def.resourceId) &&
+            def.baseAmount > 0)
+        {
+            workBundle.AddExact(def.resourceId, def.baseAmount);
+            workBundle.Normalize();
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (def.wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", def.wageGold);
+            rewardBundle.Normalize();
+        }
+
         var t = new TaskInstance
         {
             taskId = taskId,
@@ -4993,11 +7256,16 @@ public class TaskPublisherPanel : MonoBehaviour
             maxTakers = Mathf.Max(1, def.maxTakers),
             durationSec = Mathf.Max(0.1f, def.durationSec),
             baseFailChance = Mathf.Clamp01(def.baseFailChance),
-            wageGold = Mathf.Max(0, def.wageGold),
 
-            // gather-only
+            // legacy back-compat
+            wageGold = Mathf.Max(0, def.wageGold),
             resourceId = (def.resourceId ?? "").ToLowerInvariant(),
             baseAmount = Mathf.Max(0, def.baseAmount),
+
+            // PATCH 9
+            workOutputBundle = workBundle,
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
         };
 
 
@@ -5861,7 +8129,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 56
+Written: 88
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

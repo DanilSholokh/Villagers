@@ -29,14 +29,6 @@ public class TreasuryPanelView : MonoBehaviour
     }
 
 
-    // v0.01 фіксовані ціни (MVP)
-    private static readonly Dictionary<string, int> PRICE = new()
-    {
-        { "wood", 1 },
-        { "stone", 2 },
-        { "fish", 3 }
-    };
-
 
     public void Bind(TreasuryService treasury)
     {
@@ -111,9 +103,10 @@ public class TreasuryPanelView : MonoBehaviour
 
     private void OnSellAllClicked()
     {
-        if (_treasury == null) return;
+        if (_treasury == null)
+            return;
 
-        _treasury.SellAllToGold(PRICE);
+        _treasury.SellAllToGold();
         RefreshAll();
     }
 

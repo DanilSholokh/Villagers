@@ -96,6 +96,10 @@ public class TaskBoardService
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
 
+            existing.workOutputBundle = task.workOutputBundle ?? new ResourceBundle();
+            existing.taskRewardBundle = task.taskRewardBundle ?? new ResourceBundle();
+            existing.taskCostBundle = task.taskCostBundle ?? new ResourceBundle();
+
             OnTasksChanged?.Invoke();
             OnReservationsChanged?.Invoke();
             return;

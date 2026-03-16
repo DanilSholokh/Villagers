@@ -3,61 +3,132 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public class VillagerCargo
+public class VillagerCargo : ISerializationCallbackReceiver, IResourceContainer
 {
     [SerializeField] private List<string> keys = new();
     [SerializeField] private List<int> values = new();
 
-    // runtime map
-    private Dictionary<string, int> _map;
+    [NonSerialized] private ResourceContainer _container;
 
-    private Dictionary<string, int> Map
+    private ResourceContainer Container
     {
         get
         {
-            if (_map == null)
-            {
-                _map = new Dictionary<string, int>();
-                for (int i = 0; i < Mathf.Min(keys.Count, values.Count); i++)
-                    _map[keys[i]] = values[i];
-            }
-            return _map;
+            if (_container == null)
+                RebuildRuntimeContainerFromSerialized();
+
+            return _container;
         }
     }
 
-    public void Add(string resId, int amount)
+    public int Get(string resourceId)
     {
-        if (string.IsNullOrEmpty(resId) || amount <= 0) return;
-        Map.TryGetValue(resId, out var cur);
-        Map[resId] = cur + amount;
-        SyncLists();
+        return GetAmount(resourceId);
     }
 
-    public int Get(string resId)
+    public int GetAmount(string resourceId)
     {
-        if (string.IsNullOrEmpty(resId)) return 0;
-        return Map.TryGetValue(resId, out var cur) ? cur : 0;
+        return Container.GetAmount(resourceId);
     }
 
-    public Dictionary<string, int> Snapshot()
+    public bool Has(string resourceId, int amount)
     {
-        return new Dictionary<string, int>(Map);
+        return Container.Has(resourceId, amount);
+    }
+
+    public void Add(string resourceId, int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        Container.Add(resourceId, amount);
+        SyncSerializedFromContainer();
+    }
+
+    public bool TrySpend(string resourceId, int amount)
+    {
+        var ok = Container.TrySpend(resourceId, amount);
+        if (ok)
+            SyncSerializedFromContainer();
+
+        return ok;
     }
 
     public void Clear()
     {
-        Map.Clear();
-        SyncLists();
+        Container.Clear();
+        SyncSerializedFromContainer();
     }
 
-    private void SyncLists()
+    public Dictionary<string, int> Snapshot()
     {
+        return Container.Snapshot();
+    }
+
+    public IReadOnlyDictionary<string, int> ReadOnlySnapshot()
+    {
+        return Container.ReadOnlySnapshot();
+    }
+
+    public List<ResourceStack> GetStacks()
+    {
+        return Container.GetStacks();
+    }
+
+    public void LoadFrom(Dictionary<string, int> snapshot)
+    {
+        Container.LoadFrom(snapshot);
+        SyncSerializedFromContainer();
+    }
+
+    public void OnBeforeSerialize()
+    {
+        SyncSerializedFromContainer();
+    }
+
+    public void OnAfterDeserialize()
+    {
+        RebuildRuntimeContainerFromSerialized();
+    }
+
+    private void RebuildRuntimeContainerFromSerialized()
+    {
+        _container = new ResourceContainer();
+
+        int count = Mathf.Min(keys != null ? keys.Count : 0, values != null ? values.Count : 0);
+        for (int i = 0; i < count; i++)
+        {
+            var id = keys[i];
+            var amount = values[i];
+
+            if (string.IsNullOrWhiteSpace(id) || amount <= 0)
+                continue;
+
+            _container.Add(id, amount);
+        }
+
+        SyncSerializedFromContainer();
+    }
+
+    private void SyncSerializedFromContainer()
+    {
+        keys ??= new List<string>();
+        values ??= new List<int>();
+
         keys.Clear();
         values.Clear();
-        foreach (var kv in Map)
+
+        if (_container == null)
+            return;
+
+        var stacks = _container.GetStacks();
+        for (int i = 0; i < stacks.Count; i++)
         {
-            keys.Add(kv.Key);
-            values.Add(kv.Value);
+            if (!stacks[i].IsValid)
+                continue;
+
+            keys.Add(stacks[i].resourceId);
+            values.Add(stacks[i].amount);
         }
     }
 }

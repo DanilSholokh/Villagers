@@ -32,7 +32,41 @@ public class TaskInstance
     public string resourceId;
     public int baseAmount;
 
-    // ƒл€ Explore: використовуЇмо ExploreSpotRegistry + OutcomeService
+    // PATCH 9 Ч universal task payloads
+    public ResourceBundle workOutputBundle = new();
+    public ResourceBundle taskRewardBundle = new();
+    public ResourceBundle taskCostBundle = new();
+
+    public ResourceBundle GetResolvedWorkOutputBundle()
+    {
+        if (workOutputBundle != null && !workOutputBundle.IsEmpty)
+            return workOutputBundle;
+
+        return TaskBundleMapper.BuildLegacyWorkOutputBundle(this);
+    }
+
+    public ResourceBundle GetResolvedTaskRewardBundle()
+    {
+        if (taskRewardBundle != null && !taskRewardBundle.IsEmpty)
+            return taskRewardBundle;
+
+        return TaskBundleMapper.BuildLegacyTaskRewardBundle(this);
+    }
+
+    public ResourceBundle GetResolvedTaskCostBundle()
+    {
+        if (taskCostBundle != null && !taskCostBundle.IsEmpty)
+            return taskCostBundle;
+
+        return TaskBundleMapper.BuildLegacyTaskCostBundle(this);
+    }
+
+    public bool HasBundleModel()
+    {
+        return (workOutputBundle != null && !workOutputBundle.IsEmpty)
+            || (taskRewardBundle != null && !taskRewardBundle.IsEmpty)
+            || (taskCostBundle != null && !taskCostBundle.IsEmpty);
+    }
 
 }
 

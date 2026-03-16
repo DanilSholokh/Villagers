@@ -20,6 +20,14 @@ public class TaskBoardAuthoring : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
+        // PATCH 11: optional exact reward override
+        public string rewardResourceId;
+        [Min(0)] public int rewardAmount = 0;
+
+        // PATCH 11: optional exact upfront cost
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
+
         // Gather (опц. для цього кроку)
         public string resourceId;
         public int baseAmount = 3;
@@ -30,8 +38,46 @@ public class TaskBoardAuthoring : MonoBehaviour
     public List<TaskInstance> BuildRuntimeTasks()
     {
         var list = new List<TaskInstance>(tasks.Count);
+
         foreach (var t in tasks)
         {
+            string normalizedResourceId = (t.resourceId ?? "").ToLowerInvariant();
+            string normalizedRewardResourceId = (t.rewardResourceId ?? "").ToLowerInvariant();
+            string normalizedUpfrontCostResourceId = (t.upfrontCostResourceId ?? "").ToLowerInvariant();
+
+            int safeBaseAmount = Mathf.Max(0, t.baseAmount);
+            int safeWageGold = Mathf.Max(0, t.wageGold);
+            int safeRewardAmount = Mathf.Max(0, t.rewardAmount);
+            int safeUpfrontCostAmount = Mathf.Max(0, t.upfrontCostAmount);
+
+            var workBundle = new ResourceBundle();
+            if (t.type == TaskType.Gather &&
+                !string.IsNullOrWhiteSpace(normalizedResourceId) &&
+                safeBaseAmount > 0)
+            {
+                workBundle.AddExact(normalizedResourceId, safeBaseAmount);
+                workBundle.Normalize();
+            }
+
+            var rewardBundle = new ResourceBundle();
+            if (!string.IsNullOrWhiteSpace(normalizedRewardResourceId) && safeRewardAmount > 0)
+            {
+                rewardBundle.AddExact(normalizedRewardResourceId, safeRewardAmount);
+                rewardBundle.Normalize();
+            }
+            else if (safeWageGold > 0)
+            {
+                rewardBundle.AddExact("gold", safeWageGold);
+                rewardBundle.Normalize();
+            }
+
+            var costBundle = new ResourceBundle();
+            if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && safeUpfrontCostAmount > 0)
+            {
+                costBundle.AddExact(normalizedUpfrontCostResourceId, safeUpfrontCostAmount);
+                costBundle.Normalize();
+            }
+
             list.Add(new TaskInstance
             {
                 taskId = t.taskId,
@@ -42,14 +88,20 @@ public class TaskBoardAuthoring : MonoBehaviour
                 maxTakers = t.maxTakers,
                 durationSec = t.durationSec,
 
-                wageGold = t.wageGold,
+                // legacy back-compat
+                wageGold = normalizedRewardResourceId == "gold" ? safeRewardAmount : safeWageGold,
+                resourceId = normalizedResourceId,
+                baseAmount = safeBaseAmount,
 
-                resourceId = t.resourceId,
-                baseAmount = t.baseAmount,
+                // PATCH 9 / PATCH 11
+                workOutputBundle = workBundle,
+                taskRewardBundle = rewardBundle,
+                taskCostBundle = costBundle,
 
                 baseFailChance = t.baseFailChance
             });
         }
+
         return list;
     }
 }

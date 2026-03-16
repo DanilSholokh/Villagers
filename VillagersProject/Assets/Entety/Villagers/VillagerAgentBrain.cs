@@ -40,6 +40,8 @@ public class VillagerAgentBrain : MonoBehaviour
     private string _lastWorkLocationId;
 
     private VillagerRosterService _roster;
+    private readonly VillagerTaskSettlementService _taskSettlement = new();
+
 
     public string AgentId => agentId;
 
@@ -114,7 +116,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.LookingForTask);
 
             // 1) Pick
-            var task = TaskSelectionLogic.PickBest(_board);
+            var task = TaskSelectionLogic.PickBest(_board, _treasury);
             if (task == null)
             {
                 yield return new WaitForSeconds(noTaskDelay);
@@ -128,8 +130,29 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            // ✅ Escrow hold (wage)
-            if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            // ✅ PATCH 11: generic upfront task cost first, legacy gold escrow fallback second
+            var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+
+            if (_treasury != null && upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
+            {
+                if (!_treasury.CanAfford(upfrontCostBundle))
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: not enough upfront bundle cost for task={task.taskId}");
+                    yield return null;
+                    continue;
+                }
+
+                var upfrontSpendResult = _treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
+                if (!upfrontSpendResult.success)
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: upfront bundle spend failed for task={task.taskId} reason={upfrontSpendResult.message}");
+                    yield return null;
+                    continue;
+                }
+            }
+            else if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
             {
                 // якщо грошей нема — відпускаємо слот назад
                 _board.Release(task.taskId, agentId);
@@ -206,8 +229,6 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
                 yield return DoGoHome();
-
-                _cargo.Clear();
 
                 Log($"Villager lost on task {task.taskId}");
                 PublishTaskEvent("Lost", GameDebugSeverity.Warning);
@@ -502,7 +523,13 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        _cargo.Add(task.resourceId, task.baseAmount);
+        var workBundle = task.GetResolvedWorkOutputBundle();
+
+        if (workBundle == null || workBundle.IsEmpty)
+        {
+            _cargo.Add(task.resourceId, task.baseAmount);
+        }
+
         locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
         locations.AddTaskCompleted(locationId);
         locations.RemoveWorker(locationId, agentId, task.taskId);
@@ -654,33 +681,30 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void FinalizeTask(TaskInstance task, bool success)
     {
-        // --- Escrow + Cargo settlement ---
-        if (_treasury != null && task.wageGold > 0)
-        {
-            if (success)
-            {
-                // Commit rewards ONLY on success
-                CommitCargoToTreasury();
+        if (task == null)
+            return;
 
-                // Pay wage from locked escrow
+        // --- Settlement ---
+        if (success)
+        {
+            _taskSettlement.ApplySuccess(task, _cargo, _treasury);
+            CommitCargoToTreasury();
+
+            if (_treasury != null && task.wageGold > 0)
+            {
                 _treasury.ConsumeLockedGold(task.wageGold);
                 Log($"Wage paid: +{task.wageGold} gold");
-            }
-            else
-            {
-                // Refund escrow back to available
-                _treasury.RefundGold(task.wageGold);
-
-                // Fail cannot yield profit
-                _cargo.Clear();
-                Log($"Task failed -> wage refunded: {task.wageGold} gold");
             }
         }
         else
         {
-            // Even if wage=0, fail should not keep cargo
-            if (!success)
-                _cargo.Clear();
+            if (_treasury != null && task.wageGold > 0)
+            {
+                _treasury.RefundGold(task.wageGold);
+                Log($"Task failed -> wage refunded: {task.wageGold} gold");
+            }
+
+            _taskSettlement.ApplyFailure(task, _cargo, _treasury);
         }
 
         // --- Board cleanup ALWAYS (exactly once) ---

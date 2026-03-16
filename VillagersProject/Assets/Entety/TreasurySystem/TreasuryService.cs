@@ -1,166 +1,304 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 
-public class TreasuryService
+public class TreasuryService : IResourceContainer
 {
-    // Єдине джерело істини
-    private readonly Dictionary<string, int> storage = new();
-
     public event Action<string, int> OnChanged;
 
+    private readonly ResourceContainer _container = new();
+    private readonly ResourceService _resourceService = new();
 
     private int lockedGold = 0;
 
-    public int GoldAvailable => GetAmount("gold");
-    public int GoldLocked => Mathf.Max(0, lockedGold);
-
-
+    public int LockedGold => lockedGold;
 
     public int GetAmount(string resourceId)
     {
-        if (string.IsNullOrWhiteSpace(resourceId)) return 0;
-        resourceId = resourceId.ToLowerInvariant();
-
-        return storage.TryGetValue(resourceId, out var v) ? v : 0;
+        return _resourceService.GetAmount(_container, resourceId);
     }
 
-    // Back-compat: щоб існуючий UI/код, який викликає Get("wood"), працював
-    public int Get(string resId) => GetAmount(resId);
+    public bool Has(string resourceId, int amount)
+    {
+        return _container.Has(resourceId, amount);
+    }
 
     public void Add(string resourceId, int amount)
     {
-        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+        if (amount <= 0)
             return;
 
-        resourceId = resourceId.ToLowerInvariant();
-
-        storage.TryGetValue(resourceId, out var cur);
-        storage[resourceId] = cur + amount;
-
-        OnChanged?.Invoke(resourceId, storage[resourceId]);
+        _resourceService.Add(_container, resourceId, amount);
+        NotifyChanged(resourceId);
     }
 
     public bool TrySpend(string resourceId, int amount)
     {
-        if (string.IsNullOrWhiteSpace(resourceId) || amount <= 0)
+        if (amount <= 0)
+            return true;
+
+        bool ok = _resourceService.TrySpend(_container, resourceId, amount);
+        if (ok)
+            NotifyChanged(resourceId);
+
+        return ok;
+    }
+
+    public void Clear()
+    {
+        ClearAll();
+    }
+
+    public Dictionary<string, int> Snapshot()
+    {
+        return _resourceService.Snapshot(_container);
+    }
+
+    public IReadOnlyDictionary<string, int> ReadOnlySnapshot()
+    {
+        return _container.ReadOnlySnapshot();
+    }
+
+    public List<ResourceStack> GetStacks()
+    {
+        return _container.GetStacks();
+    }
+
+    // -------------------------
+    // PATCH 7: Treasury Economy Endpoint
+    // -------------------------
+
+    public EconomicResult ValidateRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicValidation == null)
+            return EconomicResult.Fail("EconomicValidationService is not ready.");
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        return GameInstaller.EconomicValidation.Validate(recipe, ctx);
+    }
+
+    public EconomicResult SimulateRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicSimulation == null)
+            return EconomicResult.Fail("EconomicSimulationService is not ready.");
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        return GameInstaller.EconomicSimulation.Simulate(recipe, ctx);
+    }
+
+    public EconomicResult ExecuteRecipe(
+        EconomicRecipe recipe,
+        string actorId = null,
+        string reason = null)
+    {
+        if (GameInstaller.EconomicExecution == null)
+            return EconomicResult.Fail("EconomicExecutionService is not ready.");
+
+        var before = Snapshot();
+
+        var ctx = EconomicTreasuryContextFactory.Create(this, actorId, reason);
+        var result = GameInstaller.EconomicExecution.Execute(recipe, ctx);
+
+        if (result.success)
+            NotifyDiff(before);
+
+        return result;
+    }
+
+    public bool CanAfford(ResourceBundle bundle)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return true;
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_can_afford")
+            .WithDisplayName("Treasury CanAfford Check")
+            .WithInput(bundle)
+            .Build();
+
+        var result = ValidateRecipe(recipe, reason: "treasury_can_afford");
+        return result.success;
+    }
+
+    public EconomicResult SpendBundle(ResourceBundle bundle, string reason = null)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return EconomicResult.Ok("Bundle is empty.");
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_spend_bundle")
+            .WithDisplayName("Treasury Spend Bundle")
+            .WithInput(bundle)
+            .Build();
+
+        return ExecuteRecipe(recipe, reason: reason ?? "treasury_spend_bundle");
+    }
+
+    public EconomicResult GrantBundle(ResourceBundle bundle, string reason = null)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return EconomicResult.Ok("Bundle is empty.");
+
+        var recipe = new EconomicRecipeBuilder()
+            .WithId("treasury_grant_bundle")
+            .WithDisplayName("Treasury Grant Bundle")
+            .WithOutput(bundle)
+            .Build();
+
+        return ExecuteRecipe(recipe, reason: reason ?? "treasury_grant_bundle");
+    }
+
+    public int GetCategoryValue(string categoryId)
+    {
+        if (GameInstaller.CategoryQueries == null)
+            return 0;
+
+        return GameInstaller.CategoryQueries.GetCategoryValue(this, categoryId);
+    }
+
+    public bool HasCategoryValue(string categoryId, int requiredValue)
+    {
+        if (GameInstaller.CategoryQueries == null)
             return false;
 
-        resourceId = resourceId.ToLowerInvariant();
-        int cur = GetAmount(resourceId);
-
-        if (cur < amount) return false;
-
-        storage[resourceId] = cur - amount;
-        OnChanged?.Invoke(resourceId, storage[resourceId]);
-        return true;
+        return GameInstaller.CategoryQueries.HasEnoughCategoryValue(this, categoryId, requiredValue);
     }
 
-    public void SetAmount(string resourceId, int newAmount)
+    // -------------------------
+    // Back-compat API
+    // -------------------------
+
+    public int SellAllToGold()
     {
-        if (string.IsNullOrWhiteSpace(resourceId)) return;
+        if (GameInstaller.EconomicSell == null)
+            return 0;
 
-        resourceId = resourceId.ToLowerInvariant();
-        newAmount = Mathf.Max(0, newAmount);
+        int gainedGold = GameInstaller.EconomicSell.ComputeSellGold(this);
+        if (gainedGold <= 0)
+            return 0;
 
-        storage[resourceId] = newAmount;
-        OnChanged?.Invoke(resourceId, newAmount);
+        var recipe = GameInstaller.EconomicSell.BuildSellAllRecipe(this);
+        var result = ExecuteRecipe(recipe, reason: "sell_all");
+
+        return result.success ? gainedGold : 0;
     }
 
-
-
-
-    public int SellAllToGold(Dictionary<string, int> priceByResId)
+    // Back-compat overload.
+    // UI більше не повинен передавати локальний price dictionary.
+    public int SellAllToGold(Dictionary<string, int> _legacyPriceByResId)
     {
-        if (priceByResId == null) return 0;
-
-        int gainedGold = 0;
-
-        foreach (var kv in priceByResId)
-        {
-            var resId = kv.Key?.ToLowerInvariant();
-            int price = kv.Value;
-
-            if (string.IsNullOrWhiteSpace(resId)) continue;
-            if (price <= 0) continue;
-
-            int amount = GetAmount(resId);
-            if (amount <= 0) continue;
-
-            gainedGold += amount * price;
-
-            // обнуляємо ресурс
-            storage[resId] = 0;
-            OnChanged?.Invoke(resId, 0);
-        }
-
-        if (gainedGold > 0)
-        {
-            Add("gold", gainedGold);
-        }
-
-        return gainedGold;
+        return SellAllToGold();
     }
 
+    public void ClearAll()
+    {
+        var snapshot = _container.Snapshot();
+        _container.Clear();
+
+        foreach (var kv in snapshot)
+            NotifyChanged(kv.Key);
+    }
+
+    public int GetAvailableGold()
+    {
+        return GetAmount("gold");
+    }
+
+    public int GetLockedGold()
+    {
+        return lockedGold;
+    }
+
+    public string GetGoldDisplayText()
+    {
+        int avail = GetAvailableGold();
+        int locked = GetLockedGold();
+
+        return locked > 0
+            ? $"Gold {avail} (🔒{locked})"
+            : $"Gold {avail}";
+    }
 
     public string GetGoldUi()
     {
-        var avail = GoldAvailable;
-        var locked = GoldLocked;
-        return locked > 0 ? $"Gold {avail} (🔒{locked})" : $"Gold {avail}";
+        return GetGoldDisplayText();
     }
-
 
     public bool TryHoldGold(int amount)
     {
-        if (amount <= 0) return true;
+        if (amount <= 0)
+            return true;
 
-        var avail = GetAmount("gold");
-        if (avail < amount) return false;
+        int avail = GetAmount("gold");
+        if (avail < amount)
+            return false;
 
-        // зменшуємо available gold
-        storage["gold"] = avail - amount;
-
-        // збільшуємо locked
+        _container.TrySpend("gold", amount);
         lockedGold += amount;
 
-        OnChanged?.Invoke("gold", storage["gold"]);
+        NotifyChanged("gold");
         return true;
     }
 
     public void RefundGold(int amount)
     {
-        if (amount <= 0) return;
+        if (amount <= 0)
+            return;
 
-        // зменшуємо locked
         lockedGold -= amount;
-        if (lockedGold < 0) lockedGold = 0;
+        if (lockedGold < 0)
+            lockedGold = 0;
 
-        // додаємо в available (через storage напряму, щоб не логати як “дохід”, або можна через Add)
-        storage.TryGetValue("gold", out var cur);
-        storage["gold"] = cur + amount;
-
-        OnChanged?.Invoke("gold", storage["gold"]);
+        _container.Add("gold", amount);
+        NotifyChanged("gold");
     }
 
     public void ConsumeLockedGold(int amount)
     {
-        // використовується коли золото переходить у corpse або виплачується віледжеру
-        if (amount <= 0) return;
+        if (amount <= 0)
+            return;
 
         lockedGold -= amount;
-        if (lockedGold < 0) lockedGold = 0;
+        if (lockedGold < 0)
+            lockedGold = 0;
 
-        OnChanged?.Invoke("gold", GetAmount("gold"));
+        NotifyChanged("gold");
     }
 
-
-
-    public void InitializeGold(int amaunt)
+    public void InitializeGold(int amount)
     {
-        Add("gold", amaunt);
+        Add("gold", amount);
     }
 
+    private void NotifyChanged(string resourceId)
+    {
+        OnChanged?.Invoke(resourceId, GetAmount(resourceId));
+    }
 
+    private void NotifyDiff(Dictionary<string, int> before)
+    {
+        var after = Snapshot();
+
+        var touched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kv in before)
+            touched.Add(kv.Key);
+
+        foreach (var kv in after)
+            touched.Add(kv.Key);
+
+        foreach (var id in touched)
+        {
+            int beforeAmount = before.TryGetValue(id, out var b) ? b : 0;
+            int afterAmount = after.TryGetValue(id, out var a) ? a : 0;
+
+            if (beforeAmount != afterAmount)
+                NotifyChanged(id);
+        }
+    }
 }
-

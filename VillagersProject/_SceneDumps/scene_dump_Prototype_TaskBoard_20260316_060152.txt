@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-03-14 00:18:03
+Time: 2026-03-16 06:01:52
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -735,7 +735,7 @@ Root objects: 9
         Components (3):
         - RectTransform
         - CanvasRenderer
-        - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(274,99,37,37)
+        - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(0,0)
       - RosterScroll (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
         Transform: pos=(0.55, -21.13, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
@@ -766,9 +766,9 @@ Root objects: 9
             - VerticalLayoutGroup (pad=(5,5,5,5) spacing=7 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
             - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
     - VillagerInspect (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
-      Transform: pos=(-399.00, -351.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Transform: pos=(-429.00, -268.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
       RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
-                   anchoredPos=(-399.00, -351.00) sizeDelta=(100.00, 100.00) offsetMin=(-449.00, -401.00) offsetMax=(-349.00, -301.00)
+                   anchoredPos=(-429.00, -268.00) sizeDelta=(100.00, 100.00) offsetMin=(-479.00, -318.00) offsetMax=(-379.00, -218.00)
                    rect(w,h)=(100,100)
       Components (2):
       - RectTransform

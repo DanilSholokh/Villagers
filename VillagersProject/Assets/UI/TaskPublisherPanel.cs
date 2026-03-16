@@ -25,6 +25,10 @@ public class TaskPublisherPanel : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
+        // PATCH 11: optional exact upfront task cost
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
+
         [Range(0f, 1f)] public float baseFailChance = 0f;
         [Range(0, 5)] public int priority = 3;
     }
@@ -130,6 +134,29 @@ public class TaskPublisherPanel : MonoBehaviour
             }
         }
 
+        var workBundle = new ResourceBundle();
+        if (def.type == TaskType.Gather &&
+            !string.IsNullOrWhiteSpace(def.resourceId) &&
+            def.baseAmount > 0)
+        {
+            workBundle.AddExact(def.resourceId, def.baseAmount);
+            workBundle.Normalize();
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (def.wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", def.wageGold);
+            rewardBundle.Normalize();
+        }
+
+        var costBundle = new ResourceBundle();
+        if (!string.IsNullOrWhiteSpace(def.upfrontCostResourceId) && def.upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(def.upfrontCostResourceId.ToLowerInvariant(), def.upfrontCostAmount);
+            costBundle.Normalize();
+        }
+
         var t = new TaskInstance
         {
             taskId = taskId,
@@ -140,11 +167,16 @@ public class TaskPublisherPanel : MonoBehaviour
             maxTakers = Mathf.Max(1, def.maxTakers),
             durationSec = Mathf.Max(0.1f, def.durationSec),
             baseFailChance = Mathf.Clamp01(def.baseFailChance),
-            wageGold = Mathf.Max(0, def.wageGold),
 
-            // gather-only
+            // legacy back-compat
+            wageGold = Mathf.Max(0, def.wageGold),
             resourceId = (def.resourceId ?? "").ToLowerInvariant(),
             baseAmount = Mathf.Max(0, def.baseAmount),
+
+            // PATCH 9 / PATCH 11
+            workOutputBundle = workBundle,
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = costBundle,
         };
 
 
@@ -195,20 +227,33 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(t);
     }
 
-    // ---- ORIGINAL API залишаємо, щоб не ламати інше ----
-
     public void PublishGather(
-        string displayName,
-        string resourceId,
-        int baseAmount,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance
-    )
+     string displayName,
+     string resourceId,
+     int baseAmount,
+     int maxTakers,
+     float durationSec,
+     int wageGold,
+     int priority,
+     float baseFailChance)
     {
-        var id = $"rt_gather_{resourceId}_{Time.frameCount}";
+        string normalizedResourceId = (resourceId ?? "").ToLowerInvariant();
+        var id = $"rt_gather_{normalizedResourceId}_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        var workBundle = new ResourceBundle();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) && baseAmount > 0)
+        {
+            workBundle.AddExact(normalizedResourceId, Mathf.Max(0, baseAmount));
+            workBundle.Normalize();
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -217,16 +262,46 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            resourceId = resourceId,
-            baseAmount = baseAmount,
+            resourceId = normalizedResourceId,
+            baseAmount = Mathf.Max(0, baseAmount),
 
-            baseFailChance = baseFailChance
+            workOutputBundle = workBundle,
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        bool unlocked = locations != null &&
+            !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+        if (!unlocked)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{normalizedResourceId}' not discovered yet");
+            return;
+        }
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
+
+        if (!string.IsNullOrWhiteSpace(task.resourceId) &&
+            string.IsNullOrWhiteSpace(task.targetLocationId))
+        {
+            string locationId = locations?.FindAnyLocationForResource(task.resourceId, true, true);
+            if (!string.IsNullOrWhiteSpace(locationId))
+                task.targetLocationId = locationId;
+        }
 
         _board.AddTaskRuntime(task);
     }
@@ -242,6 +317,13 @@ public class TaskPublisherPanel : MonoBehaviour
     {
         var id = $"rt_explore_new_{Time.frameCount}";
 
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
+
         var task = new TaskInstance
         {
             taskId = id,
@@ -249,13 +331,29 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            baseFailChance = baseFailChance
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        task.resourceId = "";
+        task.baseAmount = 0;
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
         _board.AddTaskRuntime(task);
     }
@@ -267,10 +365,25 @@ public class TaskPublisherPanel : MonoBehaviour
     float durationSec,
     int wageGold,
     int priority,
-    float baseFailChance
-    )
+    float baseFailChance)
     {
         var id = $"rt_survey_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+        if (!hasKnown)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                "Locked: no discovered locations yet for SurveyKnownLocation");
+            return;
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -279,13 +392,29 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            baseFailChance = baseFailChance
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        task.resourceId = "";
+        task.baseAmount = 0;
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
         _board.AddTaskRuntime(task);
     }

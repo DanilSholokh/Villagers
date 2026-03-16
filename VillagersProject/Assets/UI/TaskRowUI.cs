@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -19,6 +20,10 @@ public class TaskRowUI : MonoBehaviour
 
     public void Bind(TaskInstance task)
     {
+        if (task == null)
+            return;
+
+        taskId = task.taskId;
 
         if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
         if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
@@ -52,7 +57,12 @@ public class TaskRowUI : MonoBehaviour
         if (t == null) return;
 
         if (titleText != null)
-            titleText.text = $"{t.displayName}";
+        {
+            string summary = BuildTaskSummary(t);
+            titleText.text = string.IsNullOrWhiteSpace(summary)
+                ? t.displayName
+                : $"{t.displayName}\n{summary}";
+        }
 
         if (prioText != null)
             prioText.text = $"{t.priority}";
@@ -95,4 +105,68 @@ public class TaskRowUI : MonoBehaviour
         t.active = value;
         Refresh(true);
     }
+
+    private string BuildTaskSummary(TaskInstance task)
+    {
+        if (task == null)
+            return "";
+
+        var parts = new List<string>();
+
+        string work = FormatBundle(task.GetResolvedWorkOutputBundle(), "out");
+        if (!string.IsNullOrWhiteSpace(work))
+            parts.Add(work);
+
+        string reward = FormatBundle(task.GetResolvedTaskRewardBundle(), "reward");
+        if (!string.IsNullOrWhiteSpace(reward))
+            parts.Add(reward);
+
+        string cost = FormatBundle(task.GetResolvedTaskCostBundle(), "cost");
+        if (!string.IsNullOrWhiteSpace(cost))
+            parts.Add(cost);
+
+        return parts.Count > 0 ? string.Join(" | ", parts) : "";
+    }
+
+    private string FormatBundle(ResourceBundle bundle, string label)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return "";
+
+        var parts = new List<string>();
+
+        var exact = bundle.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                parts.Add($"{stack.amount} {stack.resourceId}");
+            }
+        }
+
+        var categoryValues = bundle.CategoryValues;
+        if (categoryValues != null)
+        {
+            for (int i = 0; i < categoryValues.Count; i++)
+            {
+                var entry = categoryValues[i];
+                if (!entry.IsValid)
+                    continue;
+
+                parts.Add($"{entry.value} {entry.categoryId} value");
+            }
+        }
+
+        if (parts.Count == 0)
+            return "";
+
+        return $"{label}: {string.Join(", ", parts)}";
+    }
 }
+
+
+
