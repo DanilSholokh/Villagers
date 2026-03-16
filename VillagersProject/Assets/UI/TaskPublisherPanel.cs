@@ -4,10 +4,8 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-
 public class TaskPublisherPanel : MonoBehaviour
 {
-
     [Serializable]
     public class PublishDef
     {
@@ -25,7 +23,7 @@ public class TaskPublisherPanel : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
-        // PATCH 11: optional exact upfront task cost
+        [Header("Optional exact upfront task cost")]
         public string upfrontCostResourceId;
         [Min(0)] public int upfrontCostAmount = 0;
 
@@ -38,23 +36,21 @@ public class TaskPublisherPanel : MonoBehaviour
     private TaskBoardService _board;
     private readonly Dictionary<Button, UnityAction> _handlers = new();
 
-
     private void Awake()
     {
-        // як і раніше, беремо singleton зі сцени через installer
-        // (в дампі TaskBoardService створюється в GameInstaller.Awake/Start) :contentReference[oaicite:2]{index=2}
         _board = GameInstaller.TaskBoard;
     }
-
 
     public void Bind(TaskBoardService board)
     {
         _board = board;
+        RefreshButtons();
     }
 
     private void OnEnable()
     {
         SubscribeButtons();
+        RefreshButtons();
     }
 
     private void OnDisable()
@@ -62,20 +58,24 @@ public class TaskPublisherPanel : MonoBehaviour
         UnsubscribeButtons();
     }
 
+    private void Update()
+    {
+        RefreshButtons();
+    }
 
     private void SubscribeButtons()
     {
         UnsubscribeButtons();
 
-        if (publishButtons == null) return;
+        if (publishButtons == null)
+            return;
 
         foreach (var def in publishButtons)
         {
-            if (def == null || def.button == null) continue;
+            if (def == null || def.button == null)
+                continue;
 
-            // важливо: локальна копія, щоб не зловити closure-bug
             var defLocal = def;
-
             UnityAction h = () => Publish(defLocal);
 
             _handlers[def.button] = h;
@@ -85,7 +85,8 @@ public class TaskPublisherPanel : MonoBehaviour
 
     private void UnsubscribeButtons()
     {
-        if (_handlers.Count == 0) return;
+        if (_handlers.Count == 0)
+            return;
 
         foreach (var kv in _handlers)
         {
@@ -97,149 +98,190 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
 
+
+    private void RefreshButtons()
+    {
+        if (publishButtons == null)
+            return;
+
+        for (int i = 0; i < publishButtons.Count; i++)
+        {
+            var def = publishButtons[i];
+            if (def == null || def.button == null)
+                continue;
+
+            def.button.interactable = CanPublish(def, out _);
+        }
+    }
+
+    private bool CanPublish(PublishDef def, out string reason)
+    {
+        reason = string.Empty;
+
+        if (def == null)
+        {
+            reason = "Definition is null";
+            return false;
+        }
+
+        var treasury = GameInstaller.Treasury;
+        var locations = GameInstaller.LocationService;
+
+        switch (def.type)
+        {
+            case TaskType.Gather:
+                {
+                    string normalizedResourceId = Normalize(def.resourceId);
+                    if (string.IsNullOrWhiteSpace(normalizedResourceId))
+                    {
+                        reason = "Gather resourceId is empty";
+                        return false;
+                    }
+
+                    bool unlocked = locations != null &&
+                        !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+
+                    if (!unlocked)
+                    {
+                        reason = $"Resource '{normalizedResourceId}' not discovered yet";
+                        return false;
+                    }
+
+                    var costBundle = BuildExactUpfrontCostBundle(def);
+                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
+                    {
+                        reason = "Not enough upfront resources";
+                        return false;
+                    }
+
+                    return true;
+                }
+
+            case TaskType.ExploreNewLocation:
+                {
+                    bool hasUnknown = locations != null &&
+                        !string.IsNullOrWhiteSpace(locations.FindRandomUnknownLocationId());
+
+                    if (!hasUnknown)
+                    {
+                        reason = "No unknown locations left";
+                        return false;
+                    }
+
+                    var explore = GameInstaller.ExplorationUnlock;
+                    if (explore == null)
+                    {
+                        reason = "Exploration rule is not configured";
+                        return false;
+                    }
+
+                    if (!explore.CanAfford(treasury, out reason))
+                        return false;
+
+                    return true;
+                }
+
+            case TaskType.SurveyKnownLocation:
+                {
+                    bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+                    if (!hasKnown)
+                    {
+                        reason = "No discovered locations yet";
+                        return false;
+                    }
+
+                    var costBundle = BuildExactUpfrontCostBundle(def);
+                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
+                    {
+                        reason = "Not enough upfront resources";
+                        return false;
+                    }
+
+                    return true;
+                }
+        }
+
+        return true;
+    }
+
     private void Publish(PublishDef def)
     {
-        if (def == null) return;
+        if (def == null)
+            return;
 
         if (_board == null)
             _board = GameInstaller.TaskBoard;
 
         if (_board == null)
         {
-            GameDebug.Error(GameDebugChannel.UI,
-            "TaskBoardService is null (GameInstaller not ready?)");
+            GameDebug.Error(GameDebugChannel.UI, "TaskBoardService is null (GameInstaller not ready?)");
             return;
         }
 
-        // runtime id як у тебе в логах: rt_gather_x_N
-        string suffix = def.type switch
+        if (!CanPublish(def, out string reason))
         {
-            TaskType.Gather => $"gather_{def.resourceId}",
-            TaskType.ExploreNewLocation => "explore_new_location",
-            TaskType.SurveyKnownLocation => "survey_known_location",
-            _ => def.type.ToString().ToLowerInvariant()
-        };
-
-        string taskId = $"rt_{suffix}_{UnityEngine.Random.Range(1, 99999)}";
-        var locations = GameInstaller.LocationService;
-
-        if (def.type == TaskType.SurveyKnownLocation)
-        {
-            bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
-            if (!hasKnown)
-            {
-                GameDebug.Warning(GameDebugChannel.Task,
-                "Locked: no discovered locations yet for SurveyKnownLocation");
-                return;
-            }
+            GameDebug.Warning(GameDebugChannel.Task, $"Publish blocked: {reason}");
+            return;
         }
 
-        var workBundle = new ResourceBundle();
-        if (def.type == TaskType.Gather &&
-            !string.IsNullOrWhiteSpace(def.resourceId) &&
-            def.baseAmount > 0)
+        switch (def.type)
         {
-            workBundle.AddExact(def.resourceId, def.baseAmount);
-            workBundle.Normalize();
+            case TaskType.Gather:
+                PublishGather(def.displayName, def.resourceId, def.baseAmount, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                break;
+
+            case TaskType.ExploreNewLocation:
+                PublishExploreNewLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance);
+                break;
+
+            case TaskType.SurveyKnownLocation:
+                PublishSurveyKnownLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                break;
+
+            default:
+                GameDebug.Warning(GameDebugChannel.UI, $"Unsupported publish type: {def.type}");
+                break;
         }
-
-        var rewardBundle = new ResourceBundle();
-        if (def.wageGold > 0)
-        {
-            rewardBundle.AddExact("gold", def.wageGold);
-            rewardBundle.Normalize();
-        }
-
-        var costBundle = new ResourceBundle();
-        if (!string.IsNullOrWhiteSpace(def.upfrontCostResourceId) && def.upfrontCostAmount > 0)
-        {
-            costBundle.AddExact(def.upfrontCostResourceId.ToLowerInvariant(), def.upfrontCostAmount);
-            costBundle.Normalize();
-        }
-
-        var t = new TaskInstance
-        {
-            taskId = taskId,
-            type = def.type,
-            displayName = def.displayName,
-            active = true,
-            priority = def.priority,
-            maxTakers = Mathf.Max(1, def.maxTakers),
-            durationSec = Mathf.Max(0.1f, def.durationSec),
-            baseFailChance = Mathf.Clamp01(def.baseFailChance),
-
-            // legacy back-compat
-            wageGold = Mathf.Max(0, def.wageGold),
-            resourceId = (def.resourceId ?? "").ToLowerInvariant(),
-            baseAmount = Mathf.Max(0, def.baseAmount),
-
-            // PATCH 9 / PATCH 11
-            workOutputBundle = workBundle,
-            taskRewardBundle = rewardBundle,
-            taskCostBundle = costBundle,
-        };
-
-
-
-        // MVP: resource gate by location discovery
-        string resId = (def.resourceId ?? "").ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(resId))
-        {
-
-            bool unlocked = locations != null &&
-                !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(resId, true, true));
-            if (!unlocked)
-            {
-                GameDebug.Warning(GameDebugChannel.Task,
-                $"Locked: resource '{resId}' not discovered yet");
-                return;
-            }
-        }
-
-        // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
-        if (t.type == TaskType.ExploreNewLocation || t.type == TaskType.SurveyKnownLocation)
-        {
-            t.resourceId = "";
-            t.baseAmount = 0;
-        }
-
-        // === Risk model bootstrap ===
-        t.successChance = 1f - t.baseFailChance;
-
-        if (t.successChance >= 0.85f) t.riskTier = 0;
-        else if (t.successChance >= 0.7f) t.riskTier = 1;
-        else if (t.successChance >= 0.55f) t.riskTier = 2;
-        else if (t.successChance >= 0.4f) t.riskTier = 3;
-        else if (t.successChance >= 0.25f) t.riskTier = 4;
-        else t.riskTier = 5;
-
-
-        // attach to a discovered location (so danger works + deterministic target)
-        if (t.type == TaskType.Gather &&
-        !string.IsNullOrWhiteSpace(t.resourceId) &&
-         string.IsNullOrWhiteSpace(t.targetLocationId))
-        {
-            string locationId = locations?.FindAnyLocationForResource(t.resourceId, true, true);
-            if (!string.IsNullOrWhiteSpace(locationId))
-                t.targetLocationId = locationId;
-        }
-
-        _board.AddTaskRuntime(t);
     }
 
     public void PublishGather(
-     string displayName,
-     string resourceId,
-     int baseAmount,
-     int maxTakers,
-     float durationSec,
-     int wageGold,
-     int priority,
-     float baseFailChance)
+        string displayName,
+        string resourceId,
+        int baseAmount,
+        int maxTakers,
+        float durationSec,
+        int wageGold,
+        int priority,
+        float baseFailChance,
+        string upfrontCostResourceId = null,
+        int upfrontCostAmount = 0)
     {
-        string normalizedResourceId = (resourceId ?? "").ToLowerInvariant();
+        string normalizedResourceId = Normalize(resourceId);
         var id = $"rt_gather_{normalizedResourceId}_{Time.frameCount}";
         var locations = GameInstaller.LocationService;
+
+        bool unlocked = locations != null &&
+            !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+        if (!unlocked)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{normalizedResourceId}' not discovered yet");
+            return;
+        }
+
+        var costBundle = new ResourceBundle();
+        string normalizedUpfrontCostResourceId = Normalize(upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(normalizedUpfrontCostResourceId, Mathf.Max(0, upfrontCostAmount));
+            costBundle.Normalize();
+        }
+
+        if (GameInstaller.Treasury != null && !costBundle.IsEmpty && !GameInstaller.Treasury.CanAfford(costBundle))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Blocked: not enough upfront resources for gather task");
+            return;
+        }
 
         var workBundle = new ResourceBundle();
         if (!string.IsNullOrWhiteSpace(normalizedResourceId) && baseAmount > 0)
@@ -272,19 +314,10 @@ public class TaskPublisherPanel : MonoBehaviour
 
             workOutputBundle = workBundle,
             taskRewardBundle = rewardBundle,
-            taskCostBundle = new ResourceBundle(),
+            taskCostBundle = costBundle,
 
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };
-
-        bool unlocked = locations != null &&
-            !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
-        if (!unlocked)
-        {
-            GameDebug.Warning(GameDebugChannel.Task,
-                $"Locked: resource '{normalizedResourceId}' not discovered yet");
-            return;
-        }
 
         task.successChance = 1f - task.baseFailChance;
 
@@ -306,66 +339,15 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(task);
     }
 
-    public void PublishExploreNewLocation(
-    string displayName,
-    int maxTakers,
-    float durationSec,
-    int wageGold,
-    int priority,
-    float baseFailChance
-)
-    {
-        var id = $"rt_explore_new_{Time.frameCount}";
-
-        var rewardBundle = new ResourceBundle();
-        if (wageGold > 0)
-        {
-            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
-            rewardBundle.Normalize();
-        }
-
-        var task = new TaskInstance
-        {
-            taskId = id,
-            type = TaskType.ExploreNewLocation,
-            displayName = displayName,
-
-            active = true,
-            maxTakers = Mathf.Max(1, maxTakers),
-            durationSec = Mathf.Max(0.1f, durationSec),
-            wageGold = Mathf.Max(0, wageGold),
-            priority = priority,
-
-            workOutputBundle = new ResourceBundle(),
-            taskRewardBundle = rewardBundle,
-            taskCostBundle = new ResourceBundle(),
-
-            baseFailChance = Mathf.Clamp01(baseFailChance)
-        };
-
-        task.resourceId = "";
-        task.baseAmount = 0;
-
-        task.successChance = 1f - task.baseFailChance;
-
-        if (task.successChance >= 0.85f) task.riskTier = 0;
-        else if (task.successChance >= 0.7f) task.riskTier = 1;
-        else if (task.successChance >= 0.55f) task.riskTier = 2;
-        else if (task.successChance >= 0.4f) task.riskTier = 3;
-        else if (task.successChance >= 0.25f) task.riskTier = 4;
-        else task.riskTier = 5;
-
-        _board.AddTaskRuntime(task);
-    }
-
-
     public void PublishSurveyKnownLocation(
-    string displayName,
-    int maxTakers,
-    float durationSec,
-    int wageGold,
-    int priority,
-    float baseFailChance)
+        string displayName,
+        int maxTakers,
+        float durationSec,
+        int wageGold,
+        int priority,
+        float baseFailChance,
+        string upfrontCostResourceId = null,
+        int upfrontCostAmount = 0)
     {
         var id = $"rt_survey_{Time.frameCount}";
         var locations = GameInstaller.LocationService;
@@ -373,8 +355,21 @@ public class TaskPublisherPanel : MonoBehaviour
         bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
         if (!hasKnown)
         {
-            GameDebug.Warning(GameDebugChannel.Task,
-                "Locked: no discovered locations yet for SurveyKnownLocation");
+            GameDebug.Warning(GameDebugChannel.Task, "Locked: no discovered locations yet for SurveyKnownLocation");
+            return;
+        }
+
+        var costBundle = new ResourceBundle();
+        string normalizedUpfrontCostResourceId = Normalize(upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(normalizedUpfrontCostResourceId, Mathf.Max(0, upfrontCostAmount));
+            costBundle.Normalize();
+        }
+
+        if (GameInstaller.Treasury != null && !costBundle.IsEmpty && !GameInstaller.Treasury.CanAfford(costBundle))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Blocked: not enough upfront resources for SurveyKnownLocation");
             return;
         }
 
@@ -397,15 +392,15 @@ public class TaskPublisherPanel : MonoBehaviour
             wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
+            resourceId = string.Empty,
+            baseAmount = 0,
+
             workOutputBundle = new ResourceBundle(),
             taskRewardBundle = rewardBundle,
-            taskCostBundle = new ResourceBundle(),
+            taskCostBundle = costBundle,
 
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };
-
-        task.resourceId = "";
-        task.baseAmount = 0;
 
         task.successChance = 1f - task.baseFailChance;
 
@@ -419,5 +414,122 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(task);
     }
 
+    public void PublishExploreNewLocation(
+    string displayName = "Discover Region",
+    int maxTakers = 1,
+    float durationSec = 10f,
+    int wageGold = 0,
+    int priority = 3,
+    float baseFailChance = 0.15f)
+    {
+        if (_board == null)
+            _board = GameInstaller.TaskBoard;
 
+        if (_board == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "TaskBoardService is null (GameInstaller not ready?)");
+            return;
+        }
+
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "LocationService is null");
+            return;
+        }
+
+        bool hasUnknown = !string.IsNullOrWhiteSpace(locations.FindRandomUnknownLocationId());
+        if (!hasUnknown)
+        {
+            GameDebug.Warning(GameDebugChannel.UI, "Publish Explore blocked: no unknown locations left");
+            return;
+        }
+
+        var explore = GameInstaller.ExplorationUnlock;
+        if (explore == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "ExplorationUnlockService is null");
+            return;
+        }
+
+        if (!explore.CanAfford(GameInstaller.Treasury, out var reason))
+        {
+            GameDebug.Warning(GameDebugChannel.UI, $"Publish Explore blocked: {reason}");
+            return;
+        }
+
+        string taskId = $"rt_explore_new_location_{UnityEngine.Random.Range(1000, 9999)}";
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", wageGold);
+            rewardBundle.Normalize();
+        }
+
+        var costBundle = explore.BuildCostBundle();
+
+        var task = new TaskInstance
+        {
+            taskId = taskId,
+            type = TaskType.ExploreNewLocation,
+            displayName = string.IsNullOrWhiteSpace(displayName) ? explore.DisplayName : displayName,
+
+            active = true,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
+            priority = Mathf.Clamp(priority, 0, 5),
+
+            targetLocationId = string.Empty,
+            resourceId = string.Empty,
+            baseAmount = 0,
+
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = costBundle,
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
+        };
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
+
+        _board.AddTaskRuntime(task);
+
+        GameDebug.Info(
+            GameDebugChannel.UI,
+            $"Published Explore task: {task.taskId} cost={explore.GetCostText()}"
+        );
+    }
+
+    private ResourceBundle BuildExactUpfrontCostBundle(PublishDef def)
+    {
+        var bundle = new ResourceBundle();
+
+        if (def == null)
+            return bundle;
+
+        string normalized = Normalize(def.upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalized) && def.upfrontCostAmount > 0)
+        {
+            bundle.AddExact(normalized, Mathf.Max(0, def.upfrontCostAmount));
+            bundle.Normalize();
+        }
+
+        return bundle;
+    }
+
+    private string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+    }
 }

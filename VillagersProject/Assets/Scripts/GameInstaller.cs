@@ -1,13 +1,11 @@
 using UnityEngine;
 
-
 public class GameInstaller : MonoBehaviour
 {
     public static TreasuryService Treasury { get; private set; }
     public static ExploreOutcomeService ExploreOutcome { get; private set; }
     public static TaskBoardService TaskBoard { get; private set; }
     public static ProgressionService Progression { get; private set; }
-    public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
     public static VillagerInventoryService Inventory { get; private set; }
     public static SelectedVillagerService SelectedVillager;
@@ -29,9 +27,9 @@ public class GameInstaller : MonoBehaviour
     public static EconomicExecutionService EconomicExecution { get; private set; }
     public static EconomicSimulationService EconomicSimulation { get; private set; }
     public static EconomicSellService EconomicSell { get; private set; }
+    public static ExplorationUnlockService ExplorationUnlock { get; private set; }
 
-    [SerializeField] private VillagerClickSelector villagerClickSelector; // якщо вже є в сцені
-
+    [SerializeField] private VillagerClickSelector villagerClickSelector;
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
@@ -40,22 +38,22 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
     [SerializeField] private ResourceDataSO[] resourceAssets;
     [SerializeField] private ResourceCategoryDataSO[] resourceCategoryAssets;
+    [SerializeField] private ExplorationUnlockRuleSO explorationUnlockRuleAsset;
+    [SerializeField] private int startingGold = 25;
 
     private EventLogService _log;
 
     private void Awake()
     {
-
         GameDebug.Info(GameDebugChannel.General, "Installer ready");
 
-        // 1) Сервіси (дані/синглтони) — щоб UI в OnEnable вже їх бачив
-        TaskBoard = new TaskBoardService();
+        _log = new EventLogService(10);
+
         Treasury = new TreasuryService();
         ExploreOutcome = new ExploreOutcomeService();
-
+        TaskBoard = new TaskBoardService();
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
-        _log = new EventLogService(10);
         Inventory = new VillagerInventoryService();
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
@@ -66,8 +64,8 @@ public class GameInstaller : MonoBehaviour
         Resources.LoadFromAssets(resourceAssets);
 
         GameDebug.Info(
-        GameDebugChannel.General,
-        $"ResourceRegistry loaded: {Resources.Count} resources"
+            GameDebugChannel.General,
+            $"ResourceRegistry loaded: {Resources.Count} resources"
         );
 
         ResourceCategories = new ResourceCategoryRegistry();
@@ -107,11 +105,11 @@ public class GameInstaller : MonoBehaviour
             "Economic sell layer ready"
         );
 
-        WorldDebugPopup = worldDebugPopup;
+        ExplorationUnlock = new ExplorationUnlockService(
+            explorationUnlockRuleAsset != null ? explorationUnlockRuleAsset.Data : null
+        );
 
-        // 2) Registry / world data
-        ExploreRegistry = new ExploreSpotRegistry();
-        ExploreRegistry.Initialize();
+        WorldDebugPopup = worldDebugPopup;
 
         Locations = new LocationRegistry();
         LocationService = new LocationService(Locations);
@@ -122,44 +120,35 @@ public class GameInstaller : MonoBehaviour
 
         Corpses = new CorpseService();
         Lost = new LostService();
-
-
-        // Важливо: тут НЕ стартуємо агентів і НЕ SetTasks
     }
 
     private void Start()
     {
-        // 3) Bind UI (після Awake, але гарантовано один раз)
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
-        if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
-        
+        //if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
 
-
-        // 4) Завантаження тасків
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
         if (authoring == null)
-        {
             return;
-        }
+
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
-        // 5) Запуск агентів (саме тут)
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
+        //foreach (var b in brains)
+        //    b.Begin(TaskBoard, Treasury, _log, Villagers);
 
-        foreach (var b in brains)
-            b.Begin(TaskBoard, Treasury, _log, Villagers);
-
+        Treasury.InitializeGold(startingGold);
     }
 
     private void OnDestroy()
     {
         _log?.Dispose();
     }
-
 
     private void ValidateResourceCategories()
     {
@@ -189,7 +178,4 @@ public class GameInstaller : MonoBehaviour
             }
         }
     }
-
 }
-
-

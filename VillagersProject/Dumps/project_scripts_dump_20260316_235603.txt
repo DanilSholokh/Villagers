@@ -1,11 +1,11 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-16 06:01:43
+Time: 2026-03-16 23:56:03
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
 IncludeMeta: False
 
-FilesCount: 88
+FilesCount: 94
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Categories/Registries/ResourceCategoryRegistry.cs
@@ -1360,6 +1360,157 @@ public class EconomicValidationService
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExplorationUnlockRule.cs
+SIZE: 576 bytes
+SHA256: 92206ce4177b49f523e7474e329047806c121a91d1d3676f230923c8ebc7a454
+CONTENT:
+using System;
+using UnityEngine;
+
+[Serializable]
+public class ExplorationUnlockRule
+{
+    [Header("Identity")]
+    public string ruleId = "discover_region";
+    public string displayName = "Discover Region";
+
+    [Header("Cost")]
+    public string categoryId = "tradegoods";
+    public int requiredValue = 30;
+
+    [Header("Behavior")]
+    public bool allowBlockedLocations = false;
+
+    public string NormalizedCategoryId =>
+        string.IsNullOrWhiteSpace(categoryId)
+            ? string.Empty
+            : categoryId.Trim().ToLowerInvariant();
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExplorationUnlockRuleSO.cs
+SIZE: 326 bytes
+SHA256: 21abab3ce3bc8a5034bf1f026a8288da7c6484599ab248f209cd120f8da2dd8d
+CONTENT:
+using UnityEngine;
+
+[CreateAssetMenu(
+    fileName = "ExplorationUnlockRule",
+    menuName = "Villagers/Explore/Exploration Unlock Rule"
+)]
+public class ExplorationUnlockRuleSO : ScriptableObject
+{
+    [SerializeField] private ExplorationUnlockRule data = new();
+
+    public ExplorationUnlockRule Data => data;
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Explore/ExplorationUnlockService.cs
+SIZE: 2505 bytes
+SHA256: 5379387d64bc92356359ca65b247b9cf80c3c88281534c824f98f2f3560ba1de
+CONTENT:
+using UnityEngine;
+
+public class ExplorationUnlockService
+{
+    private readonly ExplorationUnlockRule _rule;
+
+    public ExplorationUnlockService(ExplorationUnlockRule rule)
+    {
+        _rule = rule ?? new ExplorationUnlockRule();
+    }
+
+    public string RuleId =>
+        string.IsNullOrWhiteSpace(_rule.ruleId)
+            ? "discover_region"
+            : _rule.ruleId;
+
+    public string DisplayName =>
+        string.IsNullOrWhiteSpace(_rule.displayName)
+            ? "Discover Region"
+            : _rule.displayName;
+
+    public string CategoryId =>
+        string.IsNullOrWhiteSpace(_rule.NormalizedCategoryId)
+            ? "tradegoods"
+            : _rule.NormalizedCategoryId;
+
+    public int RequiredValue => Mathf.Max(0, _rule.requiredValue);
+
+    public bool AllowBlockedLocations => _rule.allowBlockedLocations;
+
+    public string GetCostText()
+    {
+        return $"{RequiredValue} {GetCategoryDisplayName()} Value";
+    }
+
+    public ResourceBundle BuildCostBundle()
+    {
+        var bundle = new ResourceBundle();
+
+        if (RequiredValue > 0)
+        {
+            bundle.AddCategoryValue(CategoryId, RequiredValue);
+            bundle.Normalize();
+        }
+
+        return bundle;
+    }
+
+    public bool CanAfford(TreasuryService treasury, out string reason)
+    {
+        reason = string.Empty;
+
+        if (treasury == null)
+        {
+            reason = "Treasury is null";
+            return false;
+        }
+
+        var bundle = BuildCostBundle();
+        if (bundle == null || bundle.IsEmpty)
+            return true;
+
+        if (!treasury.CanAfford(bundle))
+        {
+            reason = "Not enough category value";
+            return false;
+        }
+
+        return true;
+    }
+
+    public int GetCurrentCategoryValue(TreasuryService treasury)
+    {
+        if (treasury == null || GameInstaller.CategoryValues == null)
+            return 0;
+
+        return GameInstaller.CategoryValues.GetContainerCategoryValue(treasury, CategoryId);
+    }
+
+    private string GetCategoryDisplayName()
+    {
+        if (GameInstaller.ResourceCategories == null || string.IsNullOrWhiteSpace(CategoryId))
+            return CategoryId;
+
+        var cat = GameInstaller.ResourceCategories.Get(CategoryId);
+        if (cat == null)
+            return CategoryId;
+
+        return string.IsNullOrWhiteSpace(cat.displayName)
+            ? CategoryId
+            : cat.displayName;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/Domain/Explore/ExploreOutcomeService.cs
 SIZE: 1918 bytes
 SHA256: 36095835f17ac99fa54e984e64a96a9c6f499b6de180e9341dc4849730335d07
@@ -1888,8 +2039,8 @@ public class LocationMetrics
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/Locations/LocationMetricsPanelView.cs
-SIZE: 4688 bytes
-SHA256: 48648450ce9dccdd226fef8caf3232781717f66dc1fd420cb574222bf14c801f
+SIZE: 5649 bytes
+SHA256: b4c9b0cfc87793ba0e3047735d6a66102646b0a6a157fabd8f48e8df318a1066
 CONTENT:
 using System.Text;
 using TMPro;
@@ -1930,11 +2081,6 @@ public class LocationMetricsPanelView : MonoBehaviour
     }
 
     private void OnDisable()
-    {
-        Unbind();
-    }
-
-    private void OnDestroy()
     {
         Unbind();
     }
@@ -2008,7 +2154,7 @@ public class LocationMetricsPanelView : MonoBehaviour
 
     private string BuildBody(LocationModel loc)
     {
-        var sb = new StringBuilder(256);
+        var sb = new StringBuilder(320);
 
         int workerCount = loc.currentWorkers != null ? loc.currentWorkers.Count : 0;
         int taskCount = loc.currentTasks != null ? loc.currentTasks.Count : 0;
@@ -2024,7 +2170,38 @@ public class LocationMetricsPanelView : MonoBehaviour
         sb.AppendLine($"Dead: {loc.metrics.villagersDead}");
         sb.AppendLine($"Gathered: {BuildGatheredResources(loc)}");
 
+        AppendExplorationInfo(sb, loc);
+
         return sb.ToString().TrimEnd();
+    }
+
+    private void AppendExplorationInfo(StringBuilder sb, LocationModel loc)
+    {
+        if (loc == null || loc.status != LocationStatus.Unknown)
+            return;
+
+        var explore = GameInstaller.ExplorationUnlock;
+
+        sb.AppendLine();
+        sb.AppendLine("Exploration Unlock:");
+
+        if (explore == null)
+        {
+            sb.AppendLine("Cost: -");
+            sb.AppendLine("Ready: NO");
+            sb.AppendLine("Action: publish Explore task from Quest Panel");
+            return;
+        }
+
+        sb.AppendLine($"Cost: {explore.GetCostText()}");
+
+        bool ready = explore.CanAfford(GameInstaller.Treasury, out _);
+        sb.AppendLine($"Ready: {(ready ? "YES" : "NO")}");
+
+        int currentValue = explore.GetCurrentCategoryValue(GameInstaller.Treasury);
+        sb.AppendLine($"Current Value: {currentValue}/{explore.RequiredValue}");
+
+        sb.AppendLine("Action: publish Explore task from Quest Panel");
     }
 
     private string BuildGatheredResources(LocationModel loc)
@@ -3385,8 +3562,8 @@ public enum LostHiddenOutcome
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
-SIZE: 2244 bytes
-SHA256: 8fb303598abeb4837daac9b9184346b5ebd7ae8ceb8987f27abf015489c1c1d1
+SIZE: 3775 bytes
+SHA256: 9226878b0eee5542f6d6808c4ea77bcd4e556ee5a35225ac67357e99d01092a0
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -3410,6 +3587,14 @@ public class TaskBoardAuthoring : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
+        // PATCH 11: optional exact reward override
+        public string rewardResourceId;
+        [Min(0)] public int rewardAmount = 0;
+
+        // PATCH 11: optional exact upfront cost
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
+
         // Gather (���. ��� ����� �����)
         public string resourceId;
         public int baseAmount = 3;
@@ -3420,22 +3605,44 @@ public class TaskBoardAuthoring : MonoBehaviour
     public List<TaskInstance> BuildRuntimeTasks()
     {
         var list = new List<TaskInstance>(tasks.Count);
+
         foreach (var t in tasks)
         {
+            string normalizedResourceId = (t.resourceId ?? "").ToLowerInvariant();
+            string normalizedRewardResourceId = (t.rewardResourceId ?? "").ToLowerInvariant();
+            string normalizedUpfrontCostResourceId = (t.upfrontCostResourceId ?? "").ToLowerInvariant();
+
+            int safeBaseAmount = Mathf.Max(0, t.baseAmount);
+            int safeWageGold = Mathf.Max(0, t.wageGold);
+            int safeRewardAmount = Mathf.Max(0, t.rewardAmount);
+            int safeUpfrontCostAmount = Mathf.Max(0, t.upfrontCostAmount);
+
             var workBundle = new ResourceBundle();
             if (t.type == TaskType.Gather &&
-                !string.IsNullOrWhiteSpace(t.resourceId) &&
-                t.baseAmount > 0)
+                !string.IsNullOrWhiteSpace(normalizedResourceId) &&
+                safeBaseAmount > 0)
             {
-                workBundle.AddExact(t.resourceId, t.baseAmount);
+                workBundle.AddExact(normalizedResourceId, safeBaseAmount);
                 workBundle.Normalize();
             }
 
             var rewardBundle = new ResourceBundle();
-            if (t.wageGold > 0)
+            if (!string.IsNullOrWhiteSpace(normalizedRewardResourceId) && safeRewardAmount > 0)
             {
-                rewardBundle.AddExact("gold", t.wageGold);
+                rewardBundle.AddExact(normalizedRewardResourceId, safeRewardAmount);
                 rewardBundle.Normalize();
+            }
+            else if (safeWageGold > 0)
+            {
+                rewardBundle.AddExact("gold", safeWageGold);
+                rewardBundle.Normalize();
+            }
+
+            var costBundle = new ResourceBundle();
+            if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && safeUpfrontCostAmount > 0)
+            {
+                costBundle.AddExact(normalizedUpfrontCostResourceId, safeUpfrontCostAmount);
+                costBundle.Normalize();
             }
 
             list.Add(new TaskInstance
@@ -3449,18 +3656,19 @@ public class TaskBoardAuthoring : MonoBehaviour
                 durationSec = t.durationSec,
 
                 // legacy back-compat
-                wageGold = t.wageGold,
-                resourceId = t.resourceId,
-                baseAmount = t.baseAmount,
+                wageGold = normalizedRewardResourceId == "gold" ? safeRewardAmount : safeWageGold,
+                resourceId = normalizedResourceId,
+                baseAmount = safeBaseAmount,
 
-                // PATCH 9
+                // PATCH 9 / PATCH 11
                 workOutputBundle = workBundle,
                 taskRewardBundle = rewardBundle,
-                taskCostBundle = new ResourceBundle(),
+                taskCostBundle = costBundle,
 
                 baseFailChance = t.baseFailChance
             });
         }
+
         return list;
     }
 }
@@ -3694,26 +3902,48 @@ public class TaskInstance
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskSelectionLogic.cs
-SIZE: 547 bytes
-SHA256: 8794cc1d2a34d755d2a56d9197c8c32f04fa228d5d3e9569a4ce831ca2797f20
+SIZE: 1185 bytes
+SHA256: 5542379b1c74458168fc35ee302ed462d8a312a2097f3b4b8cb74e6524720517
 CONTENT:
-using System.Collections.Generic;
 using System.Linq;
 
 public static class TaskSelectionLogic
 {
-    public static TaskInstance PickBest(TaskBoardService board)
+    public static TaskInstance PickBest(TaskBoardService board, TreasuryService treasury)
     {
+        if (board == null)
+            return null;
+
         var tasks = board.GetAllTasks();
 
         var available = tasks
+            .Where(t => t != null)
             .Where(board.IsAvailable)
+            .Where(t => CanStartTask(t, treasury))
             .OrderByDescending(t => t.priority)
             .ThenByDescending(t => board.SlotsFree(t.taskId, t.maxTakers))
             .ThenBy(t => t.durationSec)
             .ToList();
 
         return available.Count > 0 ? available[0] : null;
+    }
+
+    private static bool CanStartTask(TaskInstance task, TreasuryService treasury)
+    {
+        if (task == null)
+            return false;
+
+        if (treasury == null)
+            return true;
+
+        var costBundle = task.GetResolvedTaskCostBundle();
+        if (costBundle != null && !costBundle.IsEmpty)
+            return treasury.CanAfford(costBundle);
+
+        if (task.wageGold > 0)
+            return treasury.GetAmount("gold") >= task.wageGold;
+
+        return true;
     }
 }
 
@@ -3758,6 +3988,179 @@ public static class TaskBundleMapper
     {
         // PATCH 9: optional now, empty by default.
         return new ResourceBundle();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Tasks/TaskEscrowReservation.cs
+SIZE: 802 bytes
+SHA256: 44ab61f37210d773ebcc99ee07a4d9cdef23edde11c05de19c2c8b02b2e5e4d3
+CONTENT:
+using System;
+
+[Serializable]
+public class TaskEscrowReservation
+{
+    public string taskId;
+    public string agentId;
+
+    public bool usesBundleCost;
+    public bool usesLegacyGold;
+
+    public int lockedGold;
+    public ResourceBundle spentBundle = new();
+
+    public bool HasAnyReservation
+    {
+        get
+        {
+            bool hasGold = usesLegacyGold && lockedGold > 0;
+            bool hasBundle = usesBundleCost && spentBundle != null && !spentBundle.IsEmpty;
+            return hasGold || hasBundle;
+        }
+    }
+
+    public void Clear()
+    {
+        taskId = string.Empty;
+        agentId = string.Empty;
+        usesBundleCost = false;
+        usesLegacyGold = false;
+        lockedGold = 0;
+        spentBundle = new ResourceBundle();
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
+PATH: Assets/Domain/Tasks/TaskEscrowService.cs
+SIZE: 3950 bytes
+SHA256: e40e167523f1d2ca0efaf871c3dea193ffb38e46de344dfad95dae5f782f2264
+CONTENT:
+public class TaskEscrowService
+{
+    public bool TryReserve(
+        TaskInstance task,
+        string agentId,
+        TreasuryService treasury,
+        out TaskEscrowReservation reservation,
+        out string errorMessage)
+    {
+        reservation = new TaskEscrowReservation
+        {
+            taskId = task != null ? task.taskId ?? string.Empty : string.Empty,
+            agentId = agentId ?? string.Empty
+        };
+
+        errorMessage = string.Empty;
+
+        if (task == null)
+        {
+            errorMessage = "Task is null.";
+            return false;
+        }
+
+        if (treasury == null)
+        {
+            return true;
+        }
+
+        var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+        if (upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
+        {
+            if (!treasury.CanAfford(upfrontCostBundle))
+            {
+                errorMessage = $"Not enough upfront bundle cost for task={task.taskId}";
+                return false;
+            }
+
+            var spendResult = treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
+            if (!spendResult.success)
+            {
+                errorMessage = $"Upfront bundle spend failed for task={task.taskId} reason={spendResult.message}";
+                return false;
+            }
+
+            reservation.usesBundleCost = true;
+            reservation.spentBundle = spendResult.consumed != null && !spendResult.consumed.IsEmpty
+                ? spendResult.consumed.Clone()
+                : upfrontCostBundle.Clone();
+
+            return true;
+        }
+
+        if (task.wageGold > 0)
+        {
+            if (!treasury.TryHoldGold(task.wageGold))
+            {
+                errorMessage = $"Not enough gold for wage={task.wageGold}";
+                return false;
+            }
+
+            reservation.usesLegacyGold = true;
+            reservation.lockedGold = task.wageGold;
+            return true;
+        }
+
+        return true;
+    }
+
+    public void SettleSuccess(TaskEscrowReservation reservation, TreasuryService treasury)
+    {
+        if (!HasActiveReservation(reservation) || treasury == null)
+            return;
+
+        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
+            treasury.ConsumeLockedGold(reservation.lockedGold);
+    }
+
+    public void SettleFailure(TaskEscrowReservation reservation, TreasuryService treasury)
+    {
+        if (!HasActiveReservation(reservation) || treasury == null)
+            return;
+
+        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
+        {
+            treasury.RefundGold(reservation.lockedGold);
+            return;
+        }
+
+        if (reservation.usesBundleCost &&
+            reservation.spentBundle != null &&
+            !reservation.spentBundle.IsEmpty)
+        {
+            treasury.GrantBundle(reservation.spentBundle, "task_upfront_cost_refund");
+        }
+    }
+
+    public void SettleDeath(TaskEscrowReservation reservation, TreasuryService treasury)
+    {
+        if (!HasActiveReservation(reservation) || treasury == null)
+            return;
+
+        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
+            treasury.ConsumeLockedGold(reservation.lockedGold);
+
+        // bundle upfront cost stays consumed on death
+    }
+
+    public void SettleLost(TaskEscrowReservation reservation, TreasuryService treasury)
+    {
+        if (!HasActiveReservation(reservation) || treasury == null)
+            return;
+
+        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
+            treasury.ConsumeLockedGold(reservation.lockedGold);
+
+        // bundle upfront cost stays consumed on lost
+    }
+
+    public bool HasActiveReservation(TaskEscrowReservation reservation)
+    {
+        return reservation != null && reservation.HasAnyReservation;
     }
 }
 
@@ -4408,8 +4811,8 @@ public class LocationEntity
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/TreasurySystem/TreasuryPanelView.cs
-SIZE: 3046 bytes
-SHA256: 6826f91cf3c3b83aa48c394cd2259c013c15028c3bea53a5c6ba55abda853c1a
+SIZE: 9191 bytes
+SHA256: fbfd3229d0b88f98784ef3900f3a6cc2ae1873cd6b06ae4063505a6556782c52
 CONTENT:
 using System.Collections.Generic;
 using TMPro;
@@ -4418,30 +4821,29 @@ using UnityEngine.UI;
 
 public class TreasuryPanelView : MonoBehaviour
 {
+    [Header("Dynamic List")]
+    [SerializeField] private Transform listRoot;
+    [SerializeField] private RectTransform rowTemplate;
 
-    [SerializeField] private int startGold = 25;
+    [Header("Optional Category Value Block")]
+    [SerializeField] private TMP_Text categoryValuesText;
 
-    [Header("Values")]
-    public TextMeshProUGUI woodValue;
-    public TextMeshProUGUI stoneValue;
-    public TextMeshProUGUI fishValue;
-    public TextMeshProUGUI goldValue;
+    [Header("Optional Sell Preview")]
+    [SerializeField] private TMP_Text sellPreviewText;
 
-
-    [Header("Buttons")]
-    public Button sellAllButton;
-
+    [Header("Actions")]
+    [SerializeField] private Button sellAllButton;
 
     private TreasuryService _treasury;
+    private readonly List<RectTransform> _spawnedRows = new();
+    private readonly Dictionary<string, RowRefs> _rowsByKey = new();
 
-
-    private void Start()
+    private sealed class RowRefs
     {
-        if (_treasury != null)
-            _treasury.InitializeGold(startGold);
+        public RectTransform root;
+        public TMP_Text keyText;
+        public TMP_Text valueText;
     }
-
-
 
     public void Bind(TreasuryService treasury)
     {
@@ -4459,15 +4861,15 @@ public class TreasuryPanelView : MonoBehaviour
             sellAllButton.onClick.AddListener(OnSellAllClicked);
         }
 
+        RebuildRows();
         RefreshAll();
     }
 
     private void OnEnable()
     {
-        // якщо панель вимикали/вмикали — треба перепідписатись назад
         if (_treasury != null)
         {
-            _treasury.OnChanged -= HandleChanged; // safety від дублю
+            _treasury.OnChanged -= HandleChanged;
             _treasury.OnChanged += HandleChanged;
         }
 
@@ -4477,6 +4879,7 @@ public class TreasuryPanelView : MonoBehaviour
             sellAllButton.onClick.AddListener(OnSellAllClicked);
         }
 
+        RebuildRows();
         RefreshAll();
     }
 
@@ -4489,29 +4892,238 @@ public class TreasuryPanelView : MonoBehaviour
             sellAllButton.onClick.RemoveListener(OnSellAllClicked);
     }
 
-    private void HandleChanged(string resId, int newTotal)
+    private void HandleChanged(string _, int __)
     {
-        resId = (resId ?? "").ToLowerInvariant();
+        RefreshAll();
+    }
 
-        switch (resId)
+    private void RebuildRows()
+    {
+        ClearSpawnedRows();
+        _rowsByKey.Clear();
+
+        if (listRoot == null || rowTemplate == null)
+            return;
+
+        if (GameInstaller.Resources == null)
+            return;
+
+        rowTemplate.gameObject.SetActive(false);
+
+        BuildResourceRows();
+        BuildCategoryRows();
+    }
+
+    private void BuildResourceRows()
+    {
+        var allResources = new List<ResourceData>(GameInstaller.Resources.GetAll());
+        allResources.Sort((a, b) =>
         {
-            case "wood": if (woodValue) woodValue.text = newTotal.ToString(); break;
-            case "stone": if (stoneValue) stoneValue.text = newTotal.ToString(); break;
-            case "fish": if (fishValue) fishValue.text = newTotal.ToString(); break;
-            case "gold":
-                if (goldValue) goldValue.text = _treasury.GetGoldUi();
-                break;
+            if (a == null) return 1;
+            if (b == null) return -1;
+
+            int bySort = a.sortOrder.CompareTo(b.sortOrder);
+            if (bySort != 0)
+                return bySort;
+
+            return string.CompareOrdinal(a.displayName, b.displayName);
+        });
+
+        for (int i = 0; i < allResources.Count; i++)
+        {
+            var resource = allResources[i];
+            if (resource == null)
+                continue;
+
+            string resourceId = Normalize(resource.resourceId);
+            if (string.IsNullOrWhiteSpace(resourceId))
+                continue;
+
+            var row = Instantiate(rowTemplate, listRoot);
+            row.name = $"Row_Resource_{resourceId}";
+            row.gameObject.SetActive(true);
+
+            var refs = BuildRowRefs(row);
+            if (refs == null)
+            {
+                Destroy(row.gameObject);
+                continue;
+            }
+
+            refs.keyText.text = string.IsNullOrWhiteSpace(resource.displayName)
+                ? resourceId
+                : resource.displayName;
+
+            refs.valueText.text = "0";
+
+            _spawnedRows.Add(row);
+            _rowsByKey[$"resource:{resourceId}"] = refs;
+        }
+    }
+
+    private void BuildCategoryRows()
+    {
+        if (GameInstaller.ResourceCategories == null)
+            return;
+
+        var categories = new List<ResourceCategoryData>(GameInstaller.ResourceCategories.GetAll());
+        categories.Sort((a, b) =>
+        {
+            if (a == null) return 1;
+            if (b == null) return -1;
+
+            return string.CompareOrdinal(a.displayName, b.displayName);
+        });
+
+        for (int i = 0; i < categories.Count; i++)
+        {
+            var category = categories[i];
+            if (category == null)
+                continue;
+
+            string categoryId = Normalize(category.categoryId);
+            if (string.IsNullOrWhiteSpace(categoryId))
+                continue;
+
+            var row = Instantiate(rowTemplate, listRoot);
+            row.name = $"Row_Category_{categoryId}";
+            row.gameObject.SetActive(true);
+
+            var refs = BuildRowRefs(row);
+            if (refs == null)
+            {
+                Destroy(row.gameObject);
+                continue;
+            }
+
+            string categoryName = string.IsNullOrWhiteSpace(category.displayName)
+                ? categoryId
+                : category.displayName;
+
+            refs.keyText.text = $"{categoryName} Value";
+            refs.valueText.text = "0";
+
+            _spawnedRows.Add(row);
+            _rowsByKey[$"category:{categoryId}"] = refs;
         }
     }
 
     private void RefreshAll()
     {
-        if (_treasury == null) return;
+        if (_treasury == null)
+            return;
 
-        if (woodValue) woodValue.text = _treasury.GetAmount("wood").ToString();
-        if (stoneValue) stoneValue.text = _treasury.GetAmount("stone").ToString();
-        if (fishValue) fishValue.text = _treasury.GetAmount("fish").ToString();
-        if (goldValue) goldValue.text = _treasury.GetGoldUi();
+        if (_rowsByKey.Count == 0)
+            RebuildRows();
+
+        RefreshResourceRows();
+        RefreshCategoryRows();
+        RefreshCategoryValuesText();
+        RefreshSellPreviewText();
+    }
+
+    private void RefreshResourceRows()
+    {
+        foreach (var pair in _rowsByKey)
+        {
+            if (!pair.Key.StartsWith("resource:"))
+                continue;
+
+            string resourceId = pair.Key.Substring("resource:".Length);
+            RowRefs refs = pair.Value;
+
+            if (refs == null || refs.valueText == null)
+                continue;
+
+            if (resourceId == "gold")
+                refs.valueText.text = _treasury.GetGoldUi();
+            else
+                refs.valueText.text = _treasury.GetAmount(resourceId).ToString();
+        }
+    }
+
+    private void RefreshCategoryRows()
+    {
+        if (GameInstaller.CategoryValues == null || GameInstaller.ResourceCategories == null)
+            return;
+
+        foreach (var pair in _rowsByKey)
+        {
+            if (!pair.Key.StartsWith("category:"))
+                continue;
+
+            string categoryId = pair.Key.Substring("category:".Length);
+            RowRefs refs = pair.Value;
+
+            if (refs == null || refs.valueText == null)
+                continue;
+
+            int value = GameInstaller.CategoryValues.GetContainerCategoryValue(_treasury, categoryId);
+            refs.valueText.text = value.ToString();
+        }
+    }
+
+    private void RefreshCategoryValuesText()
+    {
+        if (categoryValuesText == null)
+            return;
+
+        if (_treasury == null || GameInstaller.CategoryValues == null)
+        {
+            categoryValuesText.text = "Category Values: -";
+            return;
+        }
+
+        var values = GameInstaller.CategoryValues.BuildCategoryValueStacks(_treasury);
+        categoryValuesText.text = "Category Values\n" + EconomyUiTextFormatter.FormatCategoryValueStacks(values);
+    }
+
+    private void RefreshSellPreviewText()
+    {
+        if (sellPreviewText == null)
+            return;
+
+        if (_treasury == null || GameInstaller.EconomicSell == null)
+        {
+            sellPreviewText.text = "Sell Preview: -";
+            return;
+        }
+
+        int gold = GameInstaller.EconomicSell.ComputeSellGold(_treasury);
+        sellPreviewText.text = $"Sell Preview: {gold} gold";
+    }
+
+    private RowRefs BuildRowRefs(RectTransform row)
+    {
+        if (row == null)
+            return null;
+
+        var key = row.Find("KeyText");
+        var value = row.Find("ValueText");
+
+        if (key == null || value == null)
+        {
+            Debug.LogWarning($"[TreasuryPanelView] Row template '{row.name}' must contain KeyText and ValueText children.");
+            return null;
+        }
+
+        return new RowRefs
+        {
+            root = row,
+            keyText = key.GetComponent<TMP_Text>(),
+            valueText = value.GetComponent<TMP_Text>()
+        };
+    }
+
+    private void ClearSpawnedRows()
+    {
+        for (int i = 0; i < _spawnedRows.Count; i++)
+        {
+            if (_spawnedRows[i] != null)
+                Destroy(_spawnedRows[i].gameObject);
+        }
+
+        _spawnedRows.Clear();
     }
 
     private void OnSellAllClicked()
@@ -4523,8 +5135,12 @@ public class TreasuryPanelView : MonoBehaviour
         RefreshAll();
     }
 
-
-
+    private static string Normalize(string id)
+    {
+        return string.IsNullOrWhiteSpace(id)
+            ? string.Empty
+            : id.Trim().ToLowerInvariant();
+    }
 }
 
 ----- FILE END -----
@@ -5069,8 +5685,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 29175 bytes
-SHA256: 379143924b0ff7047eca7f4e4ef25e6ecdd7df0ee443fcf167401edd8adf693b
+SIZE: 28564 bytes
+SHA256: b867d2602b06f770068cdfcbe4a861d42d272e9285c5b1e9be22173b2c924a7f
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -5116,6 +5732,8 @@ public class VillagerAgentBrain : MonoBehaviour
     private VillagerRosterService _roster;
     private readonly VillagerTaskSettlementService _taskSettlement = new();
 
+    private readonly TaskEscrowService _taskEscrow = new();
+    private TaskEscrowReservation _activeEscrow;
 
     public string AgentId => agentId;
 
@@ -5190,7 +5808,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.LookingForTask);
 
             // 1) Pick
-            var task = TaskSelectionLogic.PickBest(_board);
+            var task = TaskSelectionLogic.PickBest(_board, _treasury);
             if (task == null)
             {
                 yield return new WaitForSeconds(noTaskDelay);
@@ -5204,12 +5822,9 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            // ✅ Escrow hold (wage)
-            if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            if (!TryReserveTaskStartCost(task))
             {
-                // якщо грошей нема — відпускаємо слот назад
                 _board.Release(task.taskId, agentId);
-                Log($"Reserve failed: not enough gold for wage={task.wageGold}");
                 yield return null;
                 continue;
             }
@@ -5282,8 +5897,6 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
                 yield return DoGoHome();
-
-                _cargo.Clear();
 
                 Log($"Villager lost on task {task.taskId}");
                 PublishTaskEvent("Lost", GameDebugSeverity.Warning);
@@ -5733,56 +6346,37 @@ public class VillagerAgentBrain : MonoBehaviour
         _log?.Push($"[{agentId}] {msg}");
     }
 
+    private bool TryReserveTaskStartCost(TaskInstance task)
+    {
+        _activeEscrow = null;
+
+        if (!_taskEscrow.TryReserve(task, agentId, _treasury, out var reservation, out var errorMessage))
+        {
+            if (!string.IsNullOrWhiteSpace(errorMessage))
+                Log($"Reserve failed: {errorMessage}");
+
+            return false;
+        }
+
+        _activeEscrow = reservation;
+        return true;
+    }
+
 
     private void FinalizeTask(TaskInstance task, bool success)
     {
-        // --- Escrow + Cargo settlement ---
-        if (_treasury != null && task.wageGold > 0)
+        if (task == null)
+            return;
+
+        // --- Settlement ---
+        if (success)
         {
-            if (success)
-            {
-                if (task != null && task.HasBundleModel())
-                {
-                    _taskSettlement.ApplySuccess(task, _cargo, _treasury);
-                    CommitCargoToTreasury();
-
-                    _treasury.ConsumeLockedGold(task.wageGold);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-                else
-                {
-                    CommitCargoToTreasury();
-
-                    _treasury.ConsumeLockedGold(task.wageGold);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-            }
-            else
-            {
-                if (task != null && task.HasBundleModel())
-                {
-                    _treasury.RefundGold(task.wageGold);
-                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
-                else
-                {
-                    _treasury.RefundGold(task.wageGold);
-
-                    _cargo.Clear();
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
-            }
+            _taskSettlement.ApplySuccess(task, _cargo, _treasury);
+            CommitCargoToTreasury();
         }
         else
         {
-            if (!success)
-            {
-                if (task != null && task.HasBundleModel())
-                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
-                else
-                    _cargo.Clear();
-            }
+            _taskSettlement.ApplyFailure(task, _cargo, _treasury);
         }
 
         // --- Board cleanup ALWAYS (exactly once) ---
@@ -5798,75 +6392,93 @@ public class VillagerAgentBrain : MonoBehaviour
     {
         _completedThisCycle = false;
 
-        // escrow: забираємо з locked у record
-        if (_treasury != null && task.wageGold > 0)
-            _treasury.ConsumeLockedGold(task.wageGold);
+        int escrowGold = _activeEscrow != null ? _activeEscrow.lockedGold : 0;
 
         var rec = new CorpseRecord
         {
             agentId = agentId,
             worldPos = _lastWorkPos,
-            escrowGold = task.wageGold,
+            escrowGold = escrowGold,
             cargo = _cargo.Snapshot()
         };
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
-        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerDead(task.targetLocationId);
             GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
         }
 
-        _cargo.Clear();
+        _taskSettlement.ApplyDeath(task, _cargo, _treasury);
 
-        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={task.wageGold}");
+        _taskEscrow.SettleDeath(_activeEscrow, _treasury);
+        _activeEscrow = null;
 
-        // cleanup board (без FinalizeTask, бо він робить refund/commit)
-        _board.Release(task.taskId, agentId);
-        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-            _board.RemoveTaskRuntime(task.taskId);
+        Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={escrowGold}");
 
-        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
+        if (task != null)
+        {
+            _board.Release(task.taskId, agentId);
 
-        StopBrain(); // зупиняємо корутину цього агента
+            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+                _board.RemoveTaskRuntime(task.taskId);
+
+            _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
+        }
+        else
+        {
+            _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "DEAD");
+        }
+
+        StopBrain();
     }
 
     private void HandleLost(TaskInstance task)
     {
         _completedThisCycle = false;
 
-        if (_treasury != null && task.wageGold > 0)
-            _treasury.ConsumeLockedGold(task.wageGold);
-
-        var hidden = PenaltyRoll.RollLostHidden(task.riskTier);
+        int riskTier = task != null ? task.riskTier : 0;
+        int escrowGold = _activeEscrow != null ? _activeEscrow.lockedGold : 0;
+        var hidden = PenaltyRoll.RollLostHidden(riskTier);
 
         var rec = new LostRecord
         {
             agentId = agentId,
             lastSeenPos = _lastWorkPos,
-            escrowGold = task.wageGold,
+            escrowGold = escrowGold,
             cargo = _cargo.Snapshot(),
             hiddenOutcome = hidden
         };
 
         GameInstaller.Lost?.AddLost(rec);
 
-        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerLost(task.targetLocationId);
             GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
         }
 
-        _cargo.Clear();
+        _taskSettlement.ApplyLost(task, _cargo, _treasury);
 
-        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={task.wageGold}");
+        _taskEscrow.SettleLost(_activeEscrow, _treasury);
+        _activeEscrow = null;
 
-        _board.Release(task.taskId, agentId);
-        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-            _board.RemoveTaskRuntime(task.taskId);
+        Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={escrowGold}");
 
-        _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
+        if (task != null)
+        {
+            _board.Release(task.taskId, agentId);
+
+            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+                _board.RemoveTaskRuntime(task.taskId);
+
+            _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
+        }
+        else
+        {
+            _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "LOST");
+        }
 
         StopBrain();
     }
@@ -6146,8 +6758,8 @@ public class VillagerInventoryService
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerTaskSettlementService.cs
-SIZE: 1655 bytes
-SHA256: a2ad713f5524899ada7952f643dafef535266b80e44bb526c5721f2ba35f4f7b
+SIZE: 3680 bytes
+SHA256: 6bc480775cf6cbd454d894c04277eb1bdc6ff5eabf3f0c27b763c06c3ebde9e3
 CONTENT:
 public class VillagerTaskSettlementService
 {
@@ -6173,27 +6785,94 @@ public class VillagerTaskSettlementService
         }
 
         // 2. Apply reward bundle directly to treasury through economy endpoint.
-        var rewardBundle = task.GetResolvedTaskRewardBundle();
+        //    Legacy gold wage must not be duplicated when old gold escrow is active.
+        var rewardBundle = BuildTreasuryRewardBundle(task);
         if (rewardBundle != null && !rewardBundle.IsEmpty)
         {
             treasury.GrantBundle(rewardBundle, "task_reward_bundle");
-        }
-
-        // 3. Spend task cost bundle if present.
-        var costBundle = task.GetResolvedTaskCostBundle();
-        if (costBundle != null && !costBundle.IsEmpty)
-        {
-            treasury.SpendBundle(costBundle, "task_cost_bundle");
         }
     }
 
     public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
     {
-        if (cargo == null)
-            return;
+        if (cargo != null)
+            cargo.Clear();
+    }
 
-        // Fail path in current prototype still clears cargo.
-        cargo.Clear();
+    public void ApplyDeath(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    public void ApplyLost(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    private bool UsesLegacyGoldEscrow(TaskInstance task)
+    {
+        if (task == null)
+            return false;
+
+        var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+        return upfrontCostBundle == null || upfrontCostBundle.IsEmpty;
+    }
+
+    private ResourceBundle BuildTreasuryRewardBundle(TaskInstance task)
+    {
+        if (task == null)
+            return new ResourceBundle();
+
+        var source = task.GetResolvedTaskRewardBundle();
+        if (source == null || source.IsEmpty)
+            return new ResourceBundle();
+
+        var result = new ResourceBundle();
+
+        int legacyEscrowGoldToSkip = UsesLegacyGoldEscrow(task) && task.wageGold > 0
+            ? task.wageGold
+            : 0;
+
+        var exact = source.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                if (stack.resourceId == "gold" && legacyEscrowGoldToSkip > 0)
+                {
+                    int remainingGold = stack.amount - legacyEscrowGoldToSkip;
+                    if (remainingGold > 0)
+                        result.AddExact("gold", remainingGold);
+
+                    legacyEscrowGoldToSkip = 0;
+                    continue;
+                }
+
+                result.AddExact(stack.resourceId, stack.amount);
+            }
+        }
+
+        var categoryValues = source.CategoryValues;
+        if (categoryValues != null)
+        {
+            for (int i = 0; i < categoryValues.Count; i++)
+            {
+                var entry = categoryValues[i];
+                if (!entry.IsValid)
+                    continue;
+
+                result.AddCategoryValue(entry.categoryId, entry.value);
+            }
+        }
+
+        result.Normalize();
+        return result;
     }
 }
 
@@ -6218,8 +6897,8 @@ public class GatherLocationAuthoring : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/ExploreWalker.cs
-SIZE: 2463 bytes
-SHA256: 9df11180873d6908b02825c2a5e19115e3d296b65f262a566bdb8466d04b721f
+SIZE: 2479 bytes
+SHA256: 87fa536aa7c89ba6e0821089a6e50669e283c90e45b143a534f2133469d9eba0
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -6257,40 +6936,40 @@ public class ExploreWalker : MonoBehaviour
     {
         while (true)
         {
-            // 1) Pick random spot
-            var spot = GameInstaller.ExploreRegistry.GetRandomSpotWeighted();
-            if (spot == null)
-            {
+            var locations = GameInstaller.LocationService;
+            if (locations == null)
                 yield break;
-            }
 
-            Debug.Log($"[ExploreWalker] Going to spot={spot.spotId}");
+            string locationId = locations.FindRandomUnknownLocationId();
+            if (string.IsNullOrWhiteSpace(locationId))
+                yield break;
 
-            // 2) Go to spot
-            agent.SetDestination(spot.transform.position);
+            Vector3 targetPos = locations.GetWorldPosition(locationId);
+
+            if (agent == null || !agent.isOnNavMesh)
+                yield break;
+
+            agent.SetDestination(targetPos);
             yield return WaitUntilArrived();
 
             yield return new WaitForSeconds(workDurationSec);
-
 
             var outcome = GameInstaller.ExploreOutcome.Roll();
 
             if (outcome.type == ExploreOutcomeType.Nothing)
             {
-                
+                locations.DiscoverLocation(locationId);
             }
             else if (outcome.type == ExploreOutcomeType.Reward)
             {
                 GameInstaller.Treasury.Add(outcome.resourceId, outcome.amount);
+                locations.DiscoverLocation(locationId);
             }
-            else // Danger
+            else
             {
                 yield return new WaitForSeconds(outcome.returnDelaySec);
             }
 
-
-
-            // 3) Return home
             agent.SetDestination(homePoint.position);
             yield return WaitUntilArrived();
 
@@ -6300,30 +6979,25 @@ public class ExploreWalker : MonoBehaviour
 
     private IEnumerator WaitUntilArrived()
     {
-        // ������ ���� ����� ������� ������ ����
         while (agent.pathPending)
             yield return null;
 
-        // ������ ���� ����
         while (agent.remainingDistance > agent.stoppingDistance)
             yield return null;
 
-        // ������ ����� ��� ��������� ����� ���� ��������� ��������
         while (agent.velocity.sqrMagnitude > 0.01f)
             yield return null;
     }
 }
 
-
 ----- FILE END -----
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 7504 bytes
-SHA256: 5dbdd7233e8639203aa2609809bf4b19654ecbabba45932caf90786dbc7aef38
+SIZE: 7386 bytes
+SHA256: 6434881e7dded65b41811e3bcc24c1cbd18bf5ca4bd73c95ab38658d0d1417fb
 CONTENT:
 using UnityEngine;
-
 
 public class GameInstaller : MonoBehaviour
 {
@@ -6331,7 +7005,6 @@ public class GameInstaller : MonoBehaviour
     public static ExploreOutcomeService ExploreOutcome { get; private set; }
     public static TaskBoardService TaskBoard { get; private set; }
     public static ProgressionService Progression { get; private set; }
-    public static ExploreSpotRegistry ExploreRegistry { get; private set; }
     public static VillagerRosterService Villagers { get; private set; }
     public static VillagerInventoryService Inventory { get; private set; }
     public static SelectedVillagerService SelectedVillager;
@@ -6353,9 +7026,9 @@ public class GameInstaller : MonoBehaviour
     public static EconomicExecutionService EconomicExecution { get; private set; }
     public static EconomicSimulationService EconomicSimulation { get; private set; }
     public static EconomicSellService EconomicSell { get; private set; }
+    public static ExplorationUnlockService ExplorationUnlock { get; private set; }
 
-    [SerializeField] private VillagerClickSelector villagerClickSelector; // ���� ��� � � ����
-
+    [SerializeField] private VillagerClickSelector villagerClickSelector;
     [SerializeField] private TreasuryPanelView treasuryPanel;
     [SerializeField] private EventLogPanelView eventLogPanel;
     [SerializeField] private VillagerRosterPanelView villagerRosterPanel;
@@ -6364,22 +7037,22 @@ public class GameInstaller : MonoBehaviour
     [SerializeField] private LocationMetricsPanelView locationMetricsPanel;
     [SerializeField] private ResourceDataSO[] resourceAssets;
     [SerializeField] private ResourceCategoryDataSO[] resourceCategoryAssets;
+    [SerializeField] private ExplorationUnlockRuleSO explorationUnlockRuleAsset;
+    [SerializeField] private int startingGold = 25;
 
     private EventLogService _log;
 
     private void Awake()
     {
-
         GameDebug.Info(GameDebugChannel.General, "Installer ready");
 
-        // 1) ������ (���/���������) � ��� UI � OnEnable ��� �� �����
-        TaskBoard = new TaskBoardService();
+        _log = new EventLogService(10);
+
         Treasury = new TreasuryService();
         ExploreOutcome = new ExploreOutcomeService();
-
+        TaskBoard = new TaskBoardService();
         Progression = new ProgressionService();
         Villagers = new VillagerRosterService();
-        _log = new EventLogService(10);
         Inventory = new VillagerInventoryService();
         SelectedVillager = new SelectedVillagerService();
         Knowledge = new SettlementKnowledgeService();
@@ -6390,8 +7063,8 @@ public class GameInstaller : MonoBehaviour
         Resources.LoadFromAssets(resourceAssets);
 
         GameDebug.Info(
-        GameDebugChannel.General,
-        $"ResourceRegistry loaded: {Resources.Count} resources"
+            GameDebugChannel.General,
+            $"ResourceRegistry loaded: {Resources.Count} resources"
         );
 
         ResourceCategories = new ResourceCategoryRegistry();
@@ -6431,11 +7104,11 @@ public class GameInstaller : MonoBehaviour
             "Economic sell layer ready"
         );
 
-        WorldDebugPopup = worldDebugPopup;
+        ExplorationUnlock = new ExplorationUnlockService(
+            explorationUnlockRuleAsset != null ? explorationUnlockRuleAsset.Data : null
+        );
 
-        // 2) Registry / world data
-        ExploreRegistry = new ExploreSpotRegistry();
-        ExploreRegistry.Initialize();
+        WorldDebugPopup = worldDebugPopup;
 
         Locations = new LocationRegistry();
         LocationService = new LocationService(Locations);
@@ -6446,44 +7119,35 @@ public class GameInstaller : MonoBehaviour
 
         Corpses = new CorpseService();
         Lost = new LostService();
-
-
-        // �������: ��� �� �������� ������ � �� SetTasks
     }
 
     private void Start()
     {
-        // 3) Bind UI (���� Awake, ��� ����������� ���� ���)
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
         if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
-        
+
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
 
-
-        // 4) ������������ �����
         var authoring = FindFirstObjectByType<TaskBoardAuthoring>();
         if (authoring == null)
-        {
             return;
-        }
+
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
-        // 5) ������ ������ (���� ���)
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-
         foreach (var b in brains)
             b.Begin(TaskBoard, Treasury, _log, Villagers);
 
+        Treasury.InitializeGold(startingGold);
     }
 
     private void OnDestroy()
     {
         _log?.Dispose();
     }
-
 
     private void ValidateResourceCategories()
     {
@@ -6513,10 +7177,7 @@ public class GameInstaller : MonoBehaviour
             }
         }
     }
-
 }
-
-
 
 ----- FILE END -----
 
@@ -6954,6 +7615,135 @@ public class WorldDebugPopupView : MonoBehaviour
 ----- FILE END -----
 
 ----- FILE BEGIN -----
+PATH: Assets/UI/EconomyUiTextFormatter.cs
+SIZE: 3840 bytes
+SHA256: a8f82c4865d8f99cc110059a020de4222f979d25d0dbe9c3ab2e410f8e255577
+CONTENT:
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+
+public static class EconomyUiTextFormatter
+{
+    public static string FormatBundle(ResourceBundle bundle)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return "-";
+
+        var parts = new List<string>();
+
+        var exact = bundle.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                string displayName = GetResourceDisplayName(stack.resourceId);
+                parts.Add($"{displayName} x{stack.amount}");
+            }
+        }
+
+        var categoryValues = bundle.CategoryValues;
+        if (categoryValues != null)
+        {
+            for (int i = 0; i < categoryValues.Count; i++)
+            {
+                var entry = categoryValues[i];
+                if (!entry.IsValid)
+                    continue;
+
+                string displayName = GetCategoryDisplayName(entry.categoryId);
+                parts.Add($"{displayName} Value x{entry.value}");
+            }
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "-";
+    }
+
+    public static string FormatBundleLine(string label, ResourceBundle bundle)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return $"{label}: -";
+
+        return $"{label}: {FormatBundle(bundle)}";
+    }
+
+    public static string FormatCategoryValueStacks(IReadOnlyList<CategoryValueStack> values)
+    {
+        if (values == null || values.Count == 0)
+            return "-";
+
+        var parts = new List<string>(values.Count);
+        for (int i = 0; i < values.Count; i++)
+        {
+            var entry = values[i];
+            if (!entry.IsValid)
+                continue;
+
+            string displayName = GetCategoryDisplayName(entry.categoryId);
+            parts.Add($"{displayName} Value: {entry.value}");
+        }
+
+        return parts.Count > 0 ? string.Join("\n", parts) : "-";
+    }
+
+    public static string BuildTaskPayloadSummary(TaskInstance task)
+    {
+        if (task == null)
+            return string.Empty;
+
+        var sb = new StringBuilder(256);
+
+        AppendLineIfNotEmpty(sb, "Output", task.GetResolvedWorkOutputBundle());
+        AppendLineIfNotEmpty(sb, "Reward", task.GetResolvedTaskRewardBundle());
+        AppendLineIfNotEmpty(sb, "Cost", task.GetResolvedTaskCostBundle());
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private static void AppendLineIfNotEmpty(StringBuilder sb, string label, ResourceBundle bundle)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return;
+
+        sb.AppendLine(FormatBundleLine(label, bundle));
+    }
+
+    private static string GetResourceDisplayName(string resourceId)
+    {
+        if (GameInstaller.Resources == null || string.IsNullOrWhiteSpace(resourceId))
+            return resourceId ?? string.Empty;
+
+        var resource = GameInstaller.Resources.Get(resourceId);
+        if (resource == null)
+            return resourceId;
+
+        return string.IsNullOrWhiteSpace(resource.displayName)
+            ? resource.resourceId
+            : resource.displayName;
+    }
+
+    private static string GetCategoryDisplayName(string categoryId)
+    {
+        if (GameInstaller.ResourceCategories == null || string.IsNullOrWhiteSpace(categoryId))
+            return categoryId ?? string.Empty;
+
+        var category = GameInstaller.ResourceCategories.Get(categoryId);
+        if (category == null)
+            return categoryId;
+
+        return string.IsNullOrWhiteSpace(category.displayName)
+            ? category.categoryId
+            : category.displayName;
+    }
+}
+
+----- FILE END -----
+
+----- FILE BEGIN -----
 PATH: Assets/UI/SelectedVillagerService.cs
 SIZE: 462 bytes
 SHA256: 047dec4ed1baade5fa8520b3fb557017642cd292dd743d56510409f71e43c42f
@@ -7095,8 +7885,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 8989 bytes
-SHA256: 28a096ff1553f14651c64bcc020d1dcc551899967b9107ccf47938404fc546a3
+SIZE: 17054 bytes
+SHA256: 695324b0b3986a9019b89cdcf424cea392937c29b888b7d57fb8af3cc6a62b24
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -7104,10 +7894,8 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-
 public class TaskPublisherPanel : MonoBehaviour
 {
-
     [Serializable]
     public class PublishDef
     {
@@ -7125,6 +7913,10 @@ public class TaskPublisherPanel : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
+        [Header("Optional exact upfront task cost")]
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
+
         [Range(0f, 1f)] public float baseFailChance = 0f;
         [Range(0, 5)] public int priority = 3;
     }
@@ -7134,23 +7926,21 @@ public class TaskPublisherPanel : MonoBehaviour
     private TaskBoardService _board;
     private readonly Dictionary<Button, UnityAction> _handlers = new();
 
-
     private void Awake()
     {
-        // як і раніше, беремо singleton зі сцени через installer
-        // (в дампі TaskBoardService створюється в GameInstaller.Awake/Start) :contentReference[oaicite:2]{index=2}
         _board = GameInstaller.TaskBoard;
     }
-
 
     public void Bind(TaskBoardService board)
     {
         _board = board;
+        RefreshButtons();
     }
 
     private void OnEnable()
     {
         SubscribeButtons();
+        RefreshButtons();
     }
 
     private void OnDisable()
@@ -7158,20 +7948,24 @@ public class TaskPublisherPanel : MonoBehaviour
         UnsubscribeButtons();
     }
 
+    private void Update()
+    {
+        RefreshButtons();
+    }
 
     private void SubscribeButtons()
     {
         UnsubscribeButtons();
 
-        if (publishButtons == null) return;
+        if (publishButtons == null)
+            return;
 
         foreach (var def in publishButtons)
         {
-            if (def == null || def.button == null) continue;
+            if (def == null || def.button == null)
+                continue;
 
-            // важливо: локальна копія, щоб не зловити closure-bug
             var defLocal = def;
-
             UnityAction h = () => Publish(defLocal);
 
             _handlers[def.button] = h;
@@ -7181,7 +7975,8 @@ public class TaskPublisherPanel : MonoBehaviour
 
     private void UnsubscribeButtons()
     {
-        if (_handlers.Count == 0) return;
+        if (_handlers.Count == 0)
+            return;
 
         foreach (var kv in _handlers)
         {
@@ -7193,130 +7988,141 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
 
+
+    private void RefreshButtons()
+    {
+        if (publishButtons == null)
+            return;
+
+        for (int i = 0; i < publishButtons.Count; i++)
+        {
+            var def = publishButtons[i];
+            if (def == null || def.button == null)
+                continue;
+
+            def.button.interactable = CanPublish(def, out _);
+        }
+    }
+
+    private bool CanPublish(PublishDef def, out string reason)
+    {
+        reason = string.Empty;
+
+        if (def == null)
+        {
+            reason = "Definition is null";
+            return false;
+        }
+
+        var treasury = GameInstaller.Treasury;
+        var locations = GameInstaller.LocationService;
+
+        switch (def.type)
+        {
+            case TaskType.Gather:
+                {
+                    string normalizedResourceId = Normalize(def.resourceId);
+                    if (string.IsNullOrWhiteSpace(normalizedResourceId))
+                    {
+                        reason = "Gather resourceId is empty";
+                        return false;
+                    }
+
+                    bool unlocked = locations != null &&
+                        !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+
+                    if (!unlocked)
+                    {
+                        reason = $"Resource '{normalizedResourceId}' not discovered yet";
+                        return false;
+                    }
+
+                    var costBundle = BuildExactUpfrontCostBundle(def);
+                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
+                    {
+                        reason = "Not enough upfront resources";
+                        return false;
+                    }
+
+                    return true;
+                }
+
+            case TaskType.ExploreNewLocation:
+                {
+                    bool hasUnknown = locations != null &&
+                        !string.IsNullOrWhiteSpace(locations.FindRandomUnknownLocationId());
+
+                    if (!hasUnknown)
+                    {
+                        reason = "No unknown locations left";
+                        return false;
+                    }
+
+                    return true;
+                }
+
+            case TaskType.SurveyKnownLocation:
+                {
+                    bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+                    if (!hasKnown)
+                    {
+                        reason = "No discovered locations yet";
+                        return false;
+                    }
+
+                    var costBundle = BuildExactUpfrontCostBundle(def);
+                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
+                    {
+                        reason = "Not enough upfront resources";
+                        return false;
+                    }
+
+                    return true;
+                }
+        }
+
+        return true;
+    }
+
     private void Publish(PublishDef def)
     {
-        if (def == null) return;
+        if (def == null)
+            return;
 
         if (_board == null)
             _board = GameInstaller.TaskBoard;
 
         if (_board == null)
         {
-            GameDebug.Error(GameDebugChannel.UI,
-            "TaskBoardService is null (GameInstaller not ready?)");
+            GameDebug.Error(GameDebugChannel.UI, "TaskBoardService is null (GameInstaller not ready?)");
             return;
         }
 
-        // runtime id як у тебе в логах: rt_gather_x_N
-        string suffix = def.type switch
+        if (!CanPublish(def, out string reason))
         {
-            TaskType.Gather => $"gather_{def.resourceId}",
-            TaskType.ExploreNewLocation => "explore_new_location",
-            TaskType.SurveyKnownLocation => "survey_known_location",
-            _ => def.type.ToString().ToLowerInvariant()
-        };
-
-        string taskId = $"rt_{suffix}_{UnityEngine.Random.Range(1, 99999)}";
-        var locations = GameInstaller.LocationService;
-
-        if (def.type == TaskType.SurveyKnownLocation)
-        {
-            bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
-            if (!hasKnown)
-            {
-                GameDebug.Warning(GameDebugChannel.Task,
-                "Locked: no discovered locations yet for SurveyKnownLocation");
-                return;
-            }
+            GameDebug.Warning(GameDebugChannel.Task, $"Publish blocked: {reason}");
+            return;
         }
 
-        var workBundle = new ResourceBundle();
-        if (def.type == TaskType.Gather &&
-            !string.IsNullOrWhiteSpace(def.resourceId) &&
-            def.baseAmount > 0)
+        switch (def.type)
         {
-            workBundle.AddExact(def.resourceId, def.baseAmount);
-            workBundle.Normalize();
+            case TaskType.Gather:
+                PublishGather(def.displayName, def.resourceId, def.baseAmount, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                break;
+
+            case TaskType.ExploreNewLocation:
+                PublishExploreNewLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance);
+                break;
+
+            case TaskType.SurveyKnownLocation:
+                PublishSurveyKnownLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                break;
+
+            default:
+                GameDebug.Warning(GameDebugChannel.UI, $"Unsupported publish type: {def.type}");
+                break;
         }
-
-        var rewardBundle = new ResourceBundle();
-        if (def.wageGold > 0)
-        {
-            rewardBundle.AddExact("gold", def.wageGold);
-            rewardBundle.Normalize();
-        }
-
-        var t = new TaskInstance
-        {
-            taskId = taskId,
-            type = def.type,
-            displayName = def.displayName,
-            active = true,
-            priority = def.priority,
-            maxTakers = Mathf.Max(1, def.maxTakers),
-            durationSec = Mathf.Max(0.1f, def.durationSec),
-            baseFailChance = Mathf.Clamp01(def.baseFailChance),
-
-            // legacy back-compat
-            wageGold = Mathf.Max(0, def.wageGold),
-            resourceId = (def.resourceId ?? "").ToLowerInvariant(),
-            baseAmount = Mathf.Max(0, def.baseAmount),
-
-            // PATCH 9
-            workOutputBundle = workBundle,
-            taskRewardBundle = rewardBundle,
-            taskCostBundle = new ResourceBundle(),
-        };
-
-
-
-        // MVP: resource gate by location discovery
-        string resId = (def.resourceId ?? "").ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(resId))
-        {
-
-            bool unlocked = locations != null &&
-                !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(resId, true, true));
-            if (!unlocked)
-            {
-                GameDebug.Warning(GameDebugChannel.Task,
-                $"Locked: resource '{resId}' not discovered yet");
-                return;
-            }
-        }
-
-        // якщо Explore — не чіпаємо gather поля (можуть бути пусті)
-        if (t.type == TaskType.ExploreNewLocation || t.type == TaskType.SurveyKnownLocation)
-        {
-            t.resourceId = "";
-            t.baseAmount = 0;
-        }
-
-        // === Risk model bootstrap ===
-        t.successChance = 1f - t.baseFailChance;
-
-        if (t.successChance >= 0.85f) t.riskTier = 0;
-        else if (t.successChance >= 0.7f) t.riskTier = 1;
-        else if (t.successChance >= 0.55f) t.riskTier = 2;
-        else if (t.successChance >= 0.4f) t.riskTier = 3;
-        else if (t.successChance >= 0.25f) t.riskTier = 4;
-        else t.riskTier = 5;
-
-
-        // attach to a discovered location (so danger works + deterministic target)
-        if (t.type == TaskType.Gather &&
-        !string.IsNullOrWhiteSpace(t.resourceId) &&
-         string.IsNullOrWhiteSpace(t.targetLocationId))
-        {
-            string locationId = locations?.FindAnyLocationForResource(t.resourceId, true, true);
-            if (!string.IsNullOrWhiteSpace(locationId))
-                t.targetLocationId = locationId;
-        }
-
-        _board.AddTaskRuntime(t);
     }
-
-    // ---- ORIGINAL API залишаємо, щоб не ламати інше ----
 
     public void PublishGather(
         string displayName,
@@ -7326,10 +8132,50 @@ public class TaskPublisherPanel : MonoBehaviour
         float durationSec,
         int wageGold,
         int priority,
-        float baseFailChance
-    )
+        float baseFailChance,
+        string upfrontCostResourceId = null,
+        int upfrontCostAmount = 0)
     {
-        var id = $"rt_gather_{resourceId}_{Time.frameCount}";
+        string normalizedResourceId = Normalize(resourceId);
+        var id = $"rt_gather_{normalizedResourceId}_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        bool unlocked = locations != null &&
+            !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+        if (!unlocked)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{normalizedResourceId}' not discovered yet");
+            return;
+        }
+
+        var costBundle = new ResourceBundle();
+        string normalizedUpfrontCostResourceId = Normalize(upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(normalizedUpfrontCostResourceId, Mathf.Max(0, upfrontCostAmount));
+            costBundle.Normalize();
+        }
+
+        if (GameInstaller.Treasury != null && !costBundle.IsEmpty && !GameInstaller.Treasury.CanAfford(costBundle))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Blocked: not enough upfront resources for gather task");
+            return;
+        }
+
+        var workBundle = new ResourceBundle();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) && baseAmount > 0)
+        {
+            workBundle.AddExact(normalizedResourceId, Mathf.Max(0, baseAmount));
+            workBundle.Normalize();
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -7338,60 +8184,81 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            resourceId = resourceId,
-            baseAmount = baseAmount,
+            resourceId = normalizedResourceId,
+            baseAmount = Mathf.Max(0, baseAmount),
 
-            baseFailChance = baseFailChance
+            workOutputBundle = workBundle,
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = costBundle,
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
 
-        _board.AddTaskRuntime(task);
-    }
+        task.successChance = 1f - task.baseFailChance;
 
-    public void PublishExploreNewLocation(
-    string displayName,
-    int maxTakers,
-    float durationSec,
-    int wageGold,
-    int priority,
-    float baseFailChance
-)
-    {
-        var id = $"rt_explore_new_{Time.frameCount}";
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
-        var task = new TaskInstance
+        if (!string.IsNullOrWhiteSpace(task.resourceId) &&
+            string.IsNullOrWhiteSpace(task.targetLocationId))
         {
-            taskId = id,
-            type = TaskType.ExploreNewLocation,
-            displayName = displayName,
-
-            active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
-            priority = priority,
-
-            baseFailChance = baseFailChance
-        };
+            string locationId = locations?.FindAnyLocationForResource(task.resourceId, true, true);
+            if (!string.IsNullOrWhiteSpace(locationId))
+                task.targetLocationId = locationId;
+        }
 
         _board.AddTaskRuntime(task);
     }
-
 
     public void PublishSurveyKnownLocation(
-    string displayName,
-    int maxTakers,
-    float durationSec,
-    int wageGold,
-    int priority,
-    float baseFailChance
-    )
+        string displayName,
+        int maxTakers,
+        float durationSec,
+        int wageGold,
+        int priority,
+        float baseFailChance,
+        string upfrontCostResourceId = null,
+        int upfrontCostAmount = 0)
     {
         var id = $"rt_survey_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+        if (!hasKnown)
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Locked: no discovered locations yet for SurveyKnownLocation");
+            return;
+        }
+
+        var costBundle = new ResourceBundle();
+        string normalizedUpfrontCostResourceId = Normalize(upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(normalizedUpfrontCostResourceId, Mathf.Max(0, upfrontCostAmount));
+            costBundle.Normalize();
+        }
+
+        if (GameInstaller.Treasury != null && !costBundle.IsEmpty && !GameInstaller.Treasury.CanAfford(costBundle))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Blocked: not enough upfront resources for SurveyKnownLocation");
+            return;
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -7400,26 +8267,159 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            baseFailChance = baseFailChance
+            resourceId = string.Empty,
+            baseAmount = 0,
+
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = costBundle,
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
         _board.AddTaskRuntime(task);
     }
 
+    public void PublishExploreNewLocation(
+    string displayName = "Discover Region",
+    int maxTakers = 1,
+    float durationSec = 10f,
+    int wageGold = 0,
+    int priority = 3,
+    float baseFailChance = 0.15f)
+    {
+        if (_board == null)
+            _board = GameInstaller.TaskBoard;
 
+        if (_board == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "TaskBoardService is null (GameInstaller not ready?)");
+            return;
+        }
+
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "LocationService is null");
+            return;
+        }
+
+        bool hasUnknown = !string.IsNullOrWhiteSpace(locations.FindRandomUnknownLocationId());
+        if (!hasUnknown)
+        {
+            GameDebug.Warning(GameDebugChannel.UI, "Publish Explore blocked: no unknown locations left");
+            return;
+        }
+
+        var explore = GameInstaller.ExplorationUnlock;
+        if (explore == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "ExplorationUnlockService is null");
+            return;
+        }
+
+        if (!explore.CanAfford(GameInstaller.Treasury, out var reason))
+        {
+            GameDebug.Warning(GameDebugChannel.UI, $"Publish Explore blocked: {reason}");
+            return;
+        }
+
+        string taskId = $"rt_explore_new_location_{UnityEngine.Random.Range(1000, 9999)}";
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", wageGold);
+            rewardBundle.Normalize();
+        }
+
+        var costBundle = explore.BuildCostBundle();
+
+        var task = new TaskInstance
+        {
+            taskId = taskId,
+            type = TaskType.ExploreNewLocation,
+            displayName = string.IsNullOrWhiteSpace(displayName) ? explore.DisplayName : displayName,
+
+            active = true,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
+            priority = Mathf.Clamp(priority, 0, 5),
+
+            targetLocationId = string.Empty,
+            resourceId = string.Empty,
+            baseAmount = 0,
+
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = costBundle,
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
+        };
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
+
+        _board.AddTaskRuntime(task);
+
+        GameDebug.Info(
+            GameDebugChannel.UI,
+            $"Published Explore task: {task.taskId} cost={explore.GetCostText()}"
+        );
+    }
+
+    private ResourceBundle BuildExactUpfrontCostBundle(PublishDef def)
+    {
+        var bundle = new ResourceBundle();
+
+        if (def == null)
+            return bundle;
+
+        string normalized = Normalize(def.upfrontCostResourceId);
+        if (!string.IsNullOrWhiteSpace(normalized) && def.upfrontCostAmount > 0)
+        {
+            bundle.AddExact(normalized, Mathf.Max(0, def.upfrontCostAmount));
+            bundle.Normalize();
+        }
+
+        return bundle;
+    }
+
+    private string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+    }
 }
 
 ----- FILE END -----
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskRowUI.cs
-SIZE: 2927 bytes
-SHA256: f93d4e7dc5d4c18317feab5cc83f6a8adaa056875c9a983dec9e2cc1b0cf3fcf
+SIZE: 4661 bytes
+SHA256: 285372f103c341967763a7e7ef02960a9f17b63b53c21f90fc31a8a4ee8519ca
 CONTENT:
 using UnityEngine;
 using UnityEngine.UI;
@@ -7431,37 +8431,41 @@ public class TaskRowUI : MonoBehaviour
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text slotsText;
     [SerializeField] private TMP_Text prioText;
+    [SerializeField] private TMP_Text successText;
+    [SerializeField] private TMP_Text payloadText;
+    [SerializeField] private TMP_Text metaText;
+
     [SerializeField] private Toggle activeToggle;
     [SerializeField] private Button prioPlusBtn;
     [SerializeField] private Button prioMinusBtn;
-
-    [SerializeField] private TMP_Text successText;
     [SerializeField] private Image riskIcon;
 
     private string taskId;
 
     public void Bind(TaskInstance task)
     {
+        if (task == null)
+            return;
 
-        if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
-        if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
-        if (activeToggle != null) activeToggle.onValueChanged.AddListener(OnToggle);
+        taskId = task.taskId;
 
-        // Success %
-        int percent = Mathf.RoundToInt(task.successChance * 100f);
-        successText.text = percent + "%";
-
-        // Risk icon (���� ������ ����)
-        switch (task.riskTier)
+        if (prioPlusBtn != null)
         {
-            case 0: riskIcon.color = Color.green; break;
-            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
-            case 2: riskIcon.color = Color.yellow; break;
-            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
-            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
-            case 5: riskIcon.color = Color.red; break;
+            prioPlusBtn.onClick.RemoveListener(OnPlus);
+            prioPlusBtn.onClick.AddListener(OnPlus);
         }
 
+        if (prioMinusBtn != null)
+        {
+            prioMinusBtn.onClick.RemoveListener(OnMinus);
+            prioMinusBtn.onClick.AddListener(OnMinus);
+        }
+
+        if (activeToggle != null)
+        {
+            activeToggle.onValueChanged.RemoveListener(OnToggle);
+            activeToggle.onValueChanged.AddListener(OnToggle);
+        }
 
         Refresh(true);
     }
@@ -7469,54 +8473,116 @@ public class TaskRowUI : MonoBehaviour
     public void Refresh(bool force = false)
     {
         var board = GameInstaller.TaskBoard;
-        if (board == null) return;
+        if (board == null)
+            return;
 
-        var t = FindTask(taskId);
-        if (t == null) return;
+        var task = FindTask(taskId);
+        if (task == null)
+            return;
 
         if (titleText != null)
-            titleText.text = $"{t.displayName}";
-
-        if (prioText != null)
-            prioText.text = $"{t.priority}";
+            titleText.text = string.IsNullOrWhiteSpace(task.displayName) ? task.taskId : task.displayName;
 
         if (slotsText != null)
-            slotsText.text = $"{board.SlotsTaken(t.taskId)}/{t.maxTakers}";
+        {
+            int maxTakers = Mathf.Max(1, task.maxTakers);
+            int freeSlots = board.SlotsFree(task.taskId, task.maxTakers);
+            int reserved = Mathf.Clamp(maxTakers - freeSlots, 0, maxTakers);
+            slotsText.text = $"{reserved}/{maxTakers}";
+        }
 
-        if (activeToggle != null && (force || activeToggle.isOn != t.active))
-            activeToggle.SetIsOnWithoutNotify(t.active);
+        if (prioText != null)
+            prioText.text = $"P{task.priority}";
+
+        if (activeToggle != null)
+            activeToggle.SetIsOnWithoutNotify(task.active);
+
+        if (successText != null)
+        {
+            int percent = Mathf.RoundToInt(task.successChance * 100f);
+            successText.text = percent + "%";
+        }
+
+        RefreshRisk(task);
+
+        if (payloadText != null)
+        {
+            string payload = EconomyUiTextFormatter.BuildTaskPayloadSummary(task);
+            payloadText.text = string.IsNullOrWhiteSpace(payload) ? "Output: -\nReward: -\nCost: -" : payload;
+        }
+
+        if (metaText != null)
+        {
+            metaText.text =
+                $"Type: {task.type}\n" +
+                $"Duration: {task.durationSec:0.0}s\n" +
+                $"Risk Tier: {task.riskTier}";
+        }
+    }
+
+    private void RefreshRisk(TaskInstance task)
+    {
+        if (riskIcon == null || task == null)
+            return;
+
+        switch (task.riskTier)
+        {
+            case 0: riskIcon.color = Color.green; break;
+            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
+            case 2: riskIcon.color = Color.yellow; break;
+            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
+            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
+            default: riskIcon.color = Color.red; break;
+        }
     }
 
     private TaskInstance FindTask(string id)
     {
-        var tasks = GameInstaller.TaskBoard.GetAllTasks();
-        for (int i = 0; i < tasks.Count; i++)
-            if (tasks[i].taskId == id) return tasks[i];
+        var board = GameInstaller.TaskBoard;
+        if (board == null || string.IsNullOrWhiteSpace(id))
+            return null;
+
+        var all = board.GetAllTasks();
+        for (int i = 0; i < all.Count; i++)
+        {
+            var task = all[i];
+            if (task != null && task.taskId == id)
+                return task;
+        }
+
         return null;
     }
 
     private void OnPlus()
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.priority = Mathf.Clamp(t.priority + 1, 0, 5);
-        Refresh(true);
+        var board = GameInstaller.TaskBoard;
+        var task = FindTask(taskId);
+        if (board == null || task == null)
+            return;
+
+        task.priority += 1;
+        Refresh();
     }
 
     private void OnMinus()
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.priority = Mathf.Clamp(t.priority - 1, 0, 5);
-        Refresh(true);
+        var board = GameInstaller.TaskBoard;
+        var task = FindTask(taskId);
+        if (board == null || task == null)
+            return;
+
+        task.priority = Mathf.Max(0, task.priority - 1);
+        Refresh();
     }
 
     private void OnToggle(bool value)
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.active = value;
-        Refresh(true);
+        var task = FindTask(taskId);
+        if (task == null)
+            return;
+
+        task.active = value;
+        Refresh();
     }
 }
 
@@ -8129,7 +9195,7 @@ public class VillagerRowUI : MonoBehaviour
 ----- FILE END -----
 
 === DUMP SUMMARY ===
-Written: 88
+Written: 94
 SkippedLarge(>512KB): 0
 SkippedReadErrors: 0
 ====================

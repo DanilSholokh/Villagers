@@ -41,11 +41,6 @@ public class LocationMetricsPanelView : MonoBehaviour
         Unbind();
     }
 
-    private void OnDestroy()
-    {
-        Unbind();
-    }
-
     private void Unbind()
     {
         if (_locations != null)
@@ -115,7 +110,7 @@ public class LocationMetricsPanelView : MonoBehaviour
 
     private string BuildBody(LocationModel loc)
     {
-        var sb = new StringBuilder(256);
+        var sb = new StringBuilder(320);
 
         int workerCount = loc.currentWorkers != null ? loc.currentWorkers.Count : 0;
         int taskCount = loc.currentTasks != null ? loc.currentTasks.Count : 0;
@@ -131,7 +126,38 @@ public class LocationMetricsPanelView : MonoBehaviour
         sb.AppendLine($"Dead: {loc.metrics.villagersDead}");
         sb.AppendLine($"Gathered: {BuildGatheredResources(loc)}");
 
+        AppendExplorationInfo(sb, loc);
+
         return sb.ToString().TrimEnd();
+    }
+
+    private void AppendExplorationInfo(StringBuilder sb, LocationModel loc)
+    {
+        if (loc == null || loc.status != LocationStatus.Unknown)
+            return;
+
+        var explore = GameInstaller.ExplorationUnlock;
+
+        sb.AppendLine();
+        sb.AppendLine("Exploration Unlock:");
+
+        if (explore == null)
+        {
+            sb.AppendLine("Cost: -");
+            sb.AppendLine("Ready: NO");
+            sb.AppendLine("Action: publish Explore task from Quest Panel");
+            return;
+        }
+
+        sb.AppendLine($"Cost: {explore.GetCostText()}");
+
+        bool ready = explore.CanAfford(GameInstaller.Treasury, out _);
+        sb.AppendLine($"Ready: {(ready ? "YES" : "NO")}");
+
+        int currentValue = explore.GetCurrentCategoryValue(GameInstaller.Treasury);
+        sb.AppendLine($"Current Value: {currentValue}/{explore.RequiredValue}");
+
+        sb.AppendLine("Action: publish Explore task from Quest Panel");
     }
 
     private string BuildGatheredResources(LocationModel loc)
