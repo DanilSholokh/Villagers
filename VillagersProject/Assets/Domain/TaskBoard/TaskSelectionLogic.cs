@@ -34,7 +34,7 @@ public static class TaskSelectionLogic
             return treasury.CanAfford(costBundle);
 
         if (task.wageGold > 0)
-            return treasury.GetAmount("gold") >= task.wageGold;
+            return treasury.GetGold() >= task.wageGold;
 
         return true;
     }
