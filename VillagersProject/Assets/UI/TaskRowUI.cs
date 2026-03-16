@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -9,11 +8,13 @@ public class TaskRowUI : MonoBehaviour
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text slotsText;
     [SerializeField] private TMP_Text prioText;
+    [SerializeField] private TMP_Text successText;
+    [SerializeField] private TMP_Text payloadText;
+    [SerializeField] private TMP_Text metaText;
+
     [SerializeField] private Toggle activeToggle;
     [SerializeField] private Button prioPlusBtn;
     [SerializeField] private Button prioMinusBtn;
-
-    [SerializeField] private TMP_Text successText;
     [SerializeField] private Image riskIcon;
 
     private string taskId;
@@ -25,25 +26,23 @@ public class TaskRowUI : MonoBehaviour
 
         taskId = task.taskId;
 
-        if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
-        if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
-        if (activeToggle != null) activeToggle.onValueChanged.AddListener(OnToggle);
-
-        // Success %
-        int percent = Mathf.RoundToInt(task.successChance * 100f);
-        successText.text = percent + "%";
-
-        // Risk icon (поки просто колір)
-        switch (task.riskTier)
+        if (prioPlusBtn != null)
         {
-            case 0: riskIcon.color = Color.green; break;
-            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
-            case 2: riskIcon.color = Color.yellow; break;
-            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
-            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
-            case 5: riskIcon.color = Color.red; break;
+            prioPlusBtn.onClick.RemoveListener(OnPlus);
+            prioPlusBtn.onClick.AddListener(OnPlus);
         }
 
+        if (prioMinusBtn != null)
+        {
+            prioMinusBtn.onClick.RemoveListener(OnMinus);
+            prioMinusBtn.onClick.AddListener(OnMinus);
+        }
+
+        if (activeToggle != null)
+        {
+            activeToggle.onValueChanged.RemoveListener(OnToggle);
+            activeToggle.onValueChanged.AddListener(OnToggle);
+        }
 
         Refresh(true);
     }
@@ -51,122 +50,115 @@ public class TaskRowUI : MonoBehaviour
     public void Refresh(bool force = false)
     {
         var board = GameInstaller.TaskBoard;
-        if (board == null) return;
+        if (board == null)
+            return;
 
-        var t = FindTask(taskId);
-        if (t == null) return;
+        var task = FindTask(taskId);
+        if (task == null)
+            return;
 
         if (titleText != null)
+            titleText.text = string.IsNullOrWhiteSpace(task.displayName) ? task.taskId : task.displayName;
+
+        if (slotsText != null)
         {
-            string summary = BuildTaskSummary(t);
-            titleText.text = string.IsNullOrWhiteSpace(summary)
-                ? t.displayName
-                : $"{t.displayName}\n{summary}";
+            int maxTakers = Mathf.Max(1, task.maxTakers);
+            int freeSlots = board.SlotsFree(task.taskId, task.maxTakers);
+            int reserved = Mathf.Clamp(maxTakers - freeSlots, 0, maxTakers);
+            slotsText.text = $"{reserved}/{maxTakers}";
         }
 
         if (prioText != null)
-            prioText.text = $"{t.priority}";
+            prioText.text = $"P{task.priority}";
 
-        if (slotsText != null)
-            slotsText.text = $"{board.SlotsTaken(t.taskId)}/{t.maxTakers}";
+        if (activeToggle != null)
+            activeToggle.SetIsOnWithoutNotify(task.active);
 
-        if (activeToggle != null && (force || activeToggle.isOn != t.active))
-            activeToggle.SetIsOnWithoutNotify(t.active);
+        if (successText != null)
+        {
+            int percent = Mathf.RoundToInt(task.successChance * 100f);
+            successText.text = percent + "%";
+        }
+
+        RefreshRisk(task);
+
+        if (payloadText != null)
+        {
+            string payload = EconomyUiTextFormatter.BuildTaskPayloadSummary(task);
+            payloadText.text = string.IsNullOrWhiteSpace(payload) ? "Output: -\nReward: -\nCost: -" : payload;
+        }
+
+        if (metaText != null)
+        {
+            metaText.text =
+                $"Type: {task.type}\n" +
+                $"Duration: {task.durationSec:0.0}s\n" +
+                $"Risk Tier: {task.riskTier}";
+        }
+    }
+
+    private void RefreshRisk(TaskInstance task)
+    {
+        if (riskIcon == null || task == null)
+            return;
+
+        switch (task.riskTier)
+        {
+            case 0: riskIcon.color = Color.green; break;
+            case 1: riskIcon.color = new Color(0.6f, 1f, 0f); break;
+            case 2: riskIcon.color = Color.yellow; break;
+            case 3: riskIcon.color = new Color(1f, 0.6f, 0f); break;
+            case 4: riskIcon.color = new Color(1f, 0.3f, 0f); break;
+            default: riskIcon.color = Color.red; break;
+        }
     }
 
     private TaskInstance FindTask(string id)
     {
-        var tasks = GameInstaller.TaskBoard.GetAllTasks();
-        for (int i = 0; i < tasks.Count; i++)
-            if (tasks[i].taskId == id) return tasks[i];
+        var board = GameInstaller.TaskBoard;
+        if (board == null || string.IsNullOrWhiteSpace(id))
+            return null;
+
+        var all = board.GetAllTasks();
+        for (int i = 0; i < all.Count; i++)
+        {
+            var task = all[i];
+            if (task != null && task.taskId == id)
+                return task;
+        }
+
         return null;
     }
 
     private void OnPlus()
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.priority = Mathf.Clamp(t.priority + 1, 0, 5);
-        Refresh(true);
+        var board = GameInstaller.TaskBoard;
+        var task = FindTask(taskId);
+        if (board == null || task == null)
+            return;
+
+        task.priority += 1;
+        Refresh();
     }
 
     private void OnMinus()
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.priority = Mathf.Clamp(t.priority - 1, 0, 5);
-        Refresh(true);
+        var board = GameInstaller.TaskBoard;
+        var task = FindTask(taskId);
+        if (board == null || task == null)
+            return;
+
+        task.priority = Mathf.Max(0, task.priority - 1);
+        Refresh();
     }
 
     private void OnToggle(bool value)
     {
-        var t = FindTask(taskId);
-        if (t == null) return;
-        t.active = value;
-        Refresh(true);
-    }
-
-    private string BuildTaskSummary(TaskInstance task)
-    {
+        var task = FindTask(taskId);
         if (task == null)
-            return "";
+            return;
 
-        var parts = new List<string>();
-
-        string work = FormatBundle(task.GetResolvedWorkOutputBundle(), "out");
-        if (!string.IsNullOrWhiteSpace(work))
-            parts.Add(work);
-
-        string reward = FormatBundle(task.GetResolvedTaskRewardBundle(), "reward");
-        if (!string.IsNullOrWhiteSpace(reward))
-            parts.Add(reward);
-
-        string cost = FormatBundle(task.GetResolvedTaskCostBundle(), "cost");
-        if (!string.IsNullOrWhiteSpace(cost))
-            parts.Add(cost);
-
-        return parts.Count > 0 ? string.Join(" | ", parts) : "";
-    }
-
-    private string FormatBundle(ResourceBundle bundle, string label)
-    {
-        if (bundle == null || bundle.IsEmpty)
-            return "";
-
-        var parts = new List<string>();
-
-        var exact = bundle.ExactResources;
-        if (exact != null)
-        {
-            for (int i = 0; i < exact.Count; i++)
-            {
-                var stack = exact[i];
-                if (!stack.IsValid)
-                    continue;
-
-                parts.Add($"{stack.amount} {stack.resourceId}");
-            }
-        }
-
-        var categoryValues = bundle.CategoryValues;
-        if (categoryValues != null)
-        {
-            for (int i = 0; i < categoryValues.Count; i++)
-            {
-                var entry = categoryValues[i];
-                if (!entry.IsValid)
-                    continue;
-
-                parts.Add($"{entry.value} {entry.categoryId} value");
-            }
-        }
-
-        if (parts.Count == 0)
-            return "";
-
-        return $"{label}: {string.Join(", ", parts)}";
+        task.active = value;
+        Refresh();
     }
 }
-
-
-

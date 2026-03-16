@@ -34,40 +34,40 @@ public class ExploreWalker : MonoBehaviour
     {
         while (true)
         {
-            // 1) Pick random spot
-            var spot = GameInstaller.ExploreRegistry.GetRandomSpotWeighted();
-            if (spot == null)
-            {
+            var locations = GameInstaller.LocationService;
+            if (locations == null)
                 yield break;
-            }
 
-            Debug.Log($"[ExploreWalker] Going to spot={spot.spotId}");
+            string locationId = locations.FindRandomUnknownLocationId();
+            if (string.IsNullOrWhiteSpace(locationId))
+                yield break;
 
-            // 2) Go to spot
-            agent.SetDestination(spot.transform.position);
+            Vector3 targetPos = locations.GetWorldPosition(locationId);
+
+            if (agent == null || !agent.isOnNavMesh)
+                yield break;
+
+            agent.SetDestination(targetPos);
             yield return WaitUntilArrived();
 
             yield return new WaitForSeconds(workDurationSec);
-
 
             var outcome = GameInstaller.ExploreOutcome.Roll();
 
             if (outcome.type == ExploreOutcomeType.Nothing)
             {
-                
+                locations.DiscoverLocation(locationId);
             }
             else if (outcome.type == ExploreOutcomeType.Reward)
             {
                 GameInstaller.Treasury.Add(outcome.resourceId, outcome.amount);
+                locations.DiscoverLocation(locationId);
             }
-            else // Danger
+            else
             {
                 yield return new WaitForSeconds(outcome.returnDelaySec);
             }
 
-
-
-            // 3) Return home
             agent.SetDestination(homePoint.position);
             yield return WaitUntilArrived();
 
@@ -77,17 +77,13 @@ public class ExploreWalker : MonoBehaviour
 
     private IEnumerator WaitUntilArrived()
     {
-        // чекаЇмо поки агент реально порахуЇ шл€х
         while (agent.pathPending)
             yield return null;
 
-        // чекаЇмо поки д≥йде
         while (agent.remainingDistance > agent.stoppingDistance)
             yield return null;
 
-        // ≥нколи агент Уще рухаЇтьс€Ф нав≥ть коли дистанц≥€ маленька
         while (agent.velocity.sqrMagnitude > 0.01f)
             yield return null;
     }
 }
-

@@ -21,26 +21,40 @@
             }
         }
 
-        // 2. Apply reward bundle directly to treasury through economy endpoint,
-        //    but do NOT duplicate legacy gold wage while old gold escrow is still active.
+        // 2. Apply reward bundle directly to treasury through economy endpoint.
+        //    Legacy gold wage must not be duplicated when old gold escrow is active.
         var rewardBundle = BuildTreasuryRewardBundle(task);
         if (rewardBundle != null && !rewardBundle.IsEmpty)
         {
             treasury.GrantBundle(rewardBundle, "task_reward_bundle");
         }
-
-        // 3. Task cost bundle is no longer spent here.
-        //    PATCH 11 reserve path spends non-empty taskCostBundle upfront in VillagerAgentBrain.Run().
-        //    Success settlement must not double-spend it.
     }
 
     public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
     {
-        if (cargo == null)
-            return;
+        if (cargo != null)
+            cargo.Clear();
+    }
 
-        // Fail path in current prototype still clears cargo.
-        cargo.Clear();
+    public void ApplyDeath(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    public void ApplyLost(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    private bool UsesLegacyGoldEscrow(TaskInstance task)
+    {
+        if (task == null)
+            return false;
+
+        var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+        return upfrontCostBundle == null || upfrontCostBundle.IsEmpty;
     }
 
     private ResourceBundle BuildTreasuryRewardBundle(TaskInstance task)
@@ -54,7 +68,9 @@
 
         var result = new ResourceBundle();
 
-        int legacyEscrowGoldToSkip = task.wageGold > 0 ? task.wageGold : 0;
+        int legacyEscrowGoldToSkip = UsesLegacyGoldEscrow(task) && task.wageGold > 0
+            ? task.wageGold
+            : 0;
 
         var exact = source.ExactResources;
         if (exact != null)
