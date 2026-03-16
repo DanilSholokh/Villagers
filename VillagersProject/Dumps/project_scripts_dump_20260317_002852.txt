@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-16 06:01:43
+Time: 2026-03-17 00:28:52
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -3385,8 +3385,8 @@ public enum LostHiddenOutcome
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskBoardAuthoring.cs
-SIZE: 2244 bytes
-SHA256: 8fb303598abeb4837daac9b9184346b5ebd7ae8ceb8987f27abf015489c1c1d1
+SIZE: 3775 bytes
+SHA256: 9226878b0eee5542f6d6808c4ea77bcd4e556ee5a35225ac67357e99d01092a0
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -3410,6 +3410,14 @@ public class TaskBoardAuthoring : MonoBehaviour
 
         [Min(0)] public int wageGold = 5;
 
+        // PATCH 11: optional exact reward override
+        public string rewardResourceId;
+        [Min(0)] public int rewardAmount = 0;
+
+        // PATCH 11: optional exact upfront cost
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
+
         // Gather (���. ��� ����� �����)
         public string resourceId;
         public int baseAmount = 3;
@@ -3420,22 +3428,44 @@ public class TaskBoardAuthoring : MonoBehaviour
     public List<TaskInstance> BuildRuntimeTasks()
     {
         var list = new List<TaskInstance>(tasks.Count);
+
         foreach (var t in tasks)
         {
+            string normalizedResourceId = (t.resourceId ?? "").ToLowerInvariant();
+            string normalizedRewardResourceId = (t.rewardResourceId ?? "").ToLowerInvariant();
+            string normalizedUpfrontCostResourceId = (t.upfrontCostResourceId ?? "").ToLowerInvariant();
+
+            int safeBaseAmount = Mathf.Max(0, t.baseAmount);
+            int safeWageGold = Mathf.Max(0, t.wageGold);
+            int safeRewardAmount = Mathf.Max(0, t.rewardAmount);
+            int safeUpfrontCostAmount = Mathf.Max(0, t.upfrontCostAmount);
+
             var workBundle = new ResourceBundle();
             if (t.type == TaskType.Gather &&
-                !string.IsNullOrWhiteSpace(t.resourceId) &&
-                t.baseAmount > 0)
+                !string.IsNullOrWhiteSpace(normalizedResourceId) &&
+                safeBaseAmount > 0)
             {
-                workBundle.AddExact(t.resourceId, t.baseAmount);
+                workBundle.AddExact(normalizedResourceId, safeBaseAmount);
                 workBundle.Normalize();
             }
 
             var rewardBundle = new ResourceBundle();
-            if (t.wageGold > 0)
+            if (!string.IsNullOrWhiteSpace(normalizedRewardResourceId) && safeRewardAmount > 0)
             {
-                rewardBundle.AddExact("gold", t.wageGold);
+                rewardBundle.AddExact(normalizedRewardResourceId, safeRewardAmount);
                 rewardBundle.Normalize();
+            }
+            else if (safeWageGold > 0)
+            {
+                rewardBundle.AddExact("gold", safeWageGold);
+                rewardBundle.Normalize();
+            }
+
+            var costBundle = new ResourceBundle();
+            if (!string.IsNullOrWhiteSpace(normalizedUpfrontCostResourceId) && safeUpfrontCostAmount > 0)
+            {
+                costBundle.AddExact(normalizedUpfrontCostResourceId, safeUpfrontCostAmount);
+                costBundle.Normalize();
             }
 
             list.Add(new TaskInstance
@@ -3449,18 +3479,19 @@ public class TaskBoardAuthoring : MonoBehaviour
                 durationSec = t.durationSec,
 
                 // legacy back-compat
-                wageGold = t.wageGold,
-                resourceId = t.resourceId,
-                baseAmount = t.baseAmount,
+                wageGold = normalizedRewardResourceId == "gold" ? safeRewardAmount : safeWageGold,
+                resourceId = normalizedResourceId,
+                baseAmount = safeBaseAmount,
 
-                // PATCH 9
+                // PATCH 9 / PATCH 11
                 workOutputBundle = workBundle,
                 taskRewardBundle = rewardBundle,
-                taskCostBundle = new ResourceBundle(),
+                taskCostBundle = costBundle,
 
                 baseFailChance = t.baseFailChance
             });
         }
+
         return list;
     }
 }
@@ -3694,26 +3725,48 @@ public class TaskInstance
 
 ----- FILE BEGIN -----
 PATH: Assets/Domain/TaskBoard/TaskSelectionLogic.cs
-SIZE: 547 bytes
-SHA256: 8794cc1d2a34d755d2a56d9197c8c32f04fa228d5d3e9569a4ce831ca2797f20
+SIZE: 1185 bytes
+SHA256: 5542379b1c74458168fc35ee302ed462d8a312a2097f3b4b8cb74e6524720517
 CONTENT:
-using System.Collections.Generic;
 using System.Linq;
 
 public static class TaskSelectionLogic
 {
-    public static TaskInstance PickBest(TaskBoardService board)
+    public static TaskInstance PickBest(TaskBoardService board, TreasuryService treasury)
     {
+        if (board == null)
+            return null;
+
         var tasks = board.GetAllTasks();
 
         var available = tasks
+            .Where(t => t != null)
             .Where(board.IsAvailable)
+            .Where(t => CanStartTask(t, treasury))
             .OrderByDescending(t => t.priority)
             .ThenByDescending(t => board.SlotsFree(t.taskId, t.maxTakers))
             .ThenBy(t => t.durationSec)
             .ToList();
 
         return available.Count > 0 ? available[0] : null;
+    }
+
+    private static bool CanStartTask(TaskInstance task, TreasuryService treasury)
+    {
+        if (task == null)
+            return false;
+
+        if (treasury == null)
+            return true;
+
+        var costBundle = task.GetResolvedTaskCostBundle();
+        if (costBundle != null && !costBundle.IsEmpty)
+            return treasury.CanAfford(costBundle);
+
+        if (task.wageGold > 0)
+            return treasury.GetAmount("gold") >= task.wageGold;
+
+        return true;
     }
 }
 
@@ -5069,8 +5122,8 @@ public class VillagerState
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerAgentBrain.cs
-SIZE: 29175 bytes
-SHA256: 379143924b0ff7047eca7f4e4ef25e6ecdd7df0ee443fcf167401edd8adf693b
+SIZE: 29315 bytes
+SHA256: 8683714e6151d58c4e6e4d0b914cbec377a37d5f46fbb2c0e8470b829daeb5b0
 CONTENT:
 using System.Collections;
 using UnityEngine;
@@ -5190,7 +5243,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.LookingForTask);
 
             // 1) Pick
-            var task = TaskSelectionLogic.PickBest(_board);
+            var task = TaskSelectionLogic.PickBest(_board, _treasury);
             if (task == null)
             {
                 yield return new WaitForSeconds(noTaskDelay);
@@ -5204,8 +5257,29 @@ public class VillagerAgentBrain : MonoBehaviour
                 continue;
             }
 
-            // ✅ Escrow hold (wage)
-            if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
+            // ✅ PATCH 11: generic upfront task cost first, legacy gold escrow fallback second
+            var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+
+            if (_treasury != null && upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
+            {
+                if (!_treasury.CanAfford(upfrontCostBundle))
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: not enough upfront bundle cost for task={task.taskId}");
+                    yield return null;
+                    continue;
+                }
+
+                var upfrontSpendResult = _treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
+                if (!upfrontSpendResult.success)
+                {
+                    _board.Release(task.taskId, agentId);
+                    Log($"Reserve failed: upfront bundle spend failed for task={task.taskId} reason={upfrontSpendResult.message}");
+                    yield return null;
+                    continue;
+                }
+            }
+            else if (_treasury != null && !_treasury.TryHoldGold(task.wageGold))
             {
                 // якщо грошей нема — відпускаємо слот назад
                 _board.Release(task.taskId, agentId);
@@ -5282,8 +5356,6 @@ public class VillagerAgentBrain : MonoBehaviour
 
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
                 yield return DoGoHome();
-
-                _cargo.Clear();
 
                 Log($"Villager lost on task {task.taskId}");
                 PublishTaskEvent("Lost", GameDebugSeverity.Warning);
@@ -5736,53 +5808,30 @@ public class VillagerAgentBrain : MonoBehaviour
 
     private void FinalizeTask(TaskInstance task, bool success)
     {
-        // --- Escrow + Cargo settlement ---
-        if (_treasury != null && task.wageGold > 0)
+        if (task == null)
+            return;
+
+        // --- Settlement ---
+        if (success)
         {
-            if (success)
+            _taskSettlement.ApplySuccess(task, _cargo, _treasury);
+            CommitCargoToTreasury();
+
+            if (_treasury != null && task.wageGold > 0)
             {
-                if (task != null && task.HasBundleModel())
-                {
-                    _taskSettlement.ApplySuccess(task, _cargo, _treasury);
-                    CommitCargoToTreasury();
-
-                    _treasury.ConsumeLockedGold(task.wageGold);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-                else
-                {
-                    CommitCargoToTreasury();
-
-                    _treasury.ConsumeLockedGold(task.wageGold);
-                    Log($"Wage paid: +{task.wageGold} gold");
-                }
-            }
-            else
-            {
-                if (task != null && task.HasBundleModel())
-                {
-                    _treasury.RefundGold(task.wageGold);
-                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
-                else
-                {
-                    _treasury.RefundGold(task.wageGold);
-
-                    _cargo.Clear();
-                    Log($"Task failed -> wage refunded: {task.wageGold} gold");
-                }
+                _treasury.ConsumeLockedGold(task.wageGold);
+                Log($"Wage paid: +{task.wageGold} gold");
             }
         }
         else
         {
-            if (!success)
+            if (_treasury != null && task.wageGold > 0)
             {
-                if (task != null && task.HasBundleModel())
-                    _taskSettlement.ApplyFailure(task, _cargo, _treasury);
-                else
-                    _cargo.Clear();
+                _treasury.RefundGold(task.wageGold);
+                Log($"Task failed -> wage refunded: {task.wageGold} gold");
             }
+
+            _taskSettlement.ApplyFailure(task, _cargo, _treasury);
         }
 
         // --- Board cleanup ALWAYS (exactly once) ---
@@ -6146,8 +6195,8 @@ public class VillagerInventoryService
 
 ----- FILE BEGIN -----
 PATH: Assets/Entety/Villagers/VillagerTaskSettlementService.cs
-SIZE: 1655 bytes
-SHA256: a2ad713f5524899ada7952f643dafef535266b80e44bb526c5721f2ba35f4f7b
+SIZE: 3336 bytes
+SHA256: c7f0c923db120c07fd0607eeda838195c5e7f9d2cd6e021a03e12ad605d23fee
 CONTENT:
 public class VillagerTaskSettlementService
 {
@@ -6172,19 +6221,17 @@ public class VillagerTaskSettlementService
             }
         }
 
-        // 2. Apply reward bundle directly to treasury through economy endpoint.
-        var rewardBundle = task.GetResolvedTaskRewardBundle();
+        // 2. Apply reward bundle directly to treasury through economy endpoint,
+        //    but do NOT duplicate legacy gold wage while old gold escrow is still active.
+        var rewardBundle = BuildTreasuryRewardBundle(task);
         if (rewardBundle != null && !rewardBundle.IsEmpty)
         {
             treasury.GrantBundle(rewardBundle, "task_reward_bundle");
         }
 
-        // 3. Spend task cost bundle if present.
-        var costBundle = task.GetResolvedTaskCostBundle();
-        if (costBundle != null && !costBundle.IsEmpty)
-        {
-            treasury.SpendBundle(costBundle, "task_cost_bundle");
-        }
+        // 3. Task cost bundle is no longer spent here.
+        //    PATCH 11 reserve path spends non-empty taskCostBundle upfront in VillagerAgentBrain.Run().
+        //    Success settlement must not double-spend it.
     }
 
     public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
@@ -6194,6 +6241,59 @@ public class VillagerTaskSettlementService
 
         // Fail path in current prototype still clears cargo.
         cargo.Clear();
+    }
+
+    private ResourceBundle BuildTreasuryRewardBundle(TaskInstance task)
+    {
+        if (task == null)
+            return new ResourceBundle();
+
+        var source = task.GetResolvedTaskRewardBundle();
+        if (source == null || source.IsEmpty)
+            return new ResourceBundle();
+
+        var result = new ResourceBundle();
+
+        int legacyEscrowGoldToSkip = task.wageGold > 0 ? task.wageGold : 0;
+
+        var exact = source.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                if (stack.resourceId == "gold" && legacyEscrowGoldToSkip > 0)
+                {
+                    int remainingGold = stack.amount - legacyEscrowGoldToSkip;
+                    if (remainingGold > 0)
+                        result.AddExact("gold", remainingGold);
+
+                    legacyEscrowGoldToSkip = 0;
+                    continue;
+                }
+
+                result.AddExact(stack.resourceId, stack.amount);
+            }
+        }
+
+        var categoryValues = source.CategoryValues;
+        if (categoryValues != null)
+        {
+            for (int i = 0; i < categoryValues.Count; i++)
+            {
+                var entry = categoryValues[i];
+                if (!entry.IsValid)
+                    continue;
+
+                result.AddCategoryValue(entry.categoryId, entry.value);
+            }
+        }
+
+        result.Normalize();
+        return result;
     }
 }
 
@@ -7095,8 +7195,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 8989 bytes
-SHA256: 28a096ff1553f14651c64bcc020d1dcc551899967b9107ccf47938404fc546a3
+SIZE: 13468 bytes
+SHA256: 99147ce7a982304a33e018a4f6ec1e4e94bf8367940bfc90c8d116b9018380e3
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -7124,6 +7224,10 @@ public class TaskPublisherPanel : MonoBehaviour
         [Min(0.1f)] public float durationSec = 7f;
 
         [Min(0)] public int wageGold = 5;
+
+        // PATCH 11: optional exact upfront task cost
+        public string upfrontCostResourceId;
+        [Min(0)] public int upfrontCostAmount = 0;
 
         [Range(0f, 1f)] public float baseFailChance = 0f;
         [Range(0, 5)] public int priority = 3;
@@ -7246,6 +7350,13 @@ public class TaskPublisherPanel : MonoBehaviour
             rewardBundle.Normalize();
         }
 
+        var costBundle = new ResourceBundle();
+        if (!string.IsNullOrWhiteSpace(def.upfrontCostResourceId) && def.upfrontCostAmount > 0)
+        {
+            costBundle.AddExact(def.upfrontCostResourceId.ToLowerInvariant(), def.upfrontCostAmount);
+            costBundle.Normalize();
+        }
+
         var t = new TaskInstance
         {
             taskId = taskId,
@@ -7262,10 +7373,10 @@ public class TaskPublisherPanel : MonoBehaviour
             resourceId = (def.resourceId ?? "").ToLowerInvariant(),
             baseAmount = Mathf.Max(0, def.baseAmount),
 
-            // PATCH 9
+            // PATCH 9 / PATCH 11
             workOutputBundle = workBundle,
             taskRewardBundle = rewardBundle,
-            taskCostBundle = new ResourceBundle(),
+            taskCostBundle = costBundle,
         };
 
 
@@ -7316,20 +7427,33 @@ public class TaskPublisherPanel : MonoBehaviour
         _board.AddTaskRuntime(t);
     }
 
-    // ---- ORIGINAL API залишаємо, щоб не ламати інше ----
-
     public void PublishGather(
-        string displayName,
-        string resourceId,
-        int baseAmount,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance
-    )
+     string displayName,
+     string resourceId,
+     int baseAmount,
+     int maxTakers,
+     float durationSec,
+     int wageGold,
+     int priority,
+     float baseFailChance)
     {
-        var id = $"rt_gather_{resourceId}_{Time.frameCount}";
+        string normalizedResourceId = (resourceId ?? "").ToLowerInvariant();
+        var id = $"rt_gather_{normalizedResourceId}_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        var workBundle = new ResourceBundle();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) && baseAmount > 0)
+        {
+            workBundle.AddExact(normalizedResourceId, Mathf.Max(0, baseAmount));
+            workBundle.Normalize();
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -7338,16 +7462,46 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            resourceId = resourceId,
-            baseAmount = baseAmount,
+            resourceId = normalizedResourceId,
+            baseAmount = Mathf.Max(0, baseAmount),
 
-            baseFailChance = baseFailChance
+            workOutputBundle = workBundle,
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        bool unlocked = locations != null &&
+            !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+        if (!unlocked)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                $"Locked: resource '{normalizedResourceId}' not discovered yet");
+            return;
+        }
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
+
+        if (!string.IsNullOrWhiteSpace(task.resourceId) &&
+            string.IsNullOrWhiteSpace(task.targetLocationId))
+        {
+            string locationId = locations?.FindAnyLocationForResource(task.resourceId, true, true);
+            if (!string.IsNullOrWhiteSpace(locationId))
+                task.targetLocationId = locationId;
+        }
 
         _board.AddTaskRuntime(task);
     }
@@ -7363,6 +7517,13 @@ public class TaskPublisherPanel : MonoBehaviour
     {
         var id = $"rt_explore_new_{Time.frameCount}";
 
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
+
         var task = new TaskInstance
         {
             taskId = id,
@@ -7370,13 +7531,29 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            baseFailChance = baseFailChance
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        task.resourceId = "";
+        task.baseAmount = 0;
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
         _board.AddTaskRuntime(task);
     }
@@ -7388,10 +7565,25 @@ public class TaskPublisherPanel : MonoBehaviour
     float durationSec,
     int wageGold,
     int priority,
-    float baseFailChance
-    )
+    float baseFailChance)
     {
         var id = $"rt_survey_{Time.frameCount}";
+        var locations = GameInstaller.LocationService;
+
+        bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
+        if (!hasKnown)
+        {
+            GameDebug.Warning(GameDebugChannel.Task,
+                "Locked: no discovered locations yet for SurveyKnownLocation");
+            return;
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, wageGold));
+            rewardBundle.Normalize();
+        }
 
         var task = new TaskInstance
         {
@@ -7400,13 +7592,29 @@ public class TaskPublisherPanel : MonoBehaviour
             displayName = displayName,
 
             active = true,
-            maxTakers = maxTakers,
-            durationSec = durationSec,
-            wageGold = wageGold,
+            maxTakers = Mathf.Max(1, maxTakers),
+            durationSec = Mathf.Max(0.1f, durationSec),
+            wageGold = Mathf.Max(0, wageGold),
             priority = priority,
 
-            baseFailChance = baseFailChance
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            taskCostBundle = new ResourceBundle(),
+
+            baseFailChance = Mathf.Clamp01(baseFailChance)
         };
+
+        task.resourceId = "";
+        task.baseAmount = 0;
+
+        task.successChance = 1f - task.baseFailChance;
+
+        if (task.successChance >= 0.85f) task.riskTier = 0;
+        else if (task.successChance >= 0.7f) task.riskTier = 1;
+        else if (task.successChance >= 0.55f) task.riskTier = 2;
+        else if (task.successChance >= 0.4f) task.riskTier = 3;
+        else if (task.successChance >= 0.25f) task.riskTier = 4;
+        else task.riskTier = 5;
 
         _board.AddTaskRuntime(task);
     }
@@ -7418,9 +7626,10 @@ public class TaskPublisherPanel : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskRowUI.cs
-SIZE: 2927 bytes
-SHA256: f93d4e7dc5d4c18317feab5cc83f6a8adaa056875c9a983dec9e2cc1b0cf3fcf
+SIZE: 4999 bytes
+SHA256: 7a6959b5bbe71ac8271bc5596bddc27dd88cb1e3361050e536066fffb1ed063e
 CONTENT:
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -7442,6 +7651,10 @@ public class TaskRowUI : MonoBehaviour
 
     public void Bind(TaskInstance task)
     {
+        if (task == null)
+            return;
+
+        taskId = task.taskId;
 
         if (prioPlusBtn != null) prioPlusBtn.onClick.AddListener(OnPlus);
         if (prioMinusBtn != null) prioMinusBtn.onClick.AddListener(OnMinus);
@@ -7475,7 +7688,12 @@ public class TaskRowUI : MonoBehaviour
         if (t == null) return;
 
         if (titleText != null)
-            titleText.text = $"{t.displayName}";
+        {
+            string summary = BuildTaskSummary(t);
+            titleText.text = string.IsNullOrWhiteSpace(summary)
+                ? t.displayName
+                : $"{t.displayName}\n{summary}";
+        }
 
         if (prioText != null)
             prioText.text = $"{t.priority}";
@@ -7518,7 +7736,71 @@ public class TaskRowUI : MonoBehaviour
         t.active = value;
         Refresh(true);
     }
+
+    private string BuildTaskSummary(TaskInstance task)
+    {
+        if (task == null)
+            return "";
+
+        var parts = new List<string>();
+
+        string work = FormatBundle(task.GetResolvedWorkOutputBundle(), "out");
+        if (!string.IsNullOrWhiteSpace(work))
+            parts.Add(work);
+
+        string reward = FormatBundle(task.GetResolvedTaskRewardBundle(), "reward");
+        if (!string.IsNullOrWhiteSpace(reward))
+            parts.Add(reward);
+
+        string cost = FormatBundle(task.GetResolvedTaskCostBundle(), "cost");
+        if (!string.IsNullOrWhiteSpace(cost))
+            parts.Add(cost);
+
+        return parts.Count > 0 ? string.Join(" | ", parts) : "";
+    }
+
+    private string FormatBundle(ResourceBundle bundle, string label)
+    {
+        if (bundle == null || bundle.IsEmpty)
+            return "";
+
+        var parts = new List<string>();
+
+        var exact = bundle.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (!stack.IsValid)
+                    continue;
+
+                parts.Add($"{stack.amount} {stack.resourceId}");
+            }
+        }
+
+        var categoryValues = bundle.CategoryValues;
+        if (categoryValues != null)
+        {
+            for (int i = 0; i < categoryValues.Count; i++)
+            {
+                var entry = categoryValues[i];
+                if (!entry.IsValid)
+                    continue;
+
+                parts.Add($"{entry.value} {entry.categoryId} value");
+            }
+        }
+
+        if (parts.Count == 0)
+            return "";
+
+        return $"{label}: {string.Join(", ", parts)}";
+    }
 }
+
+
+
 
 ----- FILE END -----
 

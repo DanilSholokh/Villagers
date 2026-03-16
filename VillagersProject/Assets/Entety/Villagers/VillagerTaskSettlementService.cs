@@ -34,15 +34,6 @@
         //    Success settlement must not double-spend it.
     }
 
-    public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
-    {
-        if (cargo == null)
-            return;
-
-        // Fail path in current prototype still clears cargo.
-        cargo.Clear();
-    }
-
     private ResourceBundle BuildTreasuryRewardBundle(TaskInstance task)
     {
         if (task == null)
@@ -54,7 +45,9 @@
 
         var result = new ResourceBundle();
 
-        int legacyEscrowGoldToSkip = task.wageGold > 0 ? task.wageGold : 0;
+        int legacyEscrowGoldToSkip = UsesLegacyGoldEscrow(task) && task.wageGold > 0
+        ? task.wageGold
+        : 0;
 
         var exact = source.ExactResources;
         if (exact != null)
@@ -95,4 +88,35 @@
         result.Normalize();
         return result;
     }
+
+
+    private bool UsesLegacyGoldEscrow(TaskInstance task)
+    {
+        if (task == null)
+            return false;
+
+        var upfrontCostBundle = task.GetResolvedTaskCostBundle();
+        return upfrontCostBundle == null || upfrontCostBundle.IsEmpty;
+    }
+
+
+    public void ApplyFailure(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    public void ApplyDeath(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+    public void ApplyLost(TaskInstance task, VillagerCargo cargo, TreasuryService treasury)
+    {
+        if (cargo != null)
+            cargo.Clear();
+    }
+
+
 }
