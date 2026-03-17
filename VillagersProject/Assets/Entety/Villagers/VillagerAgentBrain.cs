@@ -208,11 +208,10 @@ public class VillagerAgentBrain : MonoBehaviour
                 _roster?.SetStatus(agentId, VillagerStatus.ReturningHome, task.taskId, "FAILED");
                 yield return DoGoHome();
 
-                Log($"Villager lost on task {task.taskId}");
-                PublishTaskEvent("Lost", GameDebugSeverity.Warning);
+                Log($"Villager failed task {task.taskId}");
+                PublishTaskEvent("Failed", GameDebugSeverity.Warning);
 
                 Log($"Task failed roll: {task.taskId} (risk={task.riskTier}, danger={locDanger})");
-                PublishTaskEvent("Failed", GameDebugSeverity.Warning);
 
                 FinalizeTask(task, false);
 
@@ -672,29 +671,40 @@ public class VillagerAgentBrain : MonoBehaviour
         return true;
     }
 
+    private void CleanupTaskReservation(TaskInstance task)
+    {
+        if (task == null || _board == null)
+            return;
+
+        _board.Release(task.taskId, agentId);
+
+        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
+            _board.RemoveTaskRuntime(task.taskId);
+    }
+
 
     private void FinalizeTask(TaskInstance task, bool success)
     {
         if (task == null)
             return;
 
-        // --- Settlement ---
         if (success)
         {
             _taskSettlement.ApplySuccess(task, _cargo, _treasury);
             CommitCargoToTreasury();
+
+            _taskEscrow.SettleSuccess(_activeEscrow, _treasury);
+            _activeEscrow = null;
         }
         else
         {
             _taskSettlement.ApplyFailure(task, _cargo, _treasury);
+
+            _taskEscrow.SettleFailure(_activeEscrow, _treasury);
+            _activeEscrow = null;
         }
 
-        // --- Board cleanup ALWAYS (exactly once) ---
-        _board.Release(task.taskId, agentId);
-
-        // Remove only runtime tasks
-        if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-            _board.RemoveTaskRuntime(task.taskId);
+        CleanupTaskReservation(task);
     }
 
 
@@ -729,11 +739,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (task != null)
         {
-            _board.Release(task.taskId, agentId);
-
-            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-                _board.RemoveTaskRuntime(task.taskId);
-
+            CleanupTaskReservation(task);
             _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
         }
         else
@@ -778,11 +784,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (task != null)
         {
-            _board.Release(task.taskId, agentId);
-
-            if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
-                _board.RemoveTaskRuntime(task.taskId);
-
+            CleanupTaskReservation(task);
             _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
         }
         else

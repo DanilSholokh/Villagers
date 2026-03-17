@@ -1,5 +1,5 @@
 ﻿=== UNITY PROJECT SCRIPTS DUMP ===
-Time: 2026-03-16 23:56:03
+Time: 2026-03-17 01:37:30
 Unity: 6000.3.8f1
 ProjectPath: D:\hub project(not porn)\Progects\Villagers\VillagersProject
 IncludePackages: False
@@ -6994,8 +6994,8 @@ public class ExploreWalker : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/Scripts/GameInstaller.cs
-SIZE: 7386 bytes
-SHA256: 6434881e7dded65b41811e3bcc24c1cbd18bf5ca4bd73c95ab38658d0d1417fb
+SIZE: 7392 bytes
+SHA256: e5bae906dec38b86d097a3b24b0915429d1adf5ac319fb25aecc77283575a6c3
 CONTENT:
 using UnityEngine;
 
@@ -7126,7 +7126,7 @@ public class GameInstaller : MonoBehaviour
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
-        if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+        //if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
 
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
@@ -7138,8 +7138,8 @@ public class GameInstaller : MonoBehaviour
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-        foreach (var b in brains)
-            b.Begin(TaskBoard, Treasury, _log, Villagers);
+        //foreach (var b in brains)
+        //    b.Begin(TaskBoard, Treasury, _log, Villagers);
 
         Treasury.InitializeGold(startingGold);
     }
@@ -7885,8 +7885,8 @@ public class TaskBoardUI : MonoBehaviour
 
 ----- FILE BEGIN -----
 PATH: Assets/UI/TaskPublisherPanel.cs
-SIZE: 17054 bytes
-SHA256: 695324b0b3986a9019b89cdcf424cea392937c29b888b7d57fb8af3cc6a62b24
+SIZE: 17431 bytes
+SHA256: 1d1512707f156ff890c084d810e5c8281468a40502016fa925b57d41b63da584
 CONTENT:
 using System;
 using System.Collections.Generic;
@@ -8057,6 +8057,16 @@ public class TaskPublisherPanel : MonoBehaviour
                         reason = "No unknown locations left";
                         return false;
                     }
+
+                    var explore = GameInstaller.ExplorationUnlock;
+                    if (explore == null)
+                    {
+                        reason = "Exploration rule is not configured";
+                        return false;
+                    }
+
+                    if (!explore.CanAfford(treasury, out reason))
+                        return false;
 
                     return true;
                 }

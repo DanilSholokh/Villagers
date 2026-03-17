@@ -127,7 +127,7 @@ public class GameInstaller : MonoBehaviour
         if (treasuryPanel) treasuryPanel.Bind(Treasury);
         if (eventLogPanel) eventLogPanel.Bind(_log);
         if (villagerRosterPanel) villagerRosterPanel.Bind(Villagers, Progression);
-        //if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
+        if (taskBoardUI) taskBoardUI.Bind(TaskBoard);
 
         if (locationMetricsPanel != null)
             locationMetricsPanel.Bind(LocationService, SelectedLocation);
@@ -139,8 +139,8 @@ public class GameInstaller : MonoBehaviour
         TaskBoard.SetTasks(authoring.BuildRuntimeTasks());
 
         var brains = FindObjectsByType<VillagerAgentBrain>(FindObjectsSortMode.None);
-        //foreach (var b in brains)
-        //    b.Begin(TaskBoard, Treasury, _log, Villagers);
+        foreach (var b in brains)
+            b.Begin(TaskBoard, Treasury, _log, Villagers);
 
         Treasury.InitializeGold(startingGold);
     }
