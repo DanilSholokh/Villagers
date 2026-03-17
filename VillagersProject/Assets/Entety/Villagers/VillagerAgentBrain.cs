@@ -128,14 +128,13 @@ public class VillagerAgentBrain : MonoBehaviour
             // 2) Reserve
             if (!_board.TryReserve(task.taskId, agentId))
             {
-                yield return null;
+                yield return AbortTaskStart(task, null, 0f);
                 continue;
             }
 
             if (!TryReserveTaskStartCost(task))
             {
-                _board.Release(task.taskId, agentId);
-                yield return null;
+                yield return AbortTaskStart(task, $"Task start aborted: failed to reserve upfront cost for task={task.taskId}");
                 continue;
             }
 
@@ -291,6 +290,13 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
+
+        if (!TryExecuteExploreUnlock(task))
+        {
+            locations.RemoveWorker(locationId, agentId, task.taskId);
+            _completedThisCycle = false;
+            yield break;
+        }
 
         locations.DiscoverLocation(locationId);
         PublishExploreEvent("Discovered");
@@ -531,6 +537,43 @@ public class VillagerAgentBrain : MonoBehaviour
         yield return WaitUntilArrivedSafe(arriveTimeoutSec);
     }
 
+    private bool TryExecuteExploreUnlock(TaskInstance task)
+    {
+        var explore = GameInstaller.ExplorationUnlock;
+        if (explore == null)
+        {
+            PublishExploreEvent("Explore failed: ExplorationUnlockService is null", GameDebugSeverity.Error);
+            return false;
+        }
+
+        if (_treasury == null)
+        {
+            PublishExploreEvent("Explore failed: Treasury is null", GameDebugSeverity.Error);
+            return false;
+        }
+
+        if (!explore.TryExecuteUnlock(
+            _treasury,
+            agentId,
+            task != null ? task.taskId : "explore_unlock",
+            out var result))
+        {
+            string message = result != null && !string.IsNullOrWhiteSpace(result.message)
+                ? result.message
+                : "exploration unlock economy transaction failed";
+
+            PublishExploreEvent($"Explore failed: {message}", GameDebugSeverity.Warning);
+            PublishEconomyEvent($"Explore unlock failed: {message}", GameDebugSeverity.Warning);
+            return false;
+        }
+
+        PublishEconomyEvent(
+            $"Explore unlock spent: {EconomyUiTextFormatter.FormatBundle(result.consumed)}",
+            GameDebugSeverity.Info
+        );
+
+        return true;
+    }
     private void CommitCargoToTreasury()
     {
         if (_treasury == null) return;
@@ -659,10 +702,30 @@ public class VillagerAgentBrain : MonoBehaviour
     {
         _activeEscrow = null;
 
+        if (task == null)
+        {
+            Log("Reserve failed: task is null");
+            return false;
+        }
+
+        if (_taskEscrow == null)
+        {
+            Log("Reserve failed: TaskEscrowService is null");
+            return false;
+        }
+
+        if (_treasury == null)
+        {
+            Log($"Reserve failed: Treasury is null for task={task.taskId}");
+            return false;
+        }
+
         if (!_taskEscrow.TryReserve(task, agentId, _treasury, out var reservation, out var errorMessage))
         {
             if (!string.IsNullOrWhiteSpace(errorMessage))
                 Log($"Reserve failed: {errorMessage}");
+            else
+                Log($"Reserve failed: unknown error for task={task.taskId}");
 
             return false;
         }
@@ -680,6 +743,25 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (!string.IsNullOrEmpty(task.taskId) && task.taskId.StartsWith("rt_"))
             _board.RemoveTaskRuntime(task.taskId);
+    }
+
+    private IEnumerator AbortTaskStart(TaskInstance task, string reason, float delaySec = -1f)
+    {
+        if (!string.IsNullOrWhiteSpace(reason))
+            Log(reason);
+
+        CleanupTaskReservation(task);
+        _activeEscrow = null;
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle);
+
+        if (delaySec < 0f)
+            delaySec = noTaskDelay;
+
+        if (delaySec > 0f)
+            yield return new WaitForSeconds(delaySec);
+        else
+            yield return null;
     }
 
 

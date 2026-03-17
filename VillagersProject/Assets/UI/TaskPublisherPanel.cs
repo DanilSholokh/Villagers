@@ -467,8 +467,6 @@ public class TaskPublisherPanel : MonoBehaviour
             rewardBundle.Normalize();
         }
 
-        var costBundle = explore.BuildCostBundle();
-
         var task = new TaskInstance
         {
             taskId = taskId,
@@ -481,13 +479,12 @@ public class TaskPublisherPanel : MonoBehaviour
             wageGold = Mathf.Max(0, wageGold),
             priority = Mathf.Clamp(priority, 0, 5),
 
-            targetLocationId = string.Empty,
             resourceId = string.Empty,
             baseAmount = 0,
 
             workOutputBundle = new ResourceBundle(),
             taskRewardBundle = rewardBundle,
-            taskCostBundle = costBundle,
+            taskCostBundle = new ResourceBundle(),
 
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };

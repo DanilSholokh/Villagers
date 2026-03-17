@@ -46,6 +46,18 @@ public class ExplorationUnlockService
         return bundle;
     }
 
+    public EconomicRecipe BuildUnlockRecipe()
+    {
+        var input = BuildCostBundle();
+
+        return new EconomicRecipeBuilder()
+            .WithId(RuleId)
+            .WithDisplayName(DisplayName)
+            .WithInput(input)
+            .AddCondition(EconomicCondition.RequireCategoryValue(CategoryId, RequiredValue))
+            .Build();
+    }
+
     public bool CanAfford(TreasuryService treasury, out string reason)
     {
         reason = string.Empty;
@@ -56,17 +68,60 @@ public class ExplorationUnlockService
             return false;
         }
 
-        var bundle = BuildCostBundle();
-        if (bundle == null || bundle.IsEmpty)
-            return true;
-
-        if (!treasury.CanAfford(bundle))
+        if (GameInstaller.EconomicSimulation == null)
         {
-            reason = "Not enough category value";
+            reason = "EconomicSimulationService is null";
+            return false;
+        }
+
+        var recipe = BuildUnlockRecipe();
+        var context = EconomicTreasuryContextFactory.Create(
+            treasury,
+            actorId: "explore_unlock_preview",
+            reason: RuleId
+        );
+
+        var result = GameInstaller.EconomicSimulation.Simulate(recipe, context);
+        if (!result.success)
+        {
+            reason = string.IsNullOrWhiteSpace(result.message)
+                ? "Explore unlock is not affordable"
+                : result.message;
             return false;
         }
 
         return true;
+    }
+
+    public bool TryExecuteUnlock(
+        TreasuryService treasury,
+        string actorId,
+        string reason,
+        out EconomicResult result)
+    {
+        result = EconomicResult.Fail("Explore unlock not executed.");
+
+        if (treasury == null)
+        {
+            result = EconomicResult.Fail("Treasury is null.");
+            return false;
+        }
+
+        if (GameInstaller.EconomicExecution == null)
+        {
+            result = EconomicResult.Fail("EconomicExecutionService is null.");
+            return false;
+        }
+
+        var recipe = BuildUnlockRecipe();
+        var context = EconomicTreasuryContextFactory.Create(
+            treasury,
+            actorId: actorId,
+            reason: string.IsNullOrWhiteSpace(reason) ? RuleId : reason
+        );
+
+        result = GameInstaller.EconomicExecution.Execute(recipe, context);
+        return result != null && result.success;
     }
 
     public int GetCurrentCategoryValue(TreasuryService treasury)

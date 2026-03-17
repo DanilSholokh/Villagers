@@ -1,5 +1,5 @@
 ﻿=== FULL SCENE DUMP ===
-Time: 2026-03-17 01:47:16
+Time: 2026-03-17 02:58:02
 Scene: Prototype_TaskBoard
 Path: Assets/Scenes/Prototype_TaskBoard.unity
 Loaded: True
@@ -435,7 +435,7 @@ Root objects: 9
         Components (2):
         - RectTransform
         - VerticalLayoutGroup (pad=(25,0,0,0) spacing=0 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
-        - Row_Wood (activeSelf=False, activeInHierarchy=False) [tag=Untagged, layer=Default]
+        - Row_Wood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
           Transform: pos=(-18.85, 151.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
           RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                        anchoredPos=(75.00, -50.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -100.00) offsetMax=(125.00, 0.00)
@@ -443,7 +443,7 @@ Root objects: 9
           Components (2):
           - RectTransform
           - HorizontalLayoutGroup (pad=(0,0,0,0) spacing=0 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
-          - KeyText (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+          - KeyText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(10.00, 30.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                          anchoredPos=(60.00, -20.00) sizeDelta=(120.00, 40.00) offsetMin=(0.00, -40.00) offsetMax=(120.00, 0.00)
@@ -451,8 +451,8 @@ Root objects: 9
             Components (3):
             - RectTransform
             - CanvasRenderer
-            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="Wood" pref(w,h)=(0,0)
-          - ValueText (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="Wood" pref(w,h)=(190,43,50,67)
+          - ValueText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
             Transform: pos=(130.00, 30.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
             RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
                          anchoredPos=(180.00, -20.00) sizeDelta=(120.00, 40.00) offsetMin=(120.00, -40.00) offsetMax=(240.00, 0.00)
@@ -460,7 +460,7 @@ Root objects: 9
             Components (3):
             - RectTransform
             - CanvasRenderer
-            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(0,0)
+            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
       - sell button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
         Transform: pos=(-12.00, -394.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
         RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
