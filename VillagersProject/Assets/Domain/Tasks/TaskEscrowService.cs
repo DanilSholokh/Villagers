@@ -22,16 +22,17 @@
         }
 
         if (treasury == null)
-        {
             return true;
-        }
 
         var upfrontCostBundle = task.GetResolvedTaskCostBundle();
         if (upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
         {
-            if (!treasury.CanAfford(upfrontCostBundle))
+            var validateResult = treasury.ValidateBundle(upfrontCostBundle, "task_upfront_cost_preview");
+            if (!validateResult.success)
             {
-                errorMessage = $"Not enough upfront bundle cost for task={task.taskId}";
+                errorMessage = string.IsNullOrWhiteSpace(validateResult.message)
+                    ? $"Not enough upfront bundle cost for task={task.taskId}"
+                    : validateResult.message;
                 return false;
             }
 
@@ -73,6 +74,8 @@
 
         if (reservation.usesLegacyGold && reservation.lockedGold > 0)
             treasury.ConsumeLockedGold(reservation.lockedGold);
+
+        ClearReservation(reservation);
     }
 
     public void SettleFailure(TaskEscrowReservation reservation, TreasuryService treasury)
@@ -83,6 +86,7 @@
         if (reservation.usesLegacyGold && reservation.lockedGold > 0)
         {
             treasury.RefundGold(reservation.lockedGold);
+            ClearReservation(reservation);
             return;
         }
 
@@ -92,6 +96,8 @@
         {
             treasury.GrantBundle(reservation.spentBundle, "task_upfront_cost_refund");
         }
+
+        ClearReservation(reservation);
     }
 
     public void SettleDeath(TaskEscrowReservation reservation, TreasuryService treasury)
@@ -103,6 +109,7 @@
             treasury.ConsumeLockedGold(reservation.lockedGold);
 
         // bundle upfront cost stays consumed on death
+        ClearReservation(reservation);
     }
 
     public void SettleLost(TaskEscrowReservation reservation, TreasuryService treasury)
@@ -114,10 +121,16 @@
             treasury.ConsumeLockedGold(reservation.lockedGold);
 
         // bundle upfront cost stays consumed on lost
+        ClearReservation(reservation);
     }
 
     public bool HasActiveReservation(TaskEscrowReservation reservation)
     {
         return reservation != null && reservation.HasAnyReservation;
+    }
+
+    private void ClearReservation(TaskEscrowReservation reservation)
+    {
+        reservation?.Clear();
     }
 }

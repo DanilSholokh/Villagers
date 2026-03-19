@@ -32,6 +32,8 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
     [SerializeField] private List<PublishDef> publishButtons = new();
+    
+    [SerializeField] private TMPro.TextMeshProUGUI publishStateText;
 
     private TaskBoardService _board;
     private readonly Dictionary<Button, UnityAction> _handlers = new();
@@ -103,19 +105,34 @@ public class TaskPublisherPanel : MonoBehaviour
     {
         if (publishButtons == null)
             return;
-
+        
+        bool anyPublishable = false;
         for (int i = 0; i < publishButtons.Count; i++)
         {
             var def = publishButtons[i];
             if (def == null || def.button == null)
                 continue;
 
-            def.button.interactable = CanPublish(def, out _);
+            string reason;
+            bool canPublish = CanPublish(def, out reason);
+            if (publishStateText != null && anyPublishable)
+                publishStateText.text = "Ready";
+
+            def.button.interactable = canPublish;
+
+            if (publishStateText != null && !canPublish)
+                publishStateText.text = $"Blocked: {reason}";
         }
     }
 
-    private bool CanPublish(PublishDef def, out string reason)
+
+
+    private bool TryResolvePublishTargetLocation(
+    PublishDef def,
+    out string targetLocationId,
+    out string reason)
     {
+        targetLocationId = string.Empty;
         reason = string.Empty;
 
         if (def == null)
@@ -124,8 +141,12 @@ public class TaskPublisherPanel : MonoBehaviour
             return false;
         }
 
-        var treasury = GameInstaller.Treasury;
         var locations = GameInstaller.LocationService;
+        if (locations == null)
+        {
+            reason = "LocationService is null";
+            return false;
+        }
 
         switch (def.type)
         {
@@ -138,19 +159,15 @@ public class TaskPublisherPanel : MonoBehaviour
                         return false;
                     }
 
-                    bool unlocked = locations != null &&
-                        !string.IsNullOrWhiteSpace(locations.FindAnyLocationForResource(normalizedResourceId, true, true));
+                    targetLocationId = locations.FindAnyLocationForResource(
+                        normalizedResourceId,
+                        onlyDiscovered: true,
+                        onlyUnlocked: true
+                    );
 
-                    if (!unlocked)
+                    if (string.IsNullOrWhiteSpace(targetLocationId))
                     {
                         reason = $"Resource '{normalizedResourceId}' not discovered yet";
-                        return false;
-                    }
-
-                    var costBundle = BuildExactUpfrontCostBundle(def);
-                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
-                    {
-                        reason = "Not enough upfront resources";
                         return false;
                     }
 
@@ -159,19 +176,92 @@ public class TaskPublisherPanel : MonoBehaviour
 
             case TaskType.ExploreNewLocation:
                 {
-                    bool hasUnknown = locations != null &&
-                        !string.IsNullOrWhiteSpace(locations.FindRandomUnknownLocationId());
+                    targetLocationId = locations.FindRandomUnknownLocationId();
 
-                    if (!hasUnknown)
+                    if (string.IsNullOrWhiteSpace(targetLocationId))
                     {
                         reason = "No unknown locations left";
                         return false;
                     }
 
+                    return true;
+                }
+
+            case TaskType.SurveyKnownLocation:
+                {
+                    targetLocationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
+
+                    if (string.IsNullOrWhiteSpace(targetLocationId))
+                        targetLocationId = locations.FindRandomDiscoveredLocationId();
+
+                    if (string.IsNullOrWhiteSpace(targetLocationId))
+                    {
+                        reason = "No discovered locations yet";
+                        return false;
+                    }
+
+                    return true;
+                }
+
+            default:
+                reason = $"Unsupported publish type: {def.type}";
+                return false;
+        }
+    }
+
+    private bool TryValidatePublishRequest(
+        PublishDef def,
+        out string targetLocationId,
+        out string reason)
+    {
+        targetLocationId = string.Empty;
+        reason = string.Empty;
+
+        if (def == null)
+        {
+            reason = "Definition is null";
+            return false;
+        }
+
+        if (_board == null && GameInstaller.TaskBoard == null)
+        {
+            reason = "TaskBoardService is null";
+            return false;
+        }
+
+        if (!TryResolvePublishTargetLocation(def, out targetLocationId, out reason))
+            return false;
+
+        var treasury = GameInstaller.Treasury;
+
+        switch (def.type)
+        {
+            case TaskType.Gather:
+            case TaskType.SurveyKnownLocation:
+                {
+                    var costBundle = BuildExactUpfrontCostBundle(def);
+
+                    if (treasury != null && costBundle != null && !costBundle.IsEmpty)
+                    {
+                        var validateResult = treasury.ValidateBundle(costBundle, "publish_preview");
+                        if (!validateResult.success)
+                        {
+                            reason = string.IsNullOrWhiteSpace(validateResult.message)
+                                ? "Not enough upfront resources"
+                                : validateResult.message;
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+
+            case TaskType.ExploreNewLocation:
+                {
                     var explore = GameInstaller.ExplorationUnlock;
                     if (explore == null)
                     {
-                        reason = "Exploration rule is not configured";
+                        reason = "ExplorationUnlockService is null";
                         return false;
                     }
 
@@ -181,36 +271,21 @@ public class TaskPublisherPanel : MonoBehaviour
                     return true;
                 }
 
-            case TaskType.SurveyKnownLocation:
-                {
-                    bool hasKnown = locations != null && locations.HasAnyDiscoveredLocation();
-                    if (!hasKnown)
-                    {
-                        reason = "No discovered locations yet";
-                        return false;
-                    }
-
-                    var costBundle = BuildExactUpfrontCostBundle(def);
-                    if (treasury != null && costBundle != null && !costBundle.IsEmpty && !treasury.CanAfford(costBundle))
-                    {
-                        reason = "Not enough upfront resources";
-                        return false;
-                    }
-
-                    return true;
-                }
+            default:
+                reason = $"Unsupported publish type: {def.type}";
+                return false;
         }
+    }
 
-        return true;
+
+    private bool CanPublish(PublishDef def, out string reason)
+    {
+        return TryValidatePublishRequest(def, out _, out reason);
     }
 
     private void Publish(PublishDef def)
     {
-        if (def == null)
-            return;
-
-        if (_board == null)
-            _board = GameInstaller.TaskBoard;
+        _board ??= GameInstaller.TaskBoard;
 
         if (_board == null)
         {
@@ -218,7 +293,7 @@ public class TaskPublisherPanel : MonoBehaviour
             return;
         }
 
-        if (!CanPublish(def, out string reason))
+        if (!TryValidatePublishRequest(def, out string targetLocationId, out string reason))
         {
             GameDebug.Warning(GameDebugChannel.Task, $"Publish blocked: {reason}");
             return;
@@ -227,15 +302,45 @@ public class TaskPublisherPanel : MonoBehaviour
         switch (def.type)
         {
             case TaskType.Gather:
-                PublishGather(def.displayName, def.resourceId, def.baseAmount, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                PublishGather(
+                    def.displayName,
+                    def.resourceId,
+                    def.baseAmount,
+                    def.maxTakers,
+                    def.durationSec,
+                    def.wageGold,
+                    def.priority,
+                    def.baseFailChance,
+                    def.upfrontCostResourceId,
+                    def.upfrontCostAmount,
+                    targetLocationId
+                );
                 break;
 
             case TaskType.ExploreNewLocation:
-                PublishExploreNewLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance);
+                PublishExploreNewLocation(
+                    def.displayName,
+                    def.maxTakers,
+                    def.durationSec,
+                    def.wageGold,
+                    def.priority,
+                    def.baseFailChance,
+                    targetLocationId
+                );
                 break;
 
             case TaskType.SurveyKnownLocation:
-                PublishSurveyKnownLocation(def.displayName, def.maxTakers, def.durationSec, def.wageGold, def.priority, def.baseFailChance, def.upfrontCostResourceId, def.upfrontCostAmount);
+                PublishSurveyKnownLocation(
+                    def.displayName,
+                    def.maxTakers,
+                    def.durationSec,
+                    def.wageGold,
+                    def.priority,
+                    def.baseFailChance,
+                    def.upfrontCostResourceId,
+                    def.upfrontCostAmount,
+                    targetLocationId
+                );
                 break;
 
             default:
@@ -245,16 +350,17 @@ public class TaskPublisherPanel : MonoBehaviour
     }
 
     public void PublishGather(
-        string displayName,
-        string resourceId,
-        int baseAmount,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance,
-        string upfrontCostResourceId = null,
-        int upfrontCostAmount = 0)
+    string displayName,
+    string resourceId,
+    int baseAmount,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance,
+    string upfrontCostResourceId = null,
+    int upfrontCostAmount = 0,
+    string forcedTargetLocationId = null)
     {
         string normalizedResourceId = Normalize(resourceId);
         var id = $"rt_gather_{normalizedResourceId}_{Time.frameCount}";
@@ -319,35 +425,34 @@ public class TaskPublisherPanel : MonoBehaviour
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };
 
-        task.successChance = 1f - task.baseFailChance;
 
-        if (task.successChance >= 0.85f) task.riskTier = 0;
-        else if (task.successChance >= 0.7f) task.riskTier = 1;
-        else if (task.successChance >= 0.55f) task.riskTier = 2;
-        else if (task.successChance >= 0.4f) task.riskTier = 3;
-        else if (task.successChance >= 0.25f) task.riskTier = 4;
-        else task.riskTier = 5;
+        task.RecalculateDerivedStats();
 
-        if (!string.IsNullOrWhiteSpace(task.resourceId) &&
-            string.IsNullOrWhiteSpace(task.targetLocationId))
+        if (!string.IsNullOrWhiteSpace(forcedTargetLocationId))
+        {
+            task.SetTargetLocation(forcedTargetLocationId);
+        }
+        else if (!string.IsNullOrWhiteSpace(task.resourceId) && !task.HasTargetLocation())
         {
             string locationId = locations?.FindAnyLocationForResource(task.resourceId, true, true);
             if (!string.IsNullOrWhiteSpace(locationId))
-                task.targetLocationId = locationId;
+                task.SetTargetLocation(locationId);
         }
 
         _board.AddTaskRuntime(task);
+
     }
 
     public void PublishSurveyKnownLocation(
-        string displayName,
-        int maxTakers,
-        float durationSec,
-        int wageGold,
-        int priority,
-        float baseFailChance,
-        string upfrontCostResourceId = null,
-        int upfrontCostAmount = 0)
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance,
+    string upfrontCostResourceId = null,
+    int upfrontCostAmount = 0,
+    string forcedTargetLocationId = null)
     {
         var id = $"rt_survey_{Time.frameCount}";
         var locations = GameInstaller.LocationService;
@@ -402,25 +507,34 @@ public class TaskPublisherPanel : MonoBehaviour
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };
 
-        task.successChance = 1f - task.baseFailChance;
+        task.RecalculateDerivedStats();
 
-        if (task.successChance >= 0.85f) task.riskTier = 0;
-        else if (task.successChance >= 0.7f) task.riskTier = 1;
-        else if (task.successChance >= 0.55f) task.riskTier = 2;
-        else if (task.successChance >= 0.4f) task.riskTier = 3;
-        else if (task.successChance >= 0.25f) task.riskTier = 4;
-        else task.riskTier = 5;
+        if (!string.IsNullOrWhiteSpace(forcedTargetLocationId))
+        {
+            task.SetTargetLocation(forcedTargetLocationId);
+        }
+        else
+        {
+            string targetLocationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
+
+            if (string.IsNullOrWhiteSpace(targetLocationId))
+                targetLocationId = locations.FindRandomDiscoveredLocationId();
+
+            if (!string.IsNullOrWhiteSpace(targetLocationId))
+                task.SetTargetLocation(targetLocationId);
+        }
 
         _board.AddTaskRuntime(task);
     }
 
     public void PublishExploreNewLocation(
-    string displayName = "Discover Region",
-    int maxTakers = 1,
-    float durationSec = 10f,
-    int wageGold = 0,
-    int priority = 3,
-    float baseFailChance = 0.15f)
+    string displayName,
+    int maxTakers,
+    float durationSec,
+    int wageGold,
+    int priority,
+    float baseFailChance,
+    string forcedTargetLocationId = null)
     {
         if (_board == null)
             _board = GameInstaller.TaskBoard;
@@ -489,14 +603,12 @@ public class TaskPublisherPanel : MonoBehaviour
             baseFailChance = Mathf.Clamp01(baseFailChance)
         };
 
-        task.successChance = 1f - task.baseFailChance;
 
-        if (task.successChance >= 0.85f) task.riskTier = 0;
-        else if (task.successChance >= 0.7f) task.riskTier = 1;
-        else if (task.successChance >= 0.55f) task.riskTier = 2;
-        else if (task.successChance >= 0.4f) task.riskTier = 3;
-        else if (task.successChance >= 0.25f) task.riskTier = 4;
-        else task.riskTier = 5;
+        task.RecalculateDerivedStats();
+
+        string targetLocationId = locations.FindRandomUnknownLocationId();
+        if (!string.IsNullOrWhiteSpace(targetLocationId))
+            task.SetTargetLocation(targetLocationId);
 
         _board.AddTaskRuntime(task);
 
@@ -504,6 +616,109 @@ public class TaskPublisherPanel : MonoBehaviour
             GameDebugChannel.UI,
             $"Published Explore task: {task.taskId} cost={explore.GetCostText()}"
         );
+    }
+
+    public void ValidateBootstrapConfig()
+    {
+        if (publishButtons == null || publishButtons.Count == 0)
+        {
+            GameDebug.Warning(
+                GameDebugChannel.General,
+                $"TaskPublisherPanel '{name}' has no publish button definitions."
+            );
+            return;
+        }
+
+        for (int i = 0; i < publishButtons.Count; i++)
+        {
+            var def = publishButtons[i];
+            if (def == null)
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' has null PublishDef at index {i}."
+                );
+                continue;
+            }
+
+            if (def.button == null)
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' PublishDef '{def.displayName}' has null Button."
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(def.displayName))
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' has PublishDef with empty displayName at index {i}."
+                );
+            }
+
+            if (def.maxTakers < 1)
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' PublishDef '{def.displayName}' has invalid maxTakers={def.maxTakers}."
+                );
+            }
+
+            if (def.durationSec < 0.1f)
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' PublishDef '{def.displayName}' has invalid durationSec={def.durationSec}."
+                );
+            }
+
+            string normalizedResourceId = Normalize(def.resourceId);
+            string normalizedCostId = Normalize(def.upfrontCostResourceId);
+
+            switch (def.type)
+            {
+                case TaskType.Gather:
+                    if (string.IsNullOrWhiteSpace(normalizedResourceId))
+                    {
+                        GameDebug.Warning(
+                            GameDebugChannel.General,
+                            $"TaskPublisherPanel '{name}' Gather PublishDef '{def.displayName}' has empty resourceId."
+                        );
+                    }
+                    else if (GameInstaller.Resources != null && !GameInstaller.Resources.Has(normalizedResourceId))
+                    {
+                        GameDebug.Warning(
+                            GameDebugChannel.General,
+                            $"TaskPublisherPanel '{name}' Gather PublishDef '{def.displayName}' references missing resourceId '{normalizedResourceId}'."
+                        );
+                    }
+                    break;
+
+                case TaskType.ExploreNewLocation:
+                    if (!string.IsNullOrWhiteSpace(normalizedCostId) || def.upfrontCostAmount > 0)
+                    {
+                        GameDebug.Warning(
+                            GameDebugChannel.General,
+                            $"TaskPublisherPanel '{name}' Explore PublishDef '{def.displayName}' has exact upfront cost fields set, but Explore uses ExplorationUnlockRuleSO as source of truth."
+                        );
+                    }
+                    break;
+
+                case TaskType.SurveyKnownLocation:
+                    break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedCostId) &&
+                GameInstaller.Resources != null &&
+                !GameInstaller.Resources.Has(normalizedCostId))
+            {
+                GameDebug.Warning(
+                    GameDebugChannel.General,
+                    $"TaskPublisherPanel '{name}' PublishDef '{def.displayName}' references missing upfrontCostResourceId '{normalizedCostId}'."
+                );
+            }
+        }
     }
 
     private ResourceBundle BuildExactUpfrontCostBundle(PublishDef def)

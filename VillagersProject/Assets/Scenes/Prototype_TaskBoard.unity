@@ -5568,6 +5568,22 @@ PrefabInstance:
       value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].upfrontCostAmount
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[4].upfrontCostAmount
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[3].upfrontCostResourceId
+      value: tradegoods
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
+      propertyPath: publishButtons.Array.data[4].upfrontCostResourceId
+      value: gold
+      objectReference: {fileID: 0}
+    - target: {fileID: 4461281978433836922, guid: df33a0916701eb848ba2610a46f8eb99, type: 3}
       propertyPath: publishButtons.Array.data[3].selectedLocationCostValue
       value: 0
       objectReference: {fileID: 0}

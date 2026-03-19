@@ -16,5 +16,5 @@ MonoBehaviour:
     ruleId: discover_region
     displayName: Discover Region
     categoryId: tradegoods
-    requiredValue: 30
+    requiredValue: 0
     allowBlockedLocations: 0

@@ -419,7 +419,30 @@ public class LocationService
         return RevealPotentialResource(locationId, r.resourceId);
     }
 
+    public bool TryRevealRandomPotentialResourceDetailed(string locationId, out string revealedResourceId)
+    {
+        revealedResourceId = string.Empty;
 
+        if (string.IsNullOrWhiteSpace(locationId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.potentialResources == null || loc.potentialResources.Count == 0)
+        {
+            Dbg($"TryRevealRandomPotentialResourceDetailed location={locationId} -> no potential resources");
+            return false;
+        }
+
+        int index = UnityEngine.Random.Range(0, loc.potentialResources.Count);
+        var r = loc.potentialResources[index];
+        if (r == null || string.IsNullOrWhiteSpace(r.resourceId))
+            return false;
+
+        revealedResourceId = r.resourceId;
+        Dbg($"TryRevealRandomPotentialResourceDetailed location={locationId} picked={revealedResourceId}");
+
+        return RevealPotentialResource(locationId, revealedResourceId);
+    }
 
     public IReadOnlyCollection<string> GetDiscoveredLocationIds()
     {

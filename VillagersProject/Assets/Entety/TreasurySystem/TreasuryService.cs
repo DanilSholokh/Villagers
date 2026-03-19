@@ -110,19 +110,23 @@ public class TreasuryService : IResourceContainer
         return result;
     }
 
-    public bool CanAfford(ResourceBundle bundle)
+    public EconomicResult ValidateBundle(ResourceBundle bundle, string reason = null)
     {
         if (bundle == null || bundle.IsEmpty)
-            return true;
+            return EconomicResult.Ok("Bundle is empty.");
 
         var recipe = new EconomicRecipeBuilder()
-            .WithId("treasury_can_afford")
-            .WithDisplayName("Treasury CanAfford Check")
+            .WithId("treasury_validate_bundle")
+            .WithDisplayName("Treasury Validate Bundle")
             .WithInput(bundle)
             .Build();
 
-        var result = ValidateRecipe(recipe, reason: "treasury_can_afford");
-        return result.success;
+        return ValidateRecipe(recipe, reason: reason ?? "treasury_validate_bundle");
+    }
+
+    public bool CanAfford(ResourceBundle bundle)
+    {
+        return ValidateBundle(bundle, "treasury_can_afford").success;
     }
 
     public EconomicResult SpendBundle(ResourceBundle bundle, string reason = null)

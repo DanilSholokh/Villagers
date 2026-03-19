@@ -125,6 +125,7 @@ public class LocationMetricsPanelView : MonoBehaviour
         sb.AppendLine($"Lost: {loc.metrics.villagersLost}");
         sb.AppendLine($"Dead: {loc.metrics.villagersDead}");
         sb.AppendLine($"Gathered: {BuildGatheredResources(loc)}");
+        sb.AppendLine($"Hidden Resources: {BuildPotentialResources(loc)}");
 
         AppendExplorationInfo(sb, loc);
 
@@ -182,4 +183,29 @@ public class LocationMetricsPanelView : MonoBehaviour
 
         return sb.ToString();
     }
+
+    private string BuildPotentialResources(LocationModel loc)
+    {
+        if (loc == null || loc.potentialResources == null || loc.potentialResources.Count == 0)
+            return "-";
+
+        var sb = new StringBuilder();
+        bool first = true;
+
+        for (int i = 0; i < loc.potentialResources.Count; i++)
+        {
+            var r = loc.potentialResources[i];
+            if (r == null || string.IsNullOrWhiteSpace(r.resourceId))
+                continue;
+
+            if (!first)
+                sb.Append(", ");
+
+            sb.Append(r.resourceId);
+            first = false;
+        }
+
+        return sb.Length > 0 ? sb.ToString() : "-";
+    }
+
 }

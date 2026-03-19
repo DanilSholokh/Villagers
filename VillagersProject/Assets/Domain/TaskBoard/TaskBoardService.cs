@@ -96,9 +96,17 @@ public class TaskBoardService
             existing.resourceId = task.resourceId;
             existing.baseAmount = task.baseAmount;
 
+            // target source-of-truth
+            existing.targetSpotId = task.targetSpotId;
+            existing.targetLocationId = task.targetLocationId;
+
             existing.workOutputBundle = task.workOutputBundle ?? new ResourceBundle();
             existing.taskRewardBundle = task.taskRewardBundle ?? new ResourceBundle();
             existing.taskCostBundle = task.taskCostBundle ?? new ResourceBundle();
+
+            existing.baseFailChance = task.baseFailChance;
+            existing.successChance = task.successChance;
+            existing.riskTier = task.riskTier;
 
             OnTasksChanged?.Invoke();
             OnReservationsChanged?.Invoke();

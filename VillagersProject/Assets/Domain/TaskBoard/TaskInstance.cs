@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 public enum TaskType
 {
@@ -11,8 +10,12 @@ public enum TaskType
 public class TaskInstance
 {
     public string taskId;
-    public string targetSpotId; // legacy transitional field, do not use in new logic
-    public string targetLocationId; // new source-of-truth
+
+    // legacy transitional field, keep only for backward compatibility
+    public string targetSpotId;
+
+    // source-of-truth for runtime movement/settlement
+    public string targetLocationId;
 
     public TaskType type;
     public string displayName;
@@ -25,14 +28,14 @@ public class TaskInstance
 
     public int wageGold;
 
-    public float successChance;   // 0..1 (показуЇтьс€ в UI)
-    public int riskTier;          // 0..5 (т≥льки ≥ндикатор)
+    public float successChance;   // 0..1
+    public int riskTier;          // 0..5
 
-    // ƒл€ Gather (поки опц≥онально)
+    // legacy gather payload
     public string resourceId;
     public int baseAmount;
 
-    // PATCH 9 Ч universal task payloads
+    // universal payloads
     public ResourceBundle workOutputBundle = new();
     public ResourceBundle taskRewardBundle = new();
     public ResourceBundle taskCostBundle = new();
@@ -68,5 +71,60 @@ public class TaskInstance
             || (taskCostBundle != null && !taskCostBundle.IsEmpty);
     }
 
-}
+    public bool HasTargetLocation()
+    {
+        return !string.IsNullOrWhiteSpace(targetLocationId);
+    }
 
+    public bool HasPinnedTargetLocation()
+    {
+        return !string.IsNullOrWhiteSpace(targetLocationId);
+    }
+
+    public string GetResolvedTargetLocationId()
+    {
+        if (!string.IsNullOrWhiteSpace(targetLocationId))
+            return targetLocationId;
+
+        return string.Empty;
+    }
+
+    public bool UsesLegacySpotTargetOnly()
+    {
+        return string.IsNullOrWhiteSpace(targetLocationId)
+            && !string.IsNullOrWhiteSpace(targetSpotId);
+    }
+
+    public void SetTargetLocation(string locationId)
+    {
+        targetLocationId = NormalizeId(locationId);
+
+        // explicit: legacy field must not be reintroduced as runtime truth
+        if (!string.IsNullOrWhiteSpace(targetLocationId))
+            targetSpotId = string.Empty;
+    }
+
+    public void ClearTargetLocation()
+    {
+        targetLocationId = string.Empty;
+    }
+
+    public void RecalculateDerivedStats()
+    {
+        successChance = 1f - UnityEngine.Mathf.Clamp01(baseFailChance);
+
+        if (successChance >= 0.85f) riskTier = 0;
+        else if (successChance >= 0.7f) riskTier = 1;
+        else if (successChance >= 0.55f) riskTier = 2;
+        else if (successChance >= 0.4f) riskTier = 3;
+        else if (successChance >= 0.25f) riskTier = 4;
+        else riskTier = 5;
+    }
+
+    private static string NormalizeId(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+    }
+}

@@ -78,7 +78,7 @@ public class TaskBoardAuthoring : MonoBehaviour
                 costBundle.Normalize();
             }
 
-            list.Add(new TaskInstance
+            var task = new TaskInstance
             {
                 taskId = t.taskId,
                 type = t.type,
@@ -99,7 +99,10 @@ public class TaskBoardAuthoring : MonoBehaviour
                 taskCostBundle = costBundle,
 
                 baseFailChance = t.baseFailChance
-            });
+            };
+
+            task.RecalculateDerivedStats();
+            list.Add(task);
         }
 
         return list;

@@ -245,23 +245,9 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        string locationId = task.targetLocationId;
-        LocationModel loc = null;
-
-        if (!string.IsNullOrWhiteSpace(locationId))
+        if (!TryResolveExploreLocation(task, locations, out string locationId, out LocationModel loc, out string error))
         {
-            loc = locations.GetLocation(locationId);
-        }
-        else
-        {
-            locationId = locations.FindRandomUnknownLocationId();
-            if (!string.IsNullOrWhiteSpace(locationId))
-                loc = locations.GetLocation(locationId);
-        }
-
-        if (loc == null)
-        {
-            PublishExploreEvent("Explore failed: LocationService is null", GameDebugSeverity.Error);
+            PublishExploreEvent($"Explore failed: {error}", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
         }
@@ -293,7 +279,6 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (!TryExecuteExploreUnlock(task))
         {
-            locations.RemoveWorker(locationId, agentId, task.taskId);
             _completedThisCycle = false;
             yield break;
         }
@@ -303,7 +288,6 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Explore success: {task.taskId}");
 
         locations.AddTaskCompleted(locationId);
-        locations.RemoveWorker(locationId, agentId, task.taskId);
 
         _completedThisCycle = true;
 
@@ -322,27 +306,9 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        string locationId = task.targetLocationId;
-        LocationModel loc = null;
-
-        if (!string.IsNullOrWhiteSpace(locationId))
+        if (!TryResolveSurveyLocation(task, locations, out string locationId, out LocationModel loc, out string error))
         {
-            loc = locations.GetLocation(locationId);
-        }
-        else
-        {
-            locationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
-
-            if (string.IsNullOrWhiteSpace(locationId))
-                locationId = locations.FindRandomDiscoveredLocationId();
-
-            if (!string.IsNullOrWhiteSpace(locationId))
-                loc = locations.GetLocation(locationId);
-        }
-
-        if (loc == null)
-        {
-            Log("SurveyKnown failed: no discovered location found");
+            Log($"SurveyKnown failed: {error}");
             _completedThisCycle = false;
             yield break;
         }
@@ -375,7 +341,6 @@ public class VillagerAgentBrain : MonoBehaviour
         var survey = GameInstaller.SurveyOutcome;
         if (survey == null)
         {
-            locations.RemoveWorker(locationId, agentId, task.taskId);
             Log("SurveyKnown failed: SurveyOutcomeService is null");
             _completedThisCycle = false;
             yield break;
@@ -385,29 +350,45 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (outcome.type == SurveyOutcomeType.RevealHiddenResource)
         {
-            bool revealed = locations.TryRevealRandomPotentialResource(locationId);
-            PublishSurveyEvent("Resource found");
+            bool revealed = locations.TryRevealRandomPotentialResourceDetailed(locationId, out string revealedResourceId);
+
+            if (revealed)
+            {
+                Log($"SurveyKnown revealed resource '{revealedResourceId}' at location={locationId}");
+                PublishSurveyEvent($"Resource found: {revealedResourceId}");
+            }
+            else
+            {
+                Log($"SurveyKnown reveal roll failed: no hidden resource revealed at location={locationId}");
+                PublishSurveyEvent("Nothing");
+            }
         }
         else if (outcome.type == SurveyOutcomeType.BonusGold)
         {
             if (outcome.goldAmount > 0)
             {
                 _cargo.Add("gold", outcome.goldAmount);
+                Log($"SurveyKnown found bonus gold +{outcome.goldAmount} at location={locationId}");
                 PublishEconomyEvent($"+{outcome.goldAmount} gold");
-                PublishSurveyEvent("Bonus gold");
+                PublishSurveyEvent($"Bonus gold: +{outcome.goldAmount}");
+            }
+            else
+            {
+                PublishSurveyEvent("Nothing");
             }
         }
         else if (outcome.type == SurveyOutcomeType.Nothing)
         {
+            Log($"SurveyKnown found nothing at location={locationId}");
             PublishSurveyEvent("Nothing");
         }
         else if (outcome.type == SurveyOutcomeType.Danger)
         {
+            Log($"SurveyKnown danger event at location={locationId}");
             PublishSurveyEvent("Danger", GameDebugSeverity.Warning);
         }
 
         locations.AddTaskCompleted(locationId);
-        locations.RemoveWorker(locationId, agentId, task.taskId);
 
         _completedThisCycle = true;
     }
@@ -432,36 +413,11 @@ public class VillagerAgentBrain : MonoBehaviour
             yield break;
         }
 
-        string locationId = task.targetLocationId;
-        LocationModel loc = null;
-
-        if (!string.IsNullOrWhiteSpace(locationId))
+        if (!TryResolveGatherLocation(task, locations, out string locationId, out LocationModel loc, out string error))
         {
-            loc = locations.GetLocation(locationId);
-            if (loc == null)
-            {
-                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
-                _completedThisCycle = false;
-                yield break;
-            }
-        }
-        else
-        {
-            locationId = locations.FindAnyLocationForResource(task.resourceId, onlyDiscovered: true, onlyUnlocked: true);
-            if (string.IsNullOrWhiteSpace(locationId))
-            {
-                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
-                _completedThisCycle = false;
-                yield break;
-            }
-
-            loc = locations.GetLocation(locationId);
-            if (loc == null)
-            {
-                PublishTaskEvent($"Gather failed: no work spot for {task.resourceId}", GameDebugSeverity.Warning);
-                _completedThisCycle = false;
-                yield break;
-            }
+            PublishTaskEvent($"Gather failed: {error}", GameDebugSeverity.Warning);
+            _completedThisCycle = false;
+            yield break;
         }
 
         if (!locations.HasUnlockedResource(locationId, task.resourceId))
@@ -497,10 +453,23 @@ public class VillagerAgentBrain : MonoBehaviour
         if (task.durationSec > 0f)
             yield return new WaitForSeconds(task.durationSec);
 
-        if (task.baseAmount <= 0)
+        int gatheredAmount = GetGatherAmount(task);
+
+        if (gatheredAmount > 0)
         {
-            locations.RemoveWorker(locationId, agentId, task.taskId);
-            Log($"Gather produced nothing: baseAmount={task.baseAmount}");
+            locations.AddResourceGathered(locationId, task.resourceId, gatheredAmount);
+            Log($"Gather complete: {task.resourceId} x{gatheredAmount} at location={locationId}");
+            PublishTaskEvent($"Gathered: {task.resourceId} x{gatheredAmount}");
+        }
+        else
+        {
+            Log($"Gather complete: no output amount resolved for task={task.taskId}");
+            PublishTaskEvent("Gather complete");
+        }
+
+        if (gatheredAmount <= 0)
+        {
+            Log($"Gather produced nothing: gatheredAmount={gatheredAmount}");
             PublishTaskEvent("Gather produced nothing", GameDebugSeverity.Warning);
             _completedThisCycle = false;
             yield break;
@@ -510,18 +479,16 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (workBundle == null || workBundle.IsEmpty)
         {
-            _cargo.Add(task.resourceId, task.baseAmount);
+            _cargo.Add(task.resourceId, gatheredAmount);
         }
 
-        locations.AddResourceGathered(locationId, task.resourceId, task.baseAmount);
         locations.AddTaskCompleted(locationId);
-        locations.RemoveWorker(locationId, agentId, task.taskId);
 
-        PublishEconomyEvent($"+{task.baseAmount} {task.resourceId}");
-        Log($"Gather success: {task.resourceId} x{task.baseAmount}");
+        PublishEconomyEvent($"+{gatheredAmount} {task.resourceId}");
+        Log($"Gather success: {task.resourceId} x{gatheredAmount}");
 
         _completedThisCycle = true;
-        Log($"Gather done: +{task.baseAmount} {task.resourceId} (cargo now updated)");
+        Log($"Gather done: +{gatheredAmount} {task.resourceId} (cargo now updated)");
     }
 
     private IEnumerator DoGoHome()
@@ -734,6 +701,19 @@ public class VillagerAgentBrain : MonoBehaviour
         return true;
     }
 
+    private void CancelActiveTaskStart(TaskInstance task)
+    {
+        if (_activeEscrow != null)
+        {
+            _taskEscrow.SettleFailure(_activeEscrow, _treasury);
+            _activeEscrow = null;
+        }
+
+        ReleaseTaskWorkerBinding(task);
+        CleanupTaskReservation(task);
+        _roster?.SetStatus(agentId, VillagerStatus.Idle);
+    }
+
     private void CleanupTaskReservation(TaskInstance task)
     {
         if (task == null || _board == null)
@@ -745,15 +725,14 @@ public class VillagerAgentBrain : MonoBehaviour
             _board.RemoveTaskRuntime(task.taskId);
     }
 
+
+
     private IEnumerator AbortTaskStart(TaskInstance task, string reason, float delaySec = -1f)
     {
         if (!string.IsNullOrWhiteSpace(reason))
             Log(reason);
 
-        CleanupTaskReservation(task);
-        _activeEscrow = null;
-
-        _roster?.SetStatus(agentId, VillagerStatus.Idle);
+        CancelActiveTaskStart(task);
 
         if (delaySec < 0f)
             delaySec = noTaskDelay;
@@ -768,25 +747,29 @@ public class VillagerAgentBrain : MonoBehaviour
     private void FinalizeTask(TaskInstance task, bool success)
     {
         if (task == null)
+        {
+            _activeEscrow = null;
+            _roster?.SetStatus(agentId, VillagerStatus.Idle);
             return;
+        }
 
         if (success)
         {
             _taskSettlement.ApplySuccess(task, _cargo, _treasury);
-            CommitCargoToTreasury();
 
-            _taskEscrow.SettleSuccess(_activeEscrow, _treasury);
-            _activeEscrow = null;
-        }
-        else
-        {
-            _taskSettlement.ApplyFailure(task, _cargo, _treasury);
+            Log($"Task success: {task.taskId}");
+            PublishTaskEvent($"Completed: {task.taskId}");
 
-            _taskEscrow.SettleFailure(_activeEscrow, _treasury);
-            _activeEscrow = null;
+            ApplyTaskSettlement(task, true);
+            return;
         }
 
-        CleanupTaskReservation(task);
+        _taskSettlement.ApplyFailure(task, _cargo, _treasury);
+
+        Log($"Task failed: {task.taskId}");
+        PublishTaskEvent($"Failed: {task.taskId}", GameDebugSeverity.Warning);
+
+        ApplyTaskSettlement(task, false);
     }
 
 
@@ -806,10 +789,9 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (task != null && !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) && GameInstaller.LocationService != null)
         {
-            GameInstaller.LocationService.AddVillagerDead(task.targetLocationId);
-            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+            GameInstaller.LocationService.AddVillagerDead(task.GetResolvedTargetLocationId());
         }
 
         _taskSettlement.ApplyDeath(task, _cargo, _treasury);
@@ -821,6 +803,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (task != null)
         {
+            ReleaseTaskWorkerBinding(task);
             CleanupTaskReservation(task);
             _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "DEAD");
         }
@@ -851,10 +834,9 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Lost?.AddLost(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
+        if (task != null && !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) && GameInstaller.LocationService != null)
         {
-            GameInstaller.LocationService.AddVillagerLost(task.targetLocationId);
-            GameInstaller.LocationService.RemoveWorker(task.targetLocationId, agentId, task.taskId);
+            GameInstaller.LocationService.AddVillagerLost(task.GetResolvedTargetLocationId());
         }
 
         _taskSettlement.ApplyLost(task, _cargo, _treasury);
@@ -866,6 +848,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (task != null)
         {
+            ReleaseTaskWorkerBinding(task);
             CleanupTaskReservation(task);
             _roster?.SetStatus(agentId, VillagerStatus.Idle, task.taskId, "LOST");
         }
@@ -877,12 +860,244 @@ public class VillagerAgentBrain : MonoBehaviour
         StopBrain();
     }
 
+    private bool TryGetStrictTaskLocation(
+    TaskInstance task,
+    out string locationId,
+    out LocationModel location,
+    out LocationService locations,
+    out string error)
+    {
+        locationId = string.Empty;
+        location = null;
+        locations = GameInstaller.LocationService;
+        error = string.Empty;
+
+        if (task == null)
+        {
+            error = "Task is null";
+            return false;
+        }
+
+        if (locations == null)
+        {
+            error = "LocationService is null";
+            return false;
+        }
+
+        locationId = task.GetResolvedTargetLocationId();
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            error = $"Task '{task.taskId}' has empty targetLocationId";
+            return false;
+        }
+
+        location = locations.GetLocation(locationId);
+        if (location == null)
+        {
+            error = $"Task '{task.taskId}' references missing location '{locationId}'";
+            return false;
+        }
+
+        return true;
+    }
+
+
+    private bool TryResolveGatherLocation(
+    TaskInstance task,
+    LocationService locations,
+    out string locationId,
+    out LocationModel loc,
+    out string error)
+    {
+        locationId = string.Empty;
+        loc = null;
+        error = string.Empty;
+
+        if (task == null)
+        {
+            error = "Task is null";
+            return false;
+        }
+
+        if (locations == null)
+        {
+            error = "LocationService is null";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(task.resourceId))
+        {
+            error = "missing resourceId";
+            return false;
+        }
+
+        locationId = task.GetResolvedTargetLocationId();
+
+        if (!string.IsNullOrWhiteSpace(locationId))
+            loc = locations.GetLocation(locationId);
+
+        if (loc == null)
+        {
+            locationId = locations.FindAnyLocationForResource(task.resourceId, true, true);
+
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
+        }
+
+        if (loc == null)
+        {
+            error = $"no unlocked discovered location for resource '{task.resourceId}'";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryResolveSurveyLocation(
+        TaskInstance task,
+        LocationService locations,
+        out string locationId,
+        out LocationModel loc,
+        out string error)
+    {
+        locationId = string.Empty;
+        loc = null;
+        error = string.Empty;
+
+        if (task == null)
+        {
+            error = "Task is null";
+            return false;
+        }
+
+        if (locations == null)
+        {
+            error = "LocationService is null";
+            return false;
+        }
+
+        locationId = task.GetResolvedTargetLocationId();
+
+        if (!string.IsNullOrWhiteSpace(locationId))
+            loc = locations.GetLocation(locationId);
+
+        if (loc == null)
+        {
+            locationId = locations.FindRandomDiscoveredLocationWithPotentialResource();
+
+            if (string.IsNullOrWhiteSpace(locationId))
+                locationId = locations.FindRandomDiscoveredLocationId();
+
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
+        }
+
+        if (loc == null)
+        {
+            error = "no discovered location found";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryResolveExploreLocation(
+        TaskInstance task,
+        LocationService locations,
+        out string locationId,
+        out LocationModel loc,
+        out string error)
+    {
+        locationId = string.Empty;
+        loc = null;
+        error = string.Empty;
+
+        if (task == null)
+        {
+            error = "Task is null";
+            return false;
+        }
+
+        if (locations == null)
+        {
+            error = "LocationService is null";
+            return false;
+        }
+
+        locationId = task.GetResolvedTargetLocationId();
+
+        if (!string.IsNullOrWhiteSpace(locationId))
+            loc = locations.GetLocation(locationId);
+
+        if (loc == null)
+        {
+            locationId = locations.FindRandomUnknownLocationId();
+
+            if (!string.IsNullOrWhiteSpace(locationId))
+                loc = locations.GetLocation(locationId);
+        }
+
+        if (loc == null)
+        {
+            error = "no unknown location found";
+            return false;
+        }
+
+        return true;
+    }
+
+
+    private void ReleaseTaskWorkerBinding(TaskInstance task)
+    {
+        if (task == null || GameInstaller.LocationService == null)
+            return;
+
+        string locationId = task.GetResolvedTargetLocationId();
+
+        if (!string.IsNullOrWhiteSpace(locationId))
+            GameInstaller.LocationService.RemoveWorker(locationId, agentId, task.taskId);
+    }
+
+    private void ApplyTaskSettlement(TaskInstance task, bool success)
+    {
+        if (task == null)
+            return;
+
+        if (success)
+            _taskEscrow.SettleSuccess(_activeEscrow, _treasury);
+        else
+            _taskEscrow.SettleFailure(_activeEscrow, _treasury);
+
+        _activeEscrow = null;
+
+        ReleaseTaskWorkerBinding(task);
+        CleanupTaskReservation(task);
+
+        _roster?.SetStatus(agentId, VillagerStatus.Idle);
+    }
+
+
+    private int GetGatherAmount(TaskInstance task)
+    {
+        if (task == null)
+            return 0;
+
+        var workBundle = task.GetResolvedWorkOutputBundle();
+        if (workBundle != null && !workBundle.IsEmpty && !string.IsNullOrWhiteSpace(task.resourceId))
+            return workBundle.GetExactAmount(task.resourceId);
+
+        return Mathf.Max(0, task.baseAmount);
+    }
+
     private int GetTaskLocationDanger(TaskInstance task)
     {
-        if (task == null) return 0;
+        if (task == null)
+            return 0;
 
-        if (!string.IsNullOrWhiteSpace(task.targetLocationId) && GameInstaller.LocationService != null)
-            return Mathf.Clamp(GameInstaller.LocationService.GetDanger(task.targetLocationId), 0, 5);
+        string locationId = task.GetResolvedTargetLocationId();
+
+        if (!string.IsNullOrWhiteSpace(locationId) && GameInstaller.LocationService != null)
+            return Mathf.Clamp(GameInstaller.LocationService.GetDanger(locationId), 0, 5);
 
         return Mathf.Clamp(_lastWorkLocationDangerTier, 0, 5);
     }

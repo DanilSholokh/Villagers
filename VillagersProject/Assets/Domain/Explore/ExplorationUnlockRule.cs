@@ -10,7 +10,7 @@ public class ExplorationUnlockRule
 
     [Header("Cost")]
     public string categoryId = "tradegoods";
-    public int requiredValue = 30;
+    public int requiredValue = 0;
 
     [Header("Behavior")]
     public bool allowBlockedLocations = false;
