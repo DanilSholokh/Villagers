@@ -79,53 +79,10 @@
         if (task == null)
             return new ResourceBundle();
 
-        var source = task.GetResolvedTaskRewardBundle();
-        if (source == null || source.IsEmpty)
+        var reward = task.GetResolvedTaskRewardBundle();
+        if (reward == null || reward.IsEmpty)
             return new ResourceBundle();
 
-        var result = new ResourceBundle();
-
-        int legacyEscrowGoldToSkip = UsesLegacyGoldEscrow(task) && task.wageGold > 0
-            ? task.wageGold
-            : 0;
-
-        var exact = source.ExactResources;
-        if (exact != null)
-        {
-            for (int i = 0; i < exact.Count; i++)
-            {
-                var stack = exact[i];
-                if (!stack.IsValid)
-                    continue;
-
-                if (stack.resourceId == "gold" && legacyEscrowGoldToSkip > 0)
-                {
-                    int remainingGold = stack.amount - legacyEscrowGoldToSkip;
-                    if (remainingGold > 0)
-                        result.AddExact("gold", remainingGold);
-
-                    legacyEscrowGoldToSkip = 0;
-                    continue;
-                }
-
-                result.AddExact(stack.resourceId, stack.amount);
-            }
-        }
-
-        var categoryValues = source.CategoryValues;
-        if (categoryValues != null)
-        {
-            for (int i = 0; i < categoryValues.Count; i++)
-            {
-                var entry = categoryValues[i];
-                if (!entry.IsValid)
-                    continue;
-
-                result.AddCategoryValue(entry.categoryId, entry.value);
-            }
-        }
-
-        result.Normalize();
-        return result;
+        return reward.Clone();
     }
 }

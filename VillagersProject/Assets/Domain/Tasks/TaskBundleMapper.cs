@@ -30,7 +30,9 @@
 
     public static ResourceBundle BuildLegacyTaskCostBundle(TaskInstance task)
     {
-        // PATCH 9: optional now, empty by default.
+        // PATCH 11:
+        // legacy tasks without explicit taskCostBundle no longer invent a fake gold upfront cost.
+        // upfront costs must be explicit via taskCostBundle.
         return new ResourceBundle();
     }
 }

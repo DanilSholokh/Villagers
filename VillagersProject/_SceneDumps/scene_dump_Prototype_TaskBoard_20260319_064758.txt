@@ -1,0 +1,883 @@
+﻿=== FULL SCENE DUMP ===
+Time: 2026-03-19 06:47:58
+Scene: Prototype_TaskBoard
+Path: Assets/Scenes/Prototype_TaskBoard.unity
+Loaded: True
+
+Root objects: 9
+
+- Main Camera (activeSelf=True, activeInHierarchy=True) [tag=MainCamera, layer=Default]
+  Transform: pos=(291.30, 58.10, -28.00) rot=(54.71, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (6):
+  - Transform
+  - Camera
+  - AudioListener
+  - UniversalAdditionalCameraData
+  - VillagerClickSelector
+  - LocationClickSelector
+
+- Directional Light (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 3.00, 0.00) rot=(40.48, 150.00, 180.00) scale=(1.00, 1.00, 1.00)
+  Components (3):
+  - Transform
+  - Light
+  - UniversalAdditionalLightData
+
+- Global Volume (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (2):
+  - Transform
+  - Volume
+
+- NavMesh (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(-13.52, 0.00, 5.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (2):
+  - Transform
+  - NavMeshSurface
+
+- GameInstaller (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(55.96, 0.00, 118.71) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (2):
+  - Transform
+  - GameInstaller
+
+- ---World--- (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (1):
+  - Transform
+  - TaskBoardEntety (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(335.20, 2.12, 25.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Components (2):
+    - Transform
+    - TaskBoardAuthoring
+    - TaskBoardObject (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(0.00, -0.28, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.13, 3.65, 3.04)
+      Components (3):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+  - Terrain (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(-381.00, 0.00, -100.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Components (3):
+    - Transform
+    - Terrain
+    - TerrainCollider
+  - ExploreSports (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(284.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Components (1):
+    - Transform
+    - Spot (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(56.90, 0.00, 50.70) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (4):
+      - Transform
+      - ExploreSpotAuthoring
+      - LocationSelectable
+      - BoxCollider
+      - CaveObject (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 2.05, 0.00) rot=(0.00, 0.00, 0.00) scale=(2.00, 4.00, 2.00)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+    - Spot (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-21.80, 0.00, 34.30) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (4):
+      - Transform
+      - ExploreSpotAuthoring
+      - LocationSelectable
+      - BoxCollider
+      - ForestObject (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.74, 1.27, 0.00) rot=(0.00, 0.00, 0.00) scale=(0.34, 2.40, 0.30)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+      - ForestObject (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.42, 1.27, -1.29) rot=(0.00, 0.00, 0.00) scale=(0.34, 2.40, 0.30)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+      - ForestObject (3) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 1.27, 1.46) rot=(0.00, 0.00, 0.00) scale=(0.34, 2.40, 0.30)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+      - ForestObject (2) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-1.15, 1.27, 0.00) rot=(0.00, 0.00, 0.00) scale=(0.34, 2.40, 0.30)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+    - Spot (2) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-37.20, 0.00, 64.80) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (4):
+      - Transform
+      - ExploreSpotAuthoring
+      - LocationSelectable
+      - BoxCollider
+      - Sphere (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(10.00, 0.40, 10.00)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+    - Spot (3) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(53.70, 0.00, -18.40) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (4):
+      - Transform
+      - ExploreSpotAuthoring
+      - LocationSelectable
+      - BoxCollider
+      - Cube (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(1.57, 2.65, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 5.11, 1.00)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+      - Cube (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-2.01, 2.65, -1.15) rot=(0.00, 0.00, 0.00) scale=(1.00, 5.11, 1.00)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+      - Cube (2) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-0.76, 2.65, 1.27) rot=(0.00, 0.00, 0.00) scale=(1.00, 5.11, 1.00)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+    - Spot (4) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-53.60, 0.00, 6.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (4):
+      - Transform
+      - ExploreSpotAuthoring
+      - LocationSelectable
+      - BoxCollider
+      - Sphere (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, -0.04, 0.00) rot=(0.00, 0.00, 0.00) scale=(10.33, 1.00, 9.32)
+        Components (3):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+  - ---Agents--- (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(284.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Components (1):
+    - Transform
+    - ExplorerAgentPrefab (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(53.93, 1.06, 26.35) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(55.20, 1.06, 26.39) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (2) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(60.02, 1.06, 26.48) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (3) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(61.30, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (4) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(58.80, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (5) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(56.89, 1.06, 26.65) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+    - ExplorerAgentPrefab (6) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(63.10, 1.06, 26.58) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      Components (6):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+      - CapsuleCollider
+      - NavMeshAgent
+      - VillagerAgentBrain
+      - Quad (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 0.59, 0.50) rot=(0.00, 180.00, 0.00) scale=(0.89, 0.89, 0.89)
+        Components (4):
+        - Transform
+        - MeshFilter
+        - MeshRenderer
+        - MeshCollider
+  - HomePoint (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(322.17, -0.01, 30.50) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    Components (1):
+    - Transform
+    - Capsule (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(2.00, 0.14, 2.00)
+      Components (3):
+      - Transform
+      - MeshFilter
+      - MeshRenderer
+
+- ---Canvas--- (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (1):
+  - Transform
+  - Canvas (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(960.00, 540.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+    RectTransform: anchMin=(0.00, 0.00) anchMax=(0.00, 0.00) pivot=(0.50, 0.50)
+                 anchoredPos=(960.00, 540.00) sizeDelta=(1920.00, 1080.00) offsetMin=(0.00, 0.00) offsetMax=(1920.00, 1080.00)
+                 rect(w,h)=(1920,1080)
+    Components (4):
+    - RectTransform
+    - Canvas (enabled=True, renderMode=ScreenSpaceOverlay, sortOrder=0, overrideSort=False)
+    - CanvasScaler (mode=ScaleWithScreenSize, refRes=(1920.00, 1080.00), match=0,5)
+    - GraphicRaycaster (enabled=True, ignoreReversed=True)
+    - TaskBoardPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-960.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.00, 0.00) anchMax=(0.00, 1.00) pivot=(0.00, 0.50)
+                   anchoredPos=(0.00, 0.00) sizeDelta=(420.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(420.00, 0.00)
+                   rect(w,h)=(420,1080)
+      Components (5):
+      - RectTransform
+      - CanvasRenderer
+      - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.169))
+      - VerticalLayoutGroup (pad=(12,12,12,12) spacing=10 align=UpperLeft ctrlW=True ctrlH=False expW=True expH=False)
+      - TaskBoardUI
+      - Header (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(210.00, 428.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(210.00, -112.00) sizeDelta=(396.00, 200.00) offsetMin=(12.00, -212.00) offsetMax=(408.00, -12.00)
+                     rect(w,h)=(396,200)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=45 autoSize=False wrap=False raycast=True) text="TASK BOARD" pref(w,h)=(317,19,50,28)
+        - LayoutElement (min=(-1,-1) pref=(-1,42) flex=(0,-1))
+      - Slots (activeSelf=False, activeInHierarchy=False) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, -540.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 0.00) anchMax=(0.00, 0.00) pivot=(0.50, 0.50)
+                     anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 200.00) offsetMin=(0.00, -100.00) offsetMax=(0.00, 100.00)
+                     rect(w,h)=(0,200)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=34,8 autoSize=False wrap=False raycast=True) text="Title" pref(w,h)=(0,0)
+      - TaskList (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(210.00, 68.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(210.00, -472.00) sizeDelta=(396.00, 500.00) offsetMin=(12.00, -722.00) offsetMax=(408.00, -222.00)
+                     rect(w,h)=(396,500)
+        Components (5):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.392))
+        - ScrollRect (H=False, V=True, move=Elastic, inertia=True, sens=20) viewport=---Canvas---/Canvas/TaskBoardPanel/TaskList/Viewport content=---Canvas---/Canvas/TaskBoardPanel/TaskList/Viewport/Content
+        - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,1))
+        - Viewport (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                       rect(w,h)=(396,500)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.000))
+          - RectMask2D (padding=(0.00, 0.00, 0.00, 0.00), softness=(0, 0))
+          - Content (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(0.00, 250.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 1.00)
+                         anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 6.00) offsetMin=(0.00, -6.00) offsetMax=(0.00, 0.00)
+                         rect(w,h)=(396,6)
+            Components (3):
+            - RectTransform
+            - VerticalLayoutGroup (pad=(3,3,3,3) spacing=8 align=UpperLeft ctrlW=True ctrlH=True expW=True expH=False)
+            - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
+      - PayloadText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(210.00, -217.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(210.00, -757.00) sizeDelta=(396.00, 50.00) offsetMin=(12.00, -782.00) offsetMax=(408.00, -732.00)
+                     rect(w,h)=(396,50)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=44,75 autoSize=True wrap=True raycast=True) text="PayloadText" pref(w,h)=(390,54,80,44)
+      - MetaText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(210.00, -277.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(210.00, -817.00) sizeDelta=(396.00, 50.00) offsetMin=(12.00, -842.00) offsetMax=(408.00, -792.00)
+                     rect(w,h)=(396,50)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=44,75 autoSize=True wrap=True raycast=True) text="MetaText" pref(w,h)=(291,75,80,44)
+    - EventLogPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-768.00, -435.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(1.00, 0.00) anchMax=(1.00, 0.00) pivot=(0.50, 0.50)
+                   anchoredPos=(-1728.00, 105.00) sizeDelta=(369.25, 200.20) offsetMin=(-1912.63, 4.90) offsetMax=(-1543.38, 205.10)
+                   rect(w,h)=(369,25,200,2)
+      Components (4):
+      - RectTransform
+      - CanvasRenderer
+      - Image (raycast=True, type=Sliced, color=RGBA(0.415, 0.415, 0.415, 1.000))
+      - EventLogPanelView
+      - HeaderText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 89.20, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 1.00) anchMax=(0.50, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(0.00, -10.90) sizeDelta=(145.50, 19.37) offsetMin=(-72.75, -20.58) offsetMax=(72.75, -1.22)
+                     rect(w,h)=(145,5,19,368)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=17,3 autoSize=True wrap=True raycast=True) text="EVENT LOG" pref(w,h)=(159,36,63,48)
+      - LogText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, -10.79, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                     anchoredPos=(0.00, -10.79) sizeDelta=(364.20, 170.30) offsetMin=(-182.10, -95.94) offsetMax=(182.10, 74.36)
+                     rect(w,h)=(364,2,170,3)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=28 autoSize=True wrap=True raycast=True) text="..." pref(w,h)=(34,63,37,74)
+    - TreasuryPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(854.00, 290.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(1.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                   anchoredPos=(-106.00, -250.00) sizeDelta=(192.70, 476.80) offsetMin=(-202.35, -488.40) offsetMax=(-9.65, -11.60)
+                   rect(w,h)=(192,7,476,8)
+      Components (4):
+      - RectTransform
+      - CanvasRenderer
+      - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.392))
+      - TreasuryPanelView
+      - HeaderText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(19.00, 205.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 1.00) anchMax=(0.50, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(19.00, -33.00) sizeDelta=(200.00, 50.00) offsetMin=(-81.00, -58.00) offsetMax=(119.00, -8.00)
+                     rect(w,h)=(200,50)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=36 autoSize=False wrap=True raycast=True) text="Resourse" pref(w,h)=(154,47,40,22)
+      - ListContainer (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(2.50, -36.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(2.50, -36.90) sizeDelta=(-5.00, -73.80) offsetMin=(5.00, 0.00) offsetMax=(0.00, -73.80)
+                     rect(w,h)=(187,7,403)
+        Components (2):
+        - RectTransform
+        - VerticalLayoutGroup (pad=(25,0,0,0) spacing=0 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
+        - Row_Wood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(-18.85, 151.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(75.00, -50.00) sizeDelta=(100.00, 100.00) offsetMin=(25.00, -100.00) offsetMax=(125.00, 0.00)
+                       rect(w,h)=(100,100)
+          Components (2):
+          - RectTransform
+          - HorizontalLayoutGroup (pad=(0,0,0,0) spacing=0 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
+          - KeyText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(10.00, 30.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                         anchoredPos=(60.00, -20.00) sizeDelta=(120.00, 40.00) offsetMin=(0.00, -40.00) offsetMax=(120.00, 0.00)
+                         rect(w,h)=(120,40)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="Wood" pref(w,h)=(190,43,50,67)
+          - ValueText (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(130.00, 30.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                         anchoredPos=(180.00, -20.00) sizeDelta=(120.00, 40.00) offsetMin=(120.00, -40.00) offsetMax=(240.00, 0.00)
+                         rect(w,h)=(120,40)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=35,8 autoSize=True wrap=True raycast=True) text="0" pref(w,h)=(40,19,80,44)
+      - sell button (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-12.00, -394.40, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
+                     anchoredPos=(-12.00, -156.00) sizeDelta=(93.20, 70.80) offsetMin=(-58.60, -191.40) offsetMax=(34.60, -120.60)
+                     rect(w,h)=(93,2,70,8)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(0.365, 1.000, 0.259, 1.000))
+        - Button (interactable=True, transition=ColorTint)
+        - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                       rect(w,h)=(93,2,70,8)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=32,3 autoSize=True wrap=True raycast=True) text="Sell" pref(w,h)=(85,66,36,09)
+      - TXT_CategoryValues (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-204.00, 198.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                     anchoredPos=(-204.00, 198.00) sizeDelta=(200.00, 50.00) offsetMin=(-304.00, 173.00) offsetMax=(-104.00, 223.00)
+                     rect(w,h)=(200,50)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=36 autoSize=False wrap=True raycast=True) text="Category Values" pref(w,h)=(263,14,81,62)
+      - TXT_SellPreview (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-507.00, 198.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                     anchoredPos=(-507.00, 198.00) sizeDelta=(200.00, 50.00) offsetMin=(-607.00, 173.00) offsetMax=(-407.00, 223.00)
+                     rect(w,h)=(200,50)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=36 autoSize=False wrap=True raycast=True) text="Sell Preview: -" pref(w,h)=(229,82,81,62)
+    - TaskPublisherPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(808.00, -333.46, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(1.00, 0.00) anchMax=(1.00, 0.00) pivot=(0.50, 0.50)
+                   anchoredPos=(-152.00, 206.54) sizeDelta=(253.22, 376.13) offsetMin=(-278.61, 18.48) offsetMax=(-25.39, 394.61)
+                   rect(w,h)=(253,216,376,126)
+      Components (5):
+      - RectTransform
+      - CanvasRenderer
+      - Image (raycast=False, type=Sliced, color=RGBA(0.670, 0.378, 0.174, 1.000))
+      - VerticalLayoutGroup (pad=(5,5,5,5) spacing=5 align=MiddleCenter ctrlW=False ctrlH=False expW=True expH=False)
+      - TaskPublisherPanel
+      - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, 162.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(126.61, -25.56) sizeDelta=(243.22, 37.50) offsetMin=(5.00, -44.31) offsetMax=(248.22, -6.81)
+                     rect(w,h)=(243,216,37,5)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=30,2 autoSize=True wrap=True raycast=True) text="Quest Panel" pref(w,h)=(229,06,33,74)
+        - LayoutElement (min=(-1,-1) pref=(-1,40) flex=(0,-1))
+      - Panel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(0.00, -21.25, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(126.61, -209.31) sizeDelta=(245.00, 320.00) offsetMin=(4.11, -369.31) offsetMax=(249.11, -49.31)
+                     rect(w,h)=(245,320)
+        Components (5):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=False, type=Sliced, color=RGBA(0.896, 0.716, 0.520, 1.000))
+        - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+        - VerticalLayoutGroup (pad=(17,13,0,3) spacing=5 align=UpperLeft ctrlW=True ctrlH=True expW=True expH=True)
+        - FishQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, 130.30, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -29.70) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -59.40) offsetMax=(232.00, 0.00)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonFish (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.000, 1.000, 1.000, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Fishing Quest\n" pref(w,h)=(445,4,90,69)
+        - WoodQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, 65.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -94.10) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -123.80) offsetMax=(232.00, -64.40)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonWood (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.196, 0.632, 0.063, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Woods Quest\n" pref(w,h)=(439,08,93,18)
+        - MiningQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, 1.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -158.50) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -188.20) offsetMax=(232.00, -128.80)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonMine (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.329, 0.330, 0.330, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Mining Quest\n" pref(w,h)=(424,47,99,64)
+        - ExploreQuestCell (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, -62.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -222.90) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -252.60) offsetMax=(232.00, -193.20)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonExplore (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.980, 0.941, 0.902, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Explore Quest\n" pref(w,h)=(457,12,86,27)
+        - ExploreQuestCell (1) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(2.00, -127.30, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(124.50, -287.30) sizeDelta=(215.00, 59.40) offsetMin=(17.00, -317.00) offsetMax=(232.00, -257.60)
+                       rect(w,h)=(215,59,4)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=False, type=Sliced, color=RGBA(0.000, 0.000, 0.000, 0.392))
+          - LayoutElement (min=(-1,-1) pref=(-1,-1) flex=(-1,-1))
+          - ButtonExplore (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(-67.50, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 0.50) anchMax=(0.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(40.00, 0.00) sizeDelta=(65.00, 65.00) offsetMin=(7.50, -32.50) offsetMax=(72.50, 32.50)
+                         rect(w,h)=(65,65)
+            Components (4):
+            - RectTransform
+            - CanvasRenderer
+            - Image (raycast=True, type=Sliced, color=RGBA(0.600, 0.196, 0.800, 1.000))
+            - Button (interactable=True, transition=ColorTint)
+          - Text (TMP) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+            Transform: pos=(39.38, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(1.00, 0.50) anchMax=(1.00, 0.50) pivot=(0.50, 0.50)
+                         anchoredPos=(-68.12, 0.00) sizeDelta=(129.36, 65.00) offsetMin=(-132.80, -32.50) offsetMax=(-3.44, 32.50)
+                         rect(w,h)=(129,361,65)
+            Components (3):
+            - RectTransform
+            - CanvasRenderer
+            - TextMeshProUGUI (TMP_UI size=28,65 autoSize=True wrap=True raycast=True) text="Explore Quest\n" pref(w,h)=(457,12,86,27)
+    - VillagerRosterPanel (activeSelf=False, activeInHierarchy=False) [tag=Untagged, layer=Default]
+      Transform: pos=(454.00, -210.50, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.50, 0.00) anchMax=(0.50, 0.00) pivot=(0.50, 0.50)
+                   anchoredPos=(454.00, 329.50) sizeDelta=(420.00, 600.00) offsetMin=(244.00, 29.50) offsetMax=(664.00, 629.50)
+                   rect(w,h)=(420,600)
+      Components (4):
+      - RectTransform
+      - CanvasRenderer
+      - Image (raycast=True, type=Sliced, color=RGBA(1.000, 0.855, 0.725, 1.000))
+      - VillagerRosterPanelView
+      - Title (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+        Transform: pos=(-124.94, 272.07, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(85.06, -27.93) sizeDelta=(127.82, 37.87) offsetMin=(21.15, -46.87) offsetMax=(148.97, -9.00)
+                     rect(w,h)=(127,822,37,865)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - TextMeshProUGUI (TMP_UI size=33,45 autoSize=True wrap=True raycast=True) text="Villagers" pref(w,h)=(0,0)
+      - RosterScroll (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+        Transform: pos=(0.55, -21.13, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                     anchoredPos=(0.55, -21.13) sizeDelta=(378.79, 524.30) offsetMin=(-188.85, -283.27) offsetMax=(189.94, 241.02)
+                     rect(w,h)=(378,79,524,298)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(0.980, 0.941, 0.902, 1.000))
+        - ScrollRect (H=False, V=True, move=Elastic, inertia=True, sens=1) viewport=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport content=---Canvas---/Canvas/VillagerRosterPanel/RosterScroll/Viewport/Content
+        - Viewport (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+          Transform: pos=(-189.40, 262.15, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.00, 1.00)
+                       anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                       rect(w,h)=(378,79,524,298)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - Image (raycast=True, type=Sliced, color=RGBA(0.830, 0.708, 0.443, 1.000))
+          - Mask (showMaskGraphic=False)
+          - Content (activeSelf=True, activeInHierarchy=False) [tag=Untagged, layer=Default]
+            Transform: pos=(189.40, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+            RectTransform: anchMin=(0.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 1.00)
+                         anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 10.00) offsetMin=(0.00, -10.00) offsetMax=(0.00, 0.00)
+                         rect(w,h)=(378,79,10)
+            Components (3):
+            - RectTransform
+            - VerticalLayoutGroup (pad=(5,5,5,5) spacing=7 align=UpperLeft ctrlW=False ctrlH=False expW=True expH=True)
+            - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
+    - VillagerInspect (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(-429.00, -268.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                   anchoredPos=(-429.00, -268.00) sizeDelta=(100.00, 100.00) offsetMin=(-479.00, -318.00) offsetMax=(-379.00, -218.00)
+                   rect(w,h)=(100,100)
+      Components (2):
+      - RectTransform
+      - VillagerInspectPanelView
+      - VillagerInspectPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-1.00, -6.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(49.00, -56.00) sizeDelta=(216.20, 352.34) offsetMin=(-59.10, -232.17) offsetMax=(157.10, 120.17)
+                     rect(w,h)=(216,2,352,34)
+        Components (5):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(1.000, 1.000, 1.000, 0.392))
+        - VerticalLayoutGroup (pad=(12,12,12,12) spacing=10 align=UpperLeft ctrlW=True ctrlH=True expW=True expH=False)
+        - ContentSizeFitter (horiz=Unconstrained, vert=PreferredSize)
+        - TXT_Title (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 150.76, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -25.41) sizeDelta=(192.20, 26.82) offsetMin=(12.00, -38.82) offsetMax=(204.20, -12.00)
+                       rect(w,h)=(192,2,26,82)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=24 autoSize=False wrap=True raycast=True) text="Villager" pref(w,h)=(79,67,26,82)
+        - IMG_Preview (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 37.35, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -138.82) sizeDelta=(192.20, 180.00) offsetMin=(12.00, -228.82) offsetMax=(204.20, -48.82)
+                       rect(w,h)=(192,2,180)
+          Components (4):
+          - RectTransform
+          - CanvasRenderer
+          - RawImage
+          - LayoutElement (min=(-1,-1) pref=(-1,180) flex=(-1,-1))
+        - TXT_Status (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -71.59, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -247.76) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -256.70) offsetMax=(204.20, -238.82)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Status: …" pref(w,h)=(70,33,17,88)
+        - TXT_Stats (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -99.47, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -275.64) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -284.58) offsetMax=(204.20, -266.70)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Lv…" pref(w,h)=(32,94,17,88)
+        - TXT_Perks (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -127.35, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -303.52) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -312.46) offsetMax=(204.20, -294.58)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Perks: …" pref(w,h)=(66,05,17,88)
+        - TXT_Inventory (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, -155.23, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 1.00) anchMax=(0.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(108.10, -331.40) sizeDelta=(192.20, 17.88) offsetMin=(12.00, -340.34) offsetMax=(204.20, -322.46)
+                       rect(w,h)=(192,2,17,88)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=16 autoSize=False wrap=True raycast=True) text="Inventory: …" pref(w,h)=(90,61,17,88)
+      - Button (Legacy) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(82.50, 154.90, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(1.00, 1.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                     anchoredPos=(32.50, 104.90) sizeDelta=(50.00, 30.00) offsetMin=(7.50, 89.90) offsetMax=(57.50, 119.90)
+                     rect(w,h)=(50,30)
+        Components (4):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Sliced, color=RGBA(0.877, 0.751, 0.542, 1.000))
+        - Button (interactable=True, transition=ColorTint)
+        - Text (Legacy) (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                       anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                       rect(w,h)=(50,30)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - Text
+    - WorldDebugPopupLayer (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                   anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                   rect(w,h)=(1920,1080)
+      Components (5):
+      - RectTransform
+      - Canvas (enabled=True, renderMode=ScreenSpaceOverlay, sortOrder=0, overrideSort=False)
+      - CanvasScaler (mode=ConstantPixelSize, refRes=(800.00, 600.00), match=0)
+      - GraphicRaycaster (enabled=True, ignoreReversed=True)
+      - WorldDebugPopupService
+    - LocationMetricsPanel (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+      Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+      RectTransform: anchMin=(0.00, 0.00) anchMax=(1.00, 1.00) pivot=(0.50, 0.50)
+                   anchoredPos=(0.00, 0.00) sizeDelta=(0.00, 0.00) offsetMin=(0.00, 0.00) offsetMax=(0.00, 0.00)
+                   rect(w,h)=(1920,1080)
+      Components (2):
+      - RectTransform
+      - LocationMetricsPanelView
+      - Image (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+        Transform: pos=(-749.00, 424.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+        RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                     anchoredPos=(-749.00, 424.00) sizeDelta=(400.00, 197.40) offsetMin=(-949.00, 325.30) offsetMax=(-549.00, 522.70)
+                     rect(w,h)=(400,197,4)
+        Components (3):
+        - RectTransform
+        - CanvasRenderer
+        - Image (raycast=True, type=Simple, color=RGBA(0.623, 0.494, 0.332, 1.000))
+        - TXT_Title (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(-82.00, 61.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+          RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                       anchoredPos=(-82.00, 61.00) sizeDelta=(200.00, 50.00) offsetMin=(-182.00, 36.00) offsetMax=(18.00, 86.00)
+                       rect(w,h)=(200,50)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=36 autoSize=False wrap=True raycast=True) text="New Text" pref(w,h)=(146,9,40,22)
+        - TXT_Body (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+          Transform: pos=(-107.00, 9.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(0.80, 0.80, 0.80)
+          RectTransform: anchMin=(0.50, 0.50) anchMax=(0.50, 0.50) pivot=(0.50, 0.50)
+                       anchoredPos=(-107.00, 9.00) sizeDelta=(200.00, 50.00) offsetMin=(-207.00, -16.00) offsetMax=(-7.00, 34.00)
+                       rect(w,h)=(200,50)
+          Components (3):
+          - RectTransform
+          - CanvasRenderer
+          - TextMeshProUGUI (TMP_UI size=44,75 autoSize=True wrap=True raycast=True) text="New Text" pref(w,h)=(293,8,163,24)
+
+- EventSystem (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (3):
+  - Transform
+  - EventSystem
+  - InputSystemUIInputModule
+
+- VillagerPreviewRoot (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+  Transform: pos=(0.00, 0.00, 0.00) rot=(0.00, 0.00, 0.00) scale=(1.00, 1.00, 1.00)
+  Components (1):
+  - Transform
+  - VillagerPreviewCamera (activeSelf=True, activeInHierarchy=True) [tag=Untagged, layer=Default]
+    Transform: pos=(-0.92, 1.29, -2.87) rot=(352.42, 18.54, 1.52) scale=(1.00, 1.00, 1.00)
+    Components (3):
+    - Transform
+    - Camera
+    - UniversalAdditionalCameraData
+

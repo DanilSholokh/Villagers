@@ -30,12 +30,9 @@ public static class TaskSelectionLogic
             return true;
 
         var costBundle = task.GetResolvedTaskCostBundle();
-        if (costBundle != null && !costBundle.IsEmpty)
-            return treasury.CanAfford(costBundle);
+        if (costBundle == null || costBundle.IsEmpty)
+            return true;
 
-        if (task.wageGold > 0)
-            return treasury.GetAmount("gold") >= task.wageGold;
-
-        return true;
+        return treasury.CanAfford(costBundle);
     }
 }

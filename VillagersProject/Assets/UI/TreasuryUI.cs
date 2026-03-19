@@ -7,13 +7,53 @@ public class TreasuryUI : MonoBehaviour
 
     private void Update()
     {
-        if (text == null || GameInstaller.Treasury == null) return;
+        if (text == null)
+            return;
 
-        // Поки вручну 3 ресурси (MVP)
-        int wood = GameInstaller.Treasury.GetAmount("wood");
-        int fish = GameInstaller.Treasury.GetAmount("fish");
-        int stone = GameInstaller.Treasury.GetAmount("stone");
+        var treasury = GameInstaller.Treasury;
+        if (treasury == null)
+        {
+            text.text = "Treasury: -";
+            return;
+        }
 
-        text.text = $"WOOD: {wood}\nFISH: {fish}\nSTONE: {stone}";
+        var snapshot = treasury.ReadOnlySnapshot();
+        if (snapshot == null || snapshot.Count == 0)
+        {
+            text.text = "Treasury: empty";
+            return;
+        }
+
+        var lines = new System.Text.StringBuilder(256);
+        lines.AppendLine("Treasury");
+
+        foreach (var resource in GameInstaller.Resources != null ? GameInstaller.Resources.GetAll() : null)
+        {
+            if (resource == null)
+                continue;
+
+            string resourceId = Normalize(resource.resourceId);
+            if (string.IsNullOrWhiteSpace(resourceId))
+                continue;
+
+            int amount = treasury.GetAmount(resourceId);
+            if (amount <= 0)
+                continue;
+
+            string displayName = string.IsNullOrWhiteSpace(resource.displayName)
+                ? resourceId
+                : resource.displayName;
+
+            lines.AppendLine($"{displayName}: {amount}");
+        }
+
+        text.text = lines.ToString().TrimEnd();
+    }
+
+    private static string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
     }
 }

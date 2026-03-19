@@ -10,12 +10,10 @@ public class TaskBoardUI : MonoBehaviour
     [SerializeField] private TMPro.TextMeshProUGUI metaText;
 
     private readonly List<TaskRowUI> rows = new();
-
     private TaskBoardService _board;
 
     public void Bind(TaskBoardService board)
     {
-        // відписка від старого board
         if (_board != null)
         {
             _board.OnTasksChanged -= HandleTasksChanged;
@@ -24,13 +22,12 @@ public class TaskBoardUI : MonoBehaviour
 
         _board = board;
 
-        // підписка на новий board
         if (_board != null)
         {
-            _board.OnTasksChanged -= HandleTasksChanged;               // safety від дублю
+            _board.OnTasksChanged -= HandleTasksChanged;
             _board.OnTasksChanged += HandleTasksChanged;
 
-            _board.OnReservationsChanged -= HandleReservationsChanged; // safety від дублю
+            _board.OnReservationsChanged -= HandleReservationsChanged;
             _board.OnReservationsChanged += HandleReservationsChanged;
         }
 
@@ -41,14 +38,12 @@ public class TaskBoardUI : MonoBehaviour
 
     private void OnEnable()
     {
-
-        // якщо панель вимикали/вмикали — перепідписатись
         if (_board != null)
         {
-            _board.OnTasksChanged -= HandleTasksChanged;               // safety
+            _board.OnTasksChanged -= HandleTasksChanged;
             _board.OnTasksChanged += HandleTasksChanged;
 
-            _board.OnReservationsChanged -= HandleReservationsChanged; // safety
+            _board.OnReservationsChanged -= HandleReservationsChanged;
             _board.OnReservationsChanged += HandleReservationsChanged;
         }
 
@@ -81,19 +76,24 @@ public class TaskBoardUI : MonoBehaviour
 
     public void Rebuild()
     {
+        if (rowsRoot == null || rowPrefab == null || _board == null)
+            return;
 
-        if (rowsRoot == null || rowPrefab == null) return;
-        if (_board == null) return;
-
-        // clear
         for (int i = 0; i < rows.Count; i++)
-            if (rows[i] != null) Destroy(rows[i].gameObject);
+        {
+            if (rows[i] != null)
+                Destroy(rows[i].gameObject);
+        }
+
         rows.Clear();
 
         var tasks = _board.GetAllTasks();
         for (int i = 0; i < tasks.Count; i++)
         {
             var t = tasks[i];
+            if (t == null)
+                continue;
+
             var row = Instantiate(rowPrefab, rowsRoot);
             row.Bind(t);
             rows.Add(row);
@@ -102,10 +102,14 @@ public class TaskBoardUI : MonoBehaviour
 
     private void RefreshAll()
     {
-        if (_board == null) return;
+        if (_board == null)
+            return;
 
         for (int i = 0; i < rows.Count; i++)
-            if (rows[i] != null) rows[i].Refresh();
+        {
+            if (rows[i] != null)
+                rows[i].Refresh();
+        }
     }
 
     private void RefreshSummary()
@@ -128,8 +132,11 @@ public class TaskBoardUI : MonoBehaviour
         int gatherCount = 0;
         int exploreCount = 0;
         int surveyCount = 0;
-        int totalRewardGold = 0;
         int totalReservedSlots = 0;
+
+        var totalOutput = new ResourceBundle();
+        var totalReward = new ResourceBundle();
+        var totalCost = new ResourceBundle();
 
         for (int i = 0; i < tasks.Count; i++)
         {
@@ -144,25 +151,55 @@ public class TaskBoardUI : MonoBehaviour
                 case TaskType.SurveyKnownLocation: surveyCount++; break;
             }
 
-            var reward = t.GetResolvedTaskRewardBundle();
-            if (reward != null)
-                totalRewardGold += reward.GetExactAmount("gold");
-
             totalReservedSlots += _board.SlotsTaken(t.taskId);
+            MergeInto(totalOutput, t.GetResolvedWorkOutputBundle());
+            MergeInto(totalReward, t.GetResolvedTaskRewardBundle());
+            MergeInto(totalCost, t.GetResolvedTaskCostBundle());
         }
 
         if (payloadText != null)
         {
             payloadText.text =
-                $"Tasks: {tasks.Count} | Gather: {gatherCount} | Explore: {exploreCount} | Survey: {surveyCount}";
+                EconomyUiTextFormatter.FormatBundleLine("Output", totalOutput) + "\n" +
+                EconomyUiTextFormatter.FormatBundleLine("Reward", totalReward) + "\n" +
+                EconomyUiTextFormatter.FormatBundleLine("Cost", totalCost);
         }
 
         if (metaText != null)
         {
             metaText.text =
-                $"Reserved: {totalReservedSlots} | Total Gold Reward: {totalRewardGold}";
+                $"Tasks: {tasks.Count} | Gather: {gatherCount} | Explore: {exploreCount} | Survey: {surveyCount}\n" +
+                $"Reserved: {totalReservedSlots}";
         }
     }
 
+    private void MergeInto(ResourceBundle target, ResourceBundle source)
+    {
+        if (target == null || source == null || source.IsEmpty)
+            return;
 
+        var exact = source.ExactResources;
+        if (exact != null)
+        {
+            for (int i = 0; i < exact.Count; i++)
+            {
+                var stack = exact[i];
+                if (stack.IsValid)
+                    target.AddExact(stack.resourceId, stack.amount);
+            }
+        }
+
+        var categories = source.CategoryValues;
+        if (categories != null)
+        {
+            for (int i = 0; i < categories.Count; i++)
+            {
+                var req = categories[i];
+                if (req.IsValid)
+                    target.AddCategoryValue(req.categoryId, req.value);
+            }
+        }
+
+        target.Normalize();
+    }
 }

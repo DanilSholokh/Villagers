@@ -105,8 +105,10 @@ public class TaskPublisherPanel : MonoBehaviour
     {
         if (publishButtons == null)
             return;
-        
+
         bool anyPublishable = false;
+        string firstBlockedReason = string.Empty;
+
         for (int i = 0; i < publishButtons.Count; i++)
         {
             var def = publishButtons[i];
@@ -115,14 +117,26 @@ public class TaskPublisherPanel : MonoBehaviour
 
             string reason;
             bool canPublish = CanPublish(def, out reason);
-            if (publishStateText != null && anyPublishable)
-                publishStateText.text = "Ready";
-
             def.button.interactable = canPublish;
 
-            if (publishStateText != null && !canPublish)
-                publishStateText.text = $"Blocked: {reason}";
+            if (canPublish)
+                anyPublishable = true;
+            else if (string.IsNullOrWhiteSpace(firstBlockedReason))
+                firstBlockedReason = reason;
         }
+
+        if (publishStateText != null)
+            publishStateText.text = BuildPublishStateText(anyPublishable, firstBlockedReason);
+    }
+
+    private string BuildPublishStateText(bool anyPublishable, string blockedReason)
+    {
+        if (anyPublishable)
+            return "Ready";
+
+        return string.IsNullOrWhiteSpace(blockedReason)
+            ? "Blocked"
+            : $"Blocked: {blockedReason}";
     }
 
 
@@ -159,7 +173,7 @@ public class TaskPublisherPanel : MonoBehaviour
                         return false;
                     }
 
-                    targetLocationId = locations.FindAnyLocationForResource(
+                    targetLocationId = locations.FindRandomLocationForResource(
                         normalizedResourceId,
                         onlyDiscovered: true,
                         onlyUnlocked: true
@@ -265,7 +279,7 @@ public class TaskPublisherPanel : MonoBehaviour
                         return false;
                     }
 
-                    if (!explore.CanAfford(treasury, out reason))
+                    if (treasury != null && !explore.CanAfford(treasury, out reason))
                         return false;
 
                     return true;
@@ -318,15 +332,7 @@ public class TaskPublisherPanel : MonoBehaviour
                 break;
 
             case TaskType.ExploreNewLocation:
-                PublishExploreNewLocation(
-                    def.displayName,
-                    def.maxTakers,
-                    def.durationSec,
-                    def.wageGold,
-                    def.priority,
-                    def.baseFailChance,
-                    targetLocationId
-                );
+                PublishExploreTask(def);
                 break;
 
             case TaskType.SurveyKnownLocation:
@@ -720,6 +726,81 @@ public class TaskPublisherPanel : MonoBehaviour
             }
         }
     }
+
+
+    private void PublishExploreTask(PublishDef def)
+    {
+        var board = _board != null ? _board : GameInstaller.TaskBoard;
+        var locations = GameInstaller.LocationService;
+        var explore = GameInstaller.ExplorationUnlock;
+
+        if (board == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "TaskBoardService is null (GameInstaller not ready?)");
+            return;
+        }
+
+        if (locations == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "LocationService is null");
+            return;
+        }
+
+        if (explore == null)
+        {
+            GameDebug.Error(GameDebugChannel.UI, "ExplorationUnlockService is null");
+            return;
+        }
+
+        if (GameInstaller.Treasury != null && !explore.CanAfford(GameInstaller.Treasury, out var blockedReason))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, $"Publish blocked: {blockedReason}");
+            return;
+        }
+
+        string targetLocationId = locations.FindRandomUnknownLocationId();
+        if (string.IsNullOrWhiteSpace(targetLocationId))
+        {
+            GameDebug.Warning(GameDebugChannel.Task, "Publish blocked: No unknown locations left");
+            return;
+        }
+
+        var rewardBundle = new ResourceBundle();
+        if (def.wageGold > 0)
+        {
+            rewardBundle.AddExact("gold", Mathf.Max(0, def.wageGold));
+            rewardBundle.Normalize();
+        }
+
+        var task = new TaskInstance
+        {
+            taskId = System.Guid.NewGuid().ToString("N"),
+            type = TaskType.ExploreNewLocation,
+            displayName = string.IsNullOrWhiteSpace(def.displayName) ? explore.DisplayName : def.displayName,
+            active = true,
+            priority = Mathf.Clamp(def.priority, 0, 5),
+            maxTakers = Mathf.Max(1, def.maxTakers),
+            durationSec = Mathf.Max(0.1f, def.durationSec),
+            wageGold = Mathf.Max(0, def.wageGold),
+            resourceId = string.Empty,
+            baseAmount = 0,
+            taskCostBundle = explore.BuildCostBundle(),
+            workOutputBundle = new ResourceBundle(),
+            taskRewardBundle = rewardBundle,
+            baseFailChance = Mathf.Clamp01(def.baseFailChance)
+        };
+
+        task.RecalculateDerivedStats();
+        task.SetTargetLocation(targetLocationId);
+
+        board.AddTaskRuntime(task);
+
+        GameDebug.Info(
+            GameDebugChannel.UI,
+            $"Published Explore task: {task.taskId} target={targetLocationId} cost={explore.GetCostText()}"
+        );
+    }
+
 
     private ResourceBundle BuildExactUpfrontCostBundle(PublishDef def)
     {

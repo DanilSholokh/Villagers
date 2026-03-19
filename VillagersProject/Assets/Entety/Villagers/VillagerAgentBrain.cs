@@ -760,7 +760,7 @@ public class VillagerAgentBrain : MonoBehaviour
             Log($"Task success: {task.taskId}");
             PublishTaskEvent($"Completed: {task.taskId}");
 
-            ApplyTaskSettlement(task, true);
+            ApplyTaskSettlement(task, settleEscrowAsSuccess: true, finalTaskLabel: task.displayName);
             return;
         }
 
@@ -769,7 +769,7 @@ public class VillagerAgentBrain : MonoBehaviour
         Log($"Task failed: {task.taskId}");
         PublishTaskEvent($"Failed: {task.taskId}", GameDebugSeverity.Warning);
 
-        ApplyTaskSettlement(task, false);
+        ApplyTaskSettlement(task, settleEscrowAsSuccess: false, finalTaskLabel: "FAILED");
     }
 
 
@@ -789,15 +789,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Corpses?.AddCorpse(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) && GameInstaller.LocationService != null)
+        if (task != null &&
+            !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) &&
+            GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerDead(task.GetResolvedTargetLocationId());
         }
 
         _taskSettlement.ApplyDeath(task, _cargo, _treasury);
-
         _taskEscrow.SettleDeath(_activeEscrow, _treasury);
-        _activeEscrow = null;
 
         Log($"PENALTY: DEATH at {_lastWorkLocationId} escrow={escrowGold}");
 
@@ -812,6 +812,7 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "DEAD");
         }
 
+        _activeEscrow = null;
         StopBrain();
     }
 
@@ -834,15 +835,15 @@ public class VillagerAgentBrain : MonoBehaviour
 
         GameInstaller.Lost?.AddLost(rec);
 
-        if (task != null && !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) && GameInstaller.LocationService != null)
+        if (task != null &&
+            !string.IsNullOrWhiteSpace(task.GetResolvedTargetLocationId()) &&
+            GameInstaller.LocationService != null)
         {
             GameInstaller.LocationService.AddVillagerLost(task.GetResolvedTargetLocationId());
         }
 
         _taskSettlement.ApplyLost(task, _cargo, _treasury);
-
         _taskEscrow.SettleLost(_activeEscrow, _treasury);
-        _activeEscrow = null;
 
         Log($"PENALTY: LOST at {_lastWorkLocationId} hidden={hidden} escrow={escrowGold}");
 
@@ -857,7 +858,31 @@ public class VillagerAgentBrain : MonoBehaviour
             _roster?.SetStatus(agentId, VillagerStatus.Idle, null, "LOST");
         }
 
+        _activeEscrow = null;
         StopBrain();
+    }
+
+    private void ApplyTaskSettlement(TaskInstance task, bool settleEscrowAsSuccess, string finalTaskLabel)
+    {
+        if (task == null)
+            return;
+
+        if (settleEscrowAsSuccess)
+            _taskEscrow.SettleSuccess(_activeEscrow, _treasury);
+        else
+            _taskEscrow.SettleFailure(_activeEscrow, _treasury);
+
+        _activeEscrow = null;
+
+        ReleaseTaskWorkerBinding(task);
+        CleanupTaskReservation(task);
+
+        _roster?.SetStatus(
+            agentId,
+            VillagerStatus.Idle,
+            task.taskId,
+            string.IsNullOrWhiteSpace(finalTaskLabel) ? task.displayName : finalTaskLabel
+        );
     }
 
     private bool TryGetStrictTaskLocation(
@@ -938,7 +963,7 @@ public class VillagerAgentBrain : MonoBehaviour
 
         if (loc == null)
         {
-            locationId = locations.FindAnyLocationForResource(task.resourceId, true, true);
+            locationId = locations.FindRandomLocationForResource(task.resourceId, true, true);
 
             if (!string.IsNullOrWhiteSpace(locationId))
                 loc = locations.GetLocation(locationId);

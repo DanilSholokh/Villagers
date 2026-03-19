@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Text;
 
 public class TaskRowUI : MonoBehaviour
 {
@@ -85,16 +86,48 @@ public class TaskRowUI : MonoBehaviour
         if (payloadText != null)
         {
             string payload = EconomyUiTextFormatter.BuildTaskPayloadSummary(task);
-            payloadText.text = string.IsNullOrWhiteSpace(payload) ? "Output: -\nReward: -\nCost: -" : payload;
+            payloadText.text = string.IsNullOrWhiteSpace(payload)
+                ? "Output: -\nReward: -\nCost: -"
+                : payload;
         }
 
         if (metaText != null)
-        {
-            metaText.text =
-                $"Type: {task.type}\n" +
-                $"Duration: {task.durationSec:0.0}s\n" +
-                $"Risk Tier: {task.riskTier}";
-        }
+            metaText.text = BuildMetaText(task);
+    }
+
+    private string BuildMetaText(TaskInstance task)
+    {
+        var sb = new StringBuilder(192);
+
+        sb.Append("Type: ").Append(task.type).Append('\n');
+        sb.Append("Duration: ").Append(task.durationSec.ToString("0.0")).Append("s").Append('\n');
+        sb.Append("Risk Tier: ").Append(task.riskTier).Append('\n');
+
+        string targetLocationId = task.GetResolvedTargetLocationId();
+        if (!string.IsNullOrWhiteSpace(targetLocationId))
+            sb.Append("Target: ").Append(GetLocationDisplayName(targetLocationId));
+        else
+            sb.Append("Target: random suitable location");
+
+        return sb.ToString();
+    }
+
+    private string GetLocationDisplayName(string locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+            return "-";
+
+        var locations = GameInstaller.LocationService;
+        if (locations == null)
+            return locationId;
+
+        var loc = locations.GetLocation(locationId);
+        if (loc == null)
+            return locationId;
+
+        return string.IsNullOrWhiteSpace(loc.name)
+            ? loc.id
+            : loc.name;
     }
 
     private void RefreshRisk(TaskInstance task)

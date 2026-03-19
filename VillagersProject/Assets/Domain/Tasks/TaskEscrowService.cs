@@ -25,44 +25,31 @@
             return true;
 
         var upfrontCostBundle = task.GetResolvedTaskCostBundle();
-        if (upfrontCostBundle != null && !upfrontCostBundle.IsEmpty)
-        {
-            var validateResult = treasury.ValidateBundle(upfrontCostBundle, "task_upfront_cost_preview");
-            if (!validateResult.success)
-            {
-                errorMessage = string.IsNullOrWhiteSpace(validateResult.message)
-                    ? $"Not enough upfront bundle cost for task={task.taskId}"
-                    : validateResult.message;
-                return false;
-            }
-
-            var spendResult = treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
-            if (!spendResult.success)
-            {
-                errorMessage = $"Upfront bundle spend failed for task={task.taskId} reason={spendResult.message}";
-                return false;
-            }
-
-            reservation.usesBundleCost = true;
-            reservation.spentBundle = spendResult.consumed != null && !spendResult.consumed.IsEmpty
-                ? spendResult.consumed.Clone()
-                : upfrontCostBundle.Clone();
-
+        if (upfrontCostBundle == null || upfrontCostBundle.IsEmpty)
             return true;
+
+        var validateResult = treasury.ValidateBundle(upfrontCostBundle, "task_upfront_cost_preview");
+        if (!validateResult.success)
+        {
+            errorMessage = string.IsNullOrWhiteSpace(validateResult.message)
+                ? $"Not enough upfront bundle cost for task={task.taskId}"
+                : validateResult.message;
+            return false;
         }
 
-        if (task.wageGold > 0)
+        var spendResult = treasury.SpendBundle(upfrontCostBundle, "task_upfront_cost");
+        if (!spendResult.success)
         {
-            if (!treasury.TryHoldGold(task.wageGold))
-            {
-                errorMessage = $"Not enough gold for wage={task.wageGold}";
-                return false;
-            }
-
-            reservation.usesLegacyGold = true;
-            reservation.lockedGold = task.wageGold;
-            return true;
+            errorMessage = $"Upfront bundle spend failed for task={task.taskId} reason={spendResult.message}";
+            return false;
         }
+
+        reservation.usesBundleCost = true;
+        reservation.usesLegacyGold = false;
+        reservation.lockedGold = 0;
+        reservation.spentBundle = spendResult.consumed != null && !spendResult.consumed.IsEmpty
+            ? spendResult.consumed.Clone()
+            : upfrontCostBundle.Clone();
 
         return true;
     }
@@ -72,9 +59,6 @@
         if (!HasActiveReservation(reservation) || treasury == null)
             return;
 
-        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
-            treasury.ConsumeLockedGold(reservation.lockedGold);
-
         ClearReservation(reservation);
     }
 
@@ -82,13 +66,6 @@
     {
         if (!HasActiveReservation(reservation) || treasury == null)
             return;
-
-        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
-        {
-            treasury.RefundGold(reservation.lockedGold);
-            ClearReservation(reservation);
-            return;
-        }
 
         if (reservation.usesBundleCost &&
             reservation.spentBundle != null &&
@@ -105,10 +82,7 @@
         if (!HasActiveReservation(reservation) || treasury == null)
             return;
 
-        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
-            treasury.ConsumeLockedGold(reservation.lockedGold);
-
-        // bundle upfront cost stays consumed on death
+        // upfront bundle cost stays consumed on death
         ClearReservation(reservation);
     }
 
@@ -117,10 +91,7 @@
         if (!HasActiveReservation(reservation) || treasury == null)
             return;
 
-        if (reservation.usesLegacyGold && reservation.lockedGold > 0)
-            treasury.ConsumeLockedGold(reservation.lockedGold);
-
-        // bundle upfront cost stays consumed on lost
+        // upfront bundle cost stays consumed on lost
         ClearReservation(reservation);
     }
 

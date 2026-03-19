@@ -33,13 +33,14 @@ public class LocationService
     public bool HasAnyDiscoveredLocationForResource(string resourceId)
     {
         return !string.IsNullOrWhiteSpace(
-            FindAnyLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true)
+            FindRandomLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true)
         );
     }
 
     public string FindAnyDiscoveredLocationForResource(string resourceId)
     {
-        return FindAnyLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true);
+        // legacy name kept for compatibility, but selection path is random-from-valid-pool
+        return FindRandomLocationForResource(resourceId, onlyDiscovered: true, onlyUnlocked: true);
     }
 
     public string FindRandomUndiscoveredLocationId()
@@ -209,6 +210,30 @@ public class LocationService
             if (r == null) continue;
 
             if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase) && r.isUnlocked)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool HasResource(string locationId, string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId) || string.IsNullOrWhiteSpace(resourceId))
+            return false;
+
+        var loc = _registry.Get(locationId);
+        if (loc == null || loc.resources == null)
+            return false;
+
+        resourceId = resourceId.ToLowerInvariant();
+
+        for (int i = 0; i < loc.resources.Count; i++)
+        {
+            var r = loc.resources[i];
+            if (r == null)
+                continue;
+
+            if (string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 
@@ -458,7 +483,75 @@ public class LocationService
     }
 
 
+    public List<string> FindLocationsForResource(
+     string resourceId,
+     bool onlyDiscovered,
+     bool onlyUnlocked)
+    {
+        var result = new List<string>();
 
+        resourceId = Normalize(resourceId);
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return result;
+
+        var all = GetAllLocations();
+        if (all == null)
+            return result;
+
+        foreach (var loc in all)
+        {
+            if (loc == null || string.IsNullOrWhiteSpace(loc.id))
+                continue;
+
+            if (onlyDiscovered && loc.status != LocationStatus.Discovered)
+                continue;
+
+            if (loc.resources == null || loc.resources.Count == 0)
+                continue;
+
+            bool hasResource = false;
+
+            for (int i = 0; i < loc.resources.Count; i++)
+            {
+                var r = loc.resources[i];
+                if (r == null)
+                    continue;
+
+                if (!string.Equals(r.resourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (onlyUnlocked && !r.isUnlocked)
+                    continue;
+
+                hasResource = true;
+                break;
+            }
+
+            if (hasResource)
+                result.Add(loc.id);
+        }
+
+        return result;
+    }
+
+    public string FindRandomLocationForResource(
+        string resourceId,
+        bool onlyDiscovered,
+        bool onlyUnlocked)
+    {
+        var candidates = FindLocationsForResource(resourceId, onlyDiscovered, onlyUnlocked);
+        if (candidates == null || candidates.Count == 0)
+            return string.Empty;
+
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
+
+    private static string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+    }
 
     private void Dbg(string text)
     {
@@ -565,5 +658,9 @@ public class LocationService
 
         GameDebug.Info(GameDebugChannel.Location, "=== Locations Dump End ===");
     }
+
+
+    
+
 
 }

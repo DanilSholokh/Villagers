@@ -259,7 +259,7 @@ public class TreasuryPanelView : MonoBehaviour
         }
 
         var values = GameInstaller.CategoryValues.BuildCategoryValueStacks(_treasury);
-        categoryValuesText.text = "Category Values\n" + EconomyUiTextFormatter.FormatCategoryValueStacks(values);
+        categoryValuesText.text = EconomyUiTextFormatter.FormatCategoryValueStacks(values);
     }
 
     private void RefreshSellPreviewText()

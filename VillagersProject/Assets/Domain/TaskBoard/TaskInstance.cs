@@ -26,6 +26,7 @@ public class TaskInstance
     public float durationSec;
     public float baseFailChance = 0.5f; // 0..1
 
+    // legacy reward field
     public int wageGold;
 
     public float successChance;   // 0..1
@@ -69,6 +70,24 @@ public class TaskInstance
         return (workOutputBundle != null && !workOutputBundle.IsEmpty)
             || (taskRewardBundle != null && !taskRewardBundle.IsEmpty)
             || (taskCostBundle != null && !taskCostBundle.IsEmpty);
+    }
+
+    public bool HasUpfrontCost()
+    {
+        var cost = GetResolvedTaskCostBundle();
+        return cost != null && !cost.IsEmpty;
+    }
+
+    public bool HasRewardBundle()
+    {
+        var reward = GetResolvedTaskRewardBundle();
+        return reward != null && !reward.IsEmpty;
+    }
+
+    public bool UsesLegacyGoldRewardOnly()
+    {
+        bool hasExplicitRewardBundle = taskRewardBundle != null && !taskRewardBundle.IsEmpty;
+        return !hasExplicitRewardBundle && wageGold > 0;
     }
 
     public bool HasTargetLocation()

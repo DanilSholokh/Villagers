@@ -16,9 +16,8 @@ public class TaskEscrowReservation
     {
         get
         {
-            bool hasGold = usesLegacyGold && lockedGold > 0;
             bool hasBundle = usesBundleCost && spentBundle != null && !spentBundle.IsEmpty;
-            return hasGold || hasBundle;
+            return hasBundle;
         }
     }
 
